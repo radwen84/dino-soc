@@ -1,0 +1,23 @@
+apiVersion: v2
+name: minisoc
+description: Mini-SOC Platform - Security Operations Center
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+maintainers:
+  - name: Radwen CHEICHK
+    email: loulou@minisoc.local
+keywords:
+  - soc
+  - security
+  - siem
+  - incident-response
+dependencies:
+  - name: postgresql
+    version: "15.5.x"
+    repository: https://charts.bitnami.com/bitnami
+    condition: postgresql.enabled
+  - name: redis
+    version: "19.x"
+    repository: https://charts.bitnami.com/bitnami
+    condition: redis.enabled

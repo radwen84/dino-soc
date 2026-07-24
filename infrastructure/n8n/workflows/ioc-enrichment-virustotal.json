@@ -1,0 +1,106 @@
+{
+  "name": "IOC Enrichment - Multi-Source",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ioc-enrichment",
+        "responseMode": "responseNode"
+      },
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "position": [250, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "url": "=https://www.virustotal.com/api/v3/ip_addresses/{{$json.value}}",
+        "options": {
+          "headers": {
+            "x-apikey": "={{$env.VIRUSTOTAL_API_KEY}}"
+          }
+        }
+      },
+      "name": "VirusTotal Lookup",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [500, 200],
+      "typeVersion": 4
+    },
+    {
+      "parameters": {
+        "url": "=https://api.abuseipdb.com/api/v2/check",
+        "options": {
+          "headers": {
+            "Key": "={{$env.ABUSEIPDB_API_KEY}}"
+          },
+          "qs": {
+            "ipAddress": "={{$json.value}}",
+            "maxAgeInDays": "90"
+          }
+        }
+      },
+      "name": "AbuseIPDB Check",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [500, 400],
+      "typeVersion": 4
+    },
+    {
+      "parameters": {
+        "url": "=https://otx.alienvault.com/api/v1/indicators/IPv4/{{$json.value}}/general",
+        "options": {
+          "headers": {
+            "X-OTX-API-KEY": "={{$env.OTX_API_KEY}}"
+          }
+        }
+      },
+      "name": "OTX Lookup",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [500, 600],
+      "typeVersion": 4
+    },
+    {
+      "parameters": {
+        "functionCode": "const vt = items[0].json;\nconst abuse = items[1].json;\nconst otx = items[2].json;\n\nreturn [{\n  json: {\n    ioc_value: $('Webhook Trigger').first().json.value,\n    virustotal: {\n      malicious: vt?.data?.attributes?.last_analysis_stats?.malicious || 0,\n      suspicious: vt?.data?.attributes?.last_analysis_stats?.suspicious || 0\n    },\n    abuseipdb: {\n      score: abuse?.data?.abuseConfidenceScore || 0,\n      reports: abuse?.data?.totalReports || 0,\n      country: abuse?.data?.countryCode || 'unknown'\n    },\n    otx: {\n      pulses: otx?.pulse_info?.count || 0\n    },\n    risk_level: calculateRisk(vt, abuse, otx)\n  }\n}];\n\nfunction calculateRisk(vt, abuse, otx) {\n  const vtScore = vt?.data?.attributes?.last_analysis_stats?.malicious || 0;\n  const abuseScore = abuse?.data?.abuseConfidenceScore || 0;\n  if (vtScore > 5 || abuseScore > 80) return 'critical';\n  if (vtScore > 2 || abuseScore > 50) return 'high';\n  if (vtScore > 0 || abuseScore > 20) return 'medium';\n  return 'low';\n}"
+      },
+      "name": "Merge & Score",
+      "type": "n8n-nodes-base.function",
+      "position": [750, 400],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "url": "http://backend:4000/api/ioc/{{$('Webhook Trigger').first().json.id}}",
+        "method": "PUT",
+        "body": "={{ JSON.stringify({ confidence: $json.abuseipdb.score, severity: $json.risk_level, source: 'n8n-enrichment' }) }}",
+        "options": {
+          "headers": {
+            "Authorization": "Bearer {{$env.MINISOC_API_TOKEN}}",
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "name": "Update IOC in MiniSOC",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1000, 400],
+      "typeVersion": 4
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "name": "Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [1200, 400],
+      "typeVersion": 1
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": { "main": [[{"node": "VirusTotal Lookup"}, {"node": "AbuseIPDB Check"}, {"node": "OTX Lookup"}]] },
+    "VirusTotal Lookup": { "main": [[{"node": "Merge & Score"}]] },
+    "AbuseIPDB Check": { "main": [[{"node": "Merge & Score"}]] },
+    "OTX Lookup": { "main": [[{"node": "Merge & Score"}]] },
+    "Merge & Score": { "main": [[{"node": "Update IOC in MiniSOC"}]] },
+    "Update IOC in MiniSOC": { "main": [[{"node": "Response"}]] }
+  }
+}

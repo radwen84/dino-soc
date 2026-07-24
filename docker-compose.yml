@@ -1,0 +1,473 @@
+# ============================================================
+# Mini-SOC Platform - Docker Compose 
+# ============================================================
+
+networks:
+  frontend:
+    driver: bridge
+  backend:
+    driver: bridge
+    internal: true
+  monitoring:
+    driver: bridge
+    internal: true
+  siem:
+    driver: bridge
+    internal: true
+
+secrets:
+  db_password:
+    file: ./secrets/db_password.txt
+  jwt_secret:
+    file: ./secrets/jwt_secret.txt
+  wazuh_api_key:
+    file: ./secrets/wazuh_api_key.txt
+  opensearch_admin_password:
+    file: ./secrets/opensearch_admin_password.txt
+  redis_password:
+    file: ./secrets/redis_password.txt
+
+services:
+  # ============================================
+  # REVERSE PROXY - Nginx
+  # ============================================
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: minisoc-nginx
+    restart: unless-stopped
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infrastructure/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./infrastructure/nginx/ssl:/etc/nginx/ssl:ro
+      - ./apps/frontend/dist:/usr/share/nginx/html:ro
+    networks:
+      - frontend
+      - backend
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    depends_on:
+      nestjs-api:
+        condition: service_healthy
+
+  # ============================================
+  # BACKEND - NestJS API
+  # ============================================
+  nestjs-api:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+      target: production
+    container_name: minisoc-api
+    restart: unless-stopped
+    privileged: true
+    networks:
+      - backend
+    secrets:
+      - db_password
+      - jwt_secret
+      - wazuh_api_key
+      - redis_password
+    environment:
+      - NODE_ENV=production
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=minisoc
+      - DB_USER=minisoc_app
+      - OPENSEARCH_HOST=opensearch
+      - OPENSEARCH_PORT=9200
+      - WAZUH_HOST=wazuh-manager
+      - WAZUH_PORT=55000
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+    security_opt:
+      - apparmor:unconfined
+      - seccomp:unconfined
+   #♠user: "1001:1001"
+    read_only: false
+    tmpfs:
+      - /tmp
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ============================================
+  # DATABASE - PostgreSQL
+  # ============================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: minisoc-postgres
+    restart: unless-stopped
+    privileged: true   # 👈 Contourne le blocage AppArmor/VirtualBox sur docker-entrypoint
+    security_opt:
+      - apparmor:unconfined
+      - seccomp:unconfined
+    networks:
+      - backend
+    secrets:
+      - db_password
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+      POSTGRES_DB: minisoc
+      POSTGRES_USER: minisoc_app
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/docker/postgres/init:/docker-entrypoint-initdb.d:ro
+      - ./infrastructure/docker/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.0"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U minisoc_app -d minisoc"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 90s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ============================================
+  # CACHE - Redis
+  # ============================================
+  redis:
+    image: redis:7-alpine
+    container_name: minisoc-redis
+    restart: unless-stopped
+    privileged: true   # 👈 Contourne le blocage AppArmor/VirtualBox sur docker-entrypoint
+    security_opt:
+      - apparmor:unconfined
+      - seccomp:unconfined
+    networks:
+      - backend
+    secrets:
+      - redis_password
+    command: >
+      sh -c 'redis-server
+      --requirepass "$$(cat /run/secrets/redis_password)"
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes'
+    volumes:
+      - redis_data:/data
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.25"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ============================================
+  # WAZUH MANAGER - SIEM/HIDS
+  # ============================================
+  wazuh-manager:
+    image: wazuh/wazuh-manager:4.9.0
+    container_name: minisoc-wazuh
+    restart: unless-stopped
+    networks:
+      - siem
+      - backend
+    ports:
+      - "1514:1514/tcp"
+      - "1515:1515/tcp"
+      - "55000:55000/tcp"
+    volumes:
+      - wazuh_data:/var/ossec/data
+      - wazuh_logs:/var/ossec/logs
+      - ./security/wazuh/ossec.conf:/var/ossec/etc/ossec.conf:ro
+      - ./security/wazuh/rules:/var/ossec/etc/rules:ro
+      - ./security/wazuh/decoders:/var/ossec/etc/decoders:ro
+      - suricata_logs:/var/log/suricata:ro
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "2.0"
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+
+  # ============================================
+  # OPENSEARCH - SIEM Data Lake
+  # ============================================
+  opensearch:
+    image: opensearchproject/opensearch:2.14.0
+    container_name: minisoc-opensearch
+    restart: unless-stopped
+    networks:
+      - siem
+      - backend
+    environment:
+      cluster.name: minisoc-cluster
+      node.name: opensearch-node1
+      discovery.type: single-node
+      OPENSEARCH_JAVA_OPTS: -Xms1g -Xmx1g
+      bootstrap.memory_lock: "true"
+      plugins.security.disabled: "false"
+    volumes:
+      - opensearch_data:/usr/share/opensearch/data
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "2.0"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -qE '\"status\":\"(green|yellow)\"'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ============================================
+  # SURICATA - Network IDS/IPS
+  # ============================================
+  suricata:
+    build:
+      context: ./security/suricata
+      dockerfile: Dockerfile
+    container_name: minisoc-suricata
+    restart: unless-stopped
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - SYS_NICE
+    command: -i ${SURICATA_INTERFACE:-enp0s3} -c /etc/suricata/suricata.yaml
+    volumes:
+      - suricata_logs:/var/log/suricata
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "2.0"
+
+  # ============================================
+  # VAULT - Secrets Management
+  # ============================================
+  vault:
+    image: hashicorp/vault:1.17
+    container_name: minisoc-vault
+    restart: unless-stopped
+    networks:
+      - backend
+    cap_add:
+      - IPC_LOCK
+    environment:
+      - VAULT_ADDR=http://0.0.0.0:8200
+    volumes:
+      - vault_data:/vault/data
+      - ./infrastructure/vault/config.hcl:/vault/config/config.hcl:ro
+    command: server
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.25"
+    healthcheck:
+      test: ["CMD", "vault", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============================================
+  # n8n - SOAR (Workflow Automation)
+  # ============================================
+  n8n:
+    image: n8nio/n8n:1.48.0
+    container_name: minisoc-n8n
+    restart: unless-stopped
+    networks:
+      - backend
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER:-admin}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD:-changeme}
+      - WEBHOOK_URL=https://soc.local/n8n/
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-changeme}
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=n8n
+      - DB_POSTGRESDB_USER=minisoc_app
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./infrastructure/n8n/workflows:/home/node/workflows:ro
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ============================================
+  # PROMETHEUS - Metrics
+  # ============================================
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: minisoc-prometheus
+    restart: unless-stopped
+    networks:
+      - monitoring
+      - backend
+    volumes:
+      - ./infrastructure/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infrastructure/monitoring/prometheus/alerts:/etc/prometheus/alerts:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # ============================================
+  # GRAFANA - Visualization
+  # ============================================
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: minisoc-grafana
+    restart: unless-stopped
+    networks:
+      - monitoring
+      - frontend
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-changeme}
+      - GF_SERVER_ROOT_URL=https://soc.local/grafana
+      - GF_SERVER_SERVE_FROM_SUB_PATH=true
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infrastructure/monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./infrastructure/monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============================================
+  # ALERTMANAGER
+  # ============================================
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: minisoc-alertmanager
+    restart: unless-stopped
+    networks:
+      - monitoring
+    volumes:
+      - ./infrastructure/monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.25"
+
+  # ============================================
+  # LOKI - Log Aggregation
+  # ============================================
+  loki:
+    image: grafana/loki:2.9.8
+    container_name: minisoc-loki
+    restart: unless-stopped
+    networks:
+      - monitoring
+    volumes:
+      - ./infrastructure/monitoring/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+
+# ============================================
+# VOLUMES
+# ============================================
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  wazuh_data:
+    driver: local
+  wazuh_logs:
+    driver: local
+  opensearch_data:
+    driver: local
+  suricata_logs:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  vault_data:
+    driver: local
+  n8n_data:
+    driver: local
+  loki_data:
+    driver: local

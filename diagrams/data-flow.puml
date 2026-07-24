@@ -1,0 +1,55 @@
+@startuml Mini-SOC Data Flow
+!theme cerulean-outline
+
+title Mini-SOC - Security Data Flow
+
+|Detection Layer|
+start
+fork
+  :Wazuh Agent\n(Host logs, FIM, Vuln);
+fork again
+  :Suricata\n(Network IDS alerts);
+fork again
+  :Zeek\n(Network metadata);
+fork again
+  :Falco\n(Container runtime);
+end fork
+
+|Correlation Layer|
+:Wazuh Manager;
+note right: MITRE ATT&CK mapping\nSigma rule matching\nActive Response
+:OpenSearch Indexing;
+
+|Processing Layer|
+fork
+  :NestJS API\n(Alert processing);
+  :IOC Matching;
+  :Threat Intel Enrichment\n(OTX, AbuseIPDB, MISP);
+fork again
+  :ML Engine\n(Anomaly detection);
+  :Risk Score Calculation;
+end fork
+
+|Response Layer|
+if (Risk Score > 80?) then (yes)
+  :Auto-create Incident;
+  :SOAR Playbook Trigger;
+  fork
+    :n8n → Block IP;
+  fork again
+    :n8n → TheHive Case;
+  fork again
+    :n8n → Notify SOC Team;
+  end fork
+else (no)
+  :Queue for Review;
+endif
+
+|Visualization|
+:SOC Dashboard\n(Real-time WebSocket);
+:Grafana Metrics;
+:Reports & KPIs;
+
+stop
+
+@enduml

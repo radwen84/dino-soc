@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: minisoc
+  labels:
+    app.kubernetes.io/name: minisoc
+    app.kubernetes.io/part-of: minisoc-platform

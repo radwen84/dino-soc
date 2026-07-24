@@ -1,0 +1,42 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: backup-postgres
+  namespace: minisoc
+spec:
+  schedule: "0 2 * * *"  # Daily at 2AM
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: backup
+              image: postgres:16-alpine
+              command: ["/scripts/backup-postgres.sh"]
+              env:
+                - name: DB_HOST
+                  value: postgres
+                - name: DB_NAME
+                  value: minisoc
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: minisoc-secrets
+                      key: db-password
+              volumeMounts:
+                - name: scripts
+                  mountPath: /scripts
+                - name: backup-storage
+                  mountPath: /backups
+          volumes:
+            - name: scripts
+              configMap:
+                name: backup-scripts
+                defaultMode: 0755
+            - name: backup-storage
+              persistentVolumeClaim:
+                claimName: backup-pvc
+          restartPolicy: OnFailure

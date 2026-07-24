@@ -1,0 +1,156 @@
+CONTENU :
+
+stages:
+  - lint
+  - test
+  - security
+  - build
+  - deploy
+
+variables:
+  DOCKER_HOST: tcp://docker:2376
+  DOCKER_TLS_CERTDIR: "/certs"
+
+# ==========================================
+# LINT
+# ==========================================
+lint:backend:
+  stage: lint
+  image: node:20-alpine
+  script:
+    - cd apps/backend
+    - npm ci
+    - npm run lint
+    - npm run format:check
+  cache:
+    paths:
+      - apps/backend/node_modules/
+
+lint:frontend:
+  stage: lint
+  image: node:20-alpine
+  script:
+    - cd apps/frontend
+    - npm ci
+    - npm run lint
+  cache:
+    paths:
+      - apps/frontend/node_modules/
+
+# ==========================================
+# TEST
+# ==========================================
+test:backend:
+  stage: test
+  image: node:20-alpine
+  services:
+    - postgres:16-alpine
+    - redis:7-alpine
+  variables:
+    POSTGRES_DB: minisoc_test
+    POSTGRES_USER: test
+    POSTGRES_PASSWORD: test
+    DATABASE_URL: postgresql://test:test@postgres:5432/minisoc_test
+    JWT_SECRET: test-secret-for-ci-minimum-32-characters
+    REDIS_URL: redis://redis:6379
+  script:
+    - cd apps/backend
+    - npm ci
+    - npx prisma generate
+    - npx prisma migrate deploy
+    - npm run test:cov
+  coverage: '/All files[^|]*\|[^|]*\s+([\d\.]+)/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: apps/backend/coverage/cobertura-coverage.xml
+
+test:frontend:
+  stage: test
+  image: node:20-alpine
+  script:
+    - cd apps/frontend
+    - npm ci
+    - npm run test:coverage
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: apps/frontend/coverage/cobertura-coverage.xml
+
+# ==========================================
+# SECURITY
+# ==========================================
+sast:
+  stage: security
+  image: node:20-alpine
+  script:
+    - cd apps/backend && npm audit --audit-level=high
+    - cd ../frontend && npm audit --audit-level=high
+  allow_failure: true
+
+container_scan:
+  stage: security
+  image: docker:24
+  services:
+    - docker:24-dind
+  script:
+    - docker build -t minisoc-backend:scan apps/backend
+    - docker run --rm aquasec/trivy:latest image minisoc-backend:scan --severity HIGH,CRITICAL
+  allow_failure: true
+
+# ==========================================
+# BUILD
+# ==========================================
+build:backend:
+  stage: build
+  image: docker:24
+  services:
+    - docker:24-dind
+  script:
+    - docker build -t $CI_REGISTRY_IMAGE/backend:$CI_COMMIT_SHA apps/backend
+    - docker push $CI_REGISTRY_IMAGE/backend:$CI_COMMIT_SHA
+  only:
+    - main
+
+build:frontend:
+  stage: build
+  image: docker:24
+  services:
+    - docker:24-dind
+  script:
+    - docker build -t $CI_REGISTRY_IMAGE/frontend:$CI_COMMIT_SHA apps/frontend
+    - docker push $CI_REGISTRY_IMAGE/frontend:$CI_COMMIT_SHA
+  only:
+    - main
+
+# ==========================================
+# DEPLOY
+# ==========================================
+deploy:staging:
+  stage: deploy
+  image: bitnami/kubectl:latest
+  environment:
+    name: staging
+    url: https://staging.minisoc.local
+  script:
+    - kubectl -n minisoc-staging set image deployment/backend backend=$CI_REGISTRY_IMAGE/backend:$CI_COMMIT_SHA
+    - kubectl -n minisoc-staging set image deployment/frontend frontend=$CI_REGISTRY_IMAGE/frontend:$CI_COMMIT_SHA
+    - kubectl -n minisoc-staging rollout status deployment/backend --timeout=300s
+  only:
+    - main
+
+deploy:production:
+  stage: deploy
+  image: bitnami/kubectl:latest
+  environment:
+    name: production
+    url: https://soc.minisoc.local
+  script:
+    - kubectl -n minisoc set image deployment/backend backend=$CI_REGISTRY_IMAGE/backend:$CI_COMMIT_SHA
+    - kubectl -n minisoc set image deployment/frontend frontend=$CI_REGISTRY_IMAGE/frontend:$CI_COMMIT_SHA
+    - kubectl -n minisoc rollout status deployment/backend --timeout=300s
+  when: manual
+  only:
+    - main

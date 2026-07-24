@@ -1,0 +1,92 @@
+@startuml Mini-SOC Architecture
+!theme cerulean-outline
+
+title Mini-SOC Platform - Architecture Overview
+
+skinparam rectangle {
+  BackgroundColor<<frontend>> #61DAFB
+  BackgroundColor<<backend>> #E0234E
+  BackgroundColor<<security>> #FF6B35
+  BackgroundColor<<data>> #336791
+  BackgroundColor<<monitoring>> #E6522C
+  BackgroundColor<<soar>> #7B61FF
+}
+
+actor "SOC Analyst" as analyst
+actor "Admin" as admin
+
+rectangle "Frontend" <<frontend>> {
+  [React Dashboard]
+  [WebSocket Client]
+}
+
+rectangle "API Layer" <<backend>> {
+  [Nginx Reverse Proxy]
+  [NestJS API]
+  [JWT + MFA Auth]
+  [RBAC Guards]
+}
+
+rectangle "Security Tools" <<security>> {
+  [Wazuh Manager]
+  [Suricata IDS]
+  [Zeek NSM]
+  [Falco Runtime]
+  [YARA Scanner]
+}
+
+rectangle "Data Layer" <<data>> {
+  database "PostgreSQL" as pg
+  database "OpenSearch" as os
+  database "Redis" as redis
+}
+
+rectangle "Monitoring" <<monitoring>> {
+  [Prometheus]
+  [Grafana]
+  [Loki]
+  [Alertmanager]
+}
+
+rectangle "SOAR & Intel" <<soar>> {
+  [n8n Workflows]
+  [TheHive Cases]
+  [Cortex Analyzers]
+  [MISP Feeds]
+}
+
+rectangle "Infrastructure" {
+  [Vault Secrets]
+  [Docker/K8s]
+  [Terraform]
+  [Ansible]
+}
+
+analyst --> [React Dashboard]
+admin --> [React Dashboard]
+
+[React Dashboard] --> [Nginx Reverse Proxy]
+[Nginx Reverse Proxy] --> [NestJS API]
+[NestJS API] --> [JWT + MFA Auth]
+[NestJS API] --> pg
+[NestJS API] --> os
+[NestJS API] --> redis
+
+[Wazuh Manager] --> os
+[Suricata IDS] --> [Wazuh Manager]
+[Zeek NSM] --> [Wazuh Manager]
+[Falco Runtime] --> [Wazuh Manager]
+
+[NestJS API] --> [n8n Workflows]
+[n8n Workflows] --> [TheHive Cases]
+[n8n Workflows] --> [MISP Feeds]
+[Wazuh Manager] --> [n8n Workflows]
+
+[Prometheus] --> [NestJS API]
+[Prometheus] --> [Alertmanager]
+[Grafana] --> [Prometheus]
+[Grafana] --> [Loki]
+
+[NestJS API] --> [Vault Secrets]
+
+@enduml

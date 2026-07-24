@@ -1,0 +1,71 @@
+---
+- name: Deploy Mini-SOC Platform
+  hosts: all
+  become: true
+  vars_files:
+    - ../vars/main.yml
+    - ../vars/secrets.yml
+
+  pre_tasks:
+    - name: Update system packages
+      apt:
+        update_cache: yes
+        upgrade: safe
+      when: ansible_os_family == "Debian"
+
+    - name: Install common dependencies
+      apt:
+        name:
+          - curl
+          - wget
+          - gnupg2
+          - apt-transport-https
+          - ca-certificates
+          - software-properties-common
+          - python3-pip
+          - unzip
+          - jq
+        state: present
+
+  roles:
+    - role: docker
+      tags: [docker]
+    - role: security-hardening
+      tags: [security]
+
+- name: Deploy Database Layer
+  hosts: databases
+  become: true
+  roles:
+    - role: postgresql
+      tags: [database]
+
+- name: Deploy SIEM Components
+  hosts: managers
+  become: true
+  roles:
+    - role: wazuh-manager
+      tags: [wazuh]
+    - role: opensearch
+      tags: [opensearch]
+
+- name: Deploy Application
+  hosts: workers
+  become: true
+  roles:
+    - role: minisoc-backend
+      tags: [backend]
+    - role: minisoc-frontend
+      tags: [frontend]
+    - role: nginx
+      tags: [nginx]
+
+- name: Deploy Monitoring
+  hosts: monitoring
+  become: true
+  roles:
+    - role: prometheus
+      tags: [monitoring]
+    - role: grafana
+      tags: [monitoring]
+

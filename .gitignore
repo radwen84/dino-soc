@@ -1,0 +1,93 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Environment
+.env
+.env.local
+.env.production
+
+# Build outputs
+dist/
+build/
+out/
+.next/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+*.log
+
+# Docker
+docker-compose.override.yml
+
+# Secrets (never commit)
+secrets/
+*.pem
+*.key
+*.crt
+*.p12
+*.jks
+vault-init.txt
+
+# Database
+*.sql.gz
+*.dump
+postgres_data/
+opensearch_data/
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+
+# Ansible
+*.retry
+
+# Temporary
+tmp/
+temp/
+.cache/
+
+# Backup files
+backups/*.tar.gpg
+backups/*.sql.gz
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Logs
+logs/
+*.log
+
+# Grafana
+grafana_data/
+
+# Wazuh
+wazuh_data/
+wazuh_logs/
+
+# Prometheus
+prometheus_data/
+
+# n8n
+n8n_data/
+
+# Vault
+vault_data/

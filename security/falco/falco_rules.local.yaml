@@ -1,0 +1,77 @@
+
+# Mini-SOC Custom Falco Rules
+
+- rule: Container Escape via Mount
+  desc: Detect attempts to escape container via sensitive mount
+  condition: >
+    spawned_process and container and
+    (proc.name in (nsenter, mount) or
+     proc.cmdline contains "/proc/1/root" or
+     proc.cmdline contains "docker.sock")
+  output: >
+    Container escape attempt (user=%user.name command=%proc.cmdline
+    container=%container.name image=%container.image.repository)
+  priority: CRITICAL
+  tags: [container, escape, mitre_t1611]
+
+- rule: Crypto Mining Process
+  desc: Detect crypto mining processes in containers
+  condition: >
+    spawned_process and container and
+    (proc.name in (xmrig, minerd, minergate, cpuminer) or
+     proc.cmdline contains "stratum+tcp" or
+     proc.cmdline contains "cryptonight")
+  output: >
+    Crypto mining detected (user=%user.name command=%proc.cmdline
+    container=%container.name)
+  priority: WARNING
+  tags: [crypto, mitre_t1496]
+
+- rule: Reverse Shell in Container
+  desc: Detect reverse shell connections from containers
+  condition: >
+    spawned_process and container and
+    ((proc.name in (bash, sh, dash) and proc.cmdline contains "-i") or
+     proc.cmdline contains "/dev/tcp/" or
+     proc.cmdline contains "nc -e" or
+     proc.cmdline contains "ncat -e")
+  output: >
+    Reverse shell detected (user=%user.name command=%proc.cmdline
+    container=%container.name connection=%fd.name)
+  priority: CRITICAL
+  tags: [shell, reverse_shell, mitre_t1059]
+
+- rule: Sensitive File Access in Container
+  desc: Access to sensitive files like /etc/shadow, /etc/passwd
+  condition: >
+    open_read and container and
+    (fd.name in (/etc/shadow, /etc/gshadow, /root/.ssh/id_rsa,
+                 /root/.bash_history, /proc/1/environ))
+  output: >
+    Sensitive file read (user=%user.name file=%fd.name
+    container=%container.name image=%container.image.repository)
+  priority: WARNING
+  tags: [filesystem, sensitive, mitre_t1005]
+
+- rule: Kubectl Exec in Production
+  desc: Detect kubectl exec usage which may indicate lateral movement
+  condition: >
+    spawned_process and proc.name = "runc" and
+    proc.cmdline contains "exec"
+  output: >
+    kubectl exec detected (user=%user.name command=%proc.cmdline
+    container=%container.name)
+  priority: NOTICE
+  tags: [k8s, exec, mitre_t1609]
+
+- rule: New Network Connection to Unusual Port
+  desc: Container connecting to uncommon external ports
+  condition: >
+    outbound and container and
+    fd.sport in (4444, 5555, 6666, 8888, 9999, 1337, 31337) and
+    not fd.sip in (rfc_1918_addresses)
+  output: >
+    Unusual outbound connection (container=%container.name
+    connection=%fd.name port=%fd.sport)
+  priority: WARNING
+  tags: [network, suspicious_port, mitre_t1571]

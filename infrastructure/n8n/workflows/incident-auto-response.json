@@ -1,0 +1,70 @@
+{
+  "name": "Incident Auto-Response",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "incident-response",
+        "responseMode": "lastNode"
+      },
+      "name": "Webhook - New Incident",
+      "type": "n8n-nodes-base.webhook",
+      "position": [250, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [{"value1": "={{$json.severity}}", "operation": "equals", "value2": "critical"}]
+        }
+      },
+      "name": "Is Critical?",
+      "type": "n8n-nodes-base.if",
+      "position": [450, 300],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "url": "http://thehive:9000/api/case",
+        "method": "POST",
+        "body": "={{ JSON.stringify({ title: '[MINISOC] ' + $json.title, description: $json.description, severity: 3, tlp: 2, pap: 2, tags: ['auto-created', 'critical', $json.category || 'unknown'] }) }}",
+        "options": {
+          "headers": {
+            "Authorization": "Bearer {{$env.THEHIVE_API_KEY}}",
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "name": "Create TheHive Case",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [700, 200],
+      "typeVersion": 4
+    },
+    {
+      "parameters": {
+        "channel": "#soc-alerts",
+        "text": "🚨 *CRITICAL INCIDENT*\n*{{$('Webhook - New Incident').first().json.title}}*\nSeverity: CRITICAL\nCategory: {{$('Webhook - New Incident').first().json.category}}\nTheHive Case: Created\n\nImmediate action required!"
+      },
+      "name": "Slack Notification",
+      "type": "n8n-nodes-base.slack",
+      "position": [700, 400],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "fromEmail": "soc@minisoc.local",
+        "toEmail": "soc-team@minisoc.local",
+        "subject": "🚨 CRITICAL INCIDENT: {{$('Webhook - New Incident').first().json.title}}",
+        "text": "A critical incident has been detected and requires immediate attention.\n\nTitle: {{$('Webhook - New Incident').first().json.title}}\nSeverity: CRITICAL\nCategory: {{$('Webhook - New Incident').first().json.category}}\n\nA TheHive case has been automatically created."
+      },
+      "name": "Email SOC Team",
+      "type": "n8n-nodes-base.emailSend",
+      "position": [700, 600],
+      "typeVersion": 2
+    }
+  ],
+  "connections": {
+    "Webhook - New Incident": { "main": [[{"node": "Is Critical?"}]] },
+    "Is Critical?": { "main": [[{"node": "Create TheHive Case"}, {"node": "Slack Notification"}, {"node": "Email SOC Team"}], []] }
+  }
+}

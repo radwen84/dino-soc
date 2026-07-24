@@ -1,0 +1,26 @@
+# CODEOWNERS - Définit les responsables de review par zone de code
+
+# Global owners
+* @Radwen CHEICHK
+# Backend
+/apps/backend/ @azmi-somai
+/database/ @azmi-somai
+
+# Frontend
+/apps/frontend/ @azmi-somai
+
+# Infrastructure
+/infrastructure/ @azmi-somai
+
+# Security
+/security/ @azmi-somai
+
+# Monitoring
+/monitoring/ @azmi-somai
+
+# CI/CD
+/.github/ @azmi-somai
+/.gitlab/ @azmi-somai
+
+# Documentation
+/docs/ @azmi-somai

@@ -1,0 +1,35 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  group_by: ['alertname', 'severity']
+  group_wait: 10s
+  group_interval: 5m
+  repeat_interval: 4h
+  receiver: 'soc-team'
+
+  routes:
+    - match:
+        severity: critical
+      receiver: 'soc-critical'
+      repeat_interval: 15m
+
+    - match:
+        severity: high
+      receiver: 'soc-team'
+      repeat_interval: 1h
+
+receivers:
+  - name: 'soc-critical'
+    webhook_configs:
+      - url: 'http://backend:4000/api/webhooks/alertmanager'
+        send_resolved: true
+    # email_configs:
+    #   - to: 'soc-team@minisoc.local'
+    #     from: 'alertmanager@minisoc.local'
+
+  - name: 'soc-team'
+    webhook_configs:
+      - url: 'http://backend:4000/api/webhooks/alertmanager'
+        send_resolved: true
+

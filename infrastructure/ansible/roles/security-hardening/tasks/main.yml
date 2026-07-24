@@ -1,0 +1,74 @@
+---
+- name: Disable root SSH login
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^PermitRootLogin'
+    line: 'PermitRootLogin no'
+  notify: restart sshd
+
+- name: Disable password authentication
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^PasswordAuthentication'
+    line: 'PasswordAuthentication no'
+  notify: restart sshd
+
+- name: Set SSH MaxAuthTries
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^MaxAuthTries'
+    line: 'MaxAuthTries 3'
+  notify: restart sshd
+
+- name: Install and configure UFW
+  apt:
+    name: ufw
+    state: present
+
+- name: Default deny incoming
+  ufw:
+    direction: incoming
+    policy: deny
+
+- name: Allow SSH
+  ufw:
+    rule: allow
+    port: '22'
+    proto: tcp
+
+- name: Allow HTTPS
+  ufw:
+    rule: allow
+    port: '443'
+    proto: tcp
+
+- name: Allow Wazuh agent
+  ufw:
+    rule: allow
+    port: '1514'
+    proto: udp
+  when: "'managers' in group_names"
+
+- name: Enable UFW
+  ufw:
+    state: enabled
+
+- name: Set kernel hardening parameters
+  sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    sysctl_set: yes
+    reload: yes
+  loop:
+    - { name: 'net.ipv4.ip_forward', value: '0' }
+    - { name: 'net.ipv4.conf.all.send_redirects', value: '0' }
+    - { name: 'net.ipv4.conf.all.accept_redirects', value: '0' }
+    - { name: 'net.ipv4.conf.all.log_martians', value: '1' }
+    - { name: 'net.ipv4.tcp_syncookies', value: '1' }
+    - { name: 'kernel.randomize_va_space', value: '2' }
+
+handlers:
+  - name: restart sshd
+    service:
+      name: sshd
+      state: restarted

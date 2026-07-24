@@ -1,0 +1,145 @@
+<!-- Mini-SOC Custom Rules -->
+<group name="minisoc,">
+
+  <!-- ==========================================
+       BRUTE FORCE DETECTION (MITRE T1110)
+       ========================================== -->
+  <rule id="100100" level="12">
+    <if_matched_sid>5710</if_matched_sid>
+    <same_source_ip />
+    <check_if_ignored>yes</check_if_ignored>
+    <info>Multiple authentication failures from same source</info>
+    <description>Brute force attack detected: $(srcip)</description>
+    <mitre>
+      <id>T1110</id>
+      <id>T1110.001</id>
+    </mitre>
+    <group>authentication_failures,brute_force,</group>
+    <options>alert_by_email</options>
+  </rule>
+
+  <!-- ==========================================
+       PRIVILEGE ESCALATION (MITRE T1548)
+       ========================================== -->
+  <rule id="100110" level="13">
+    <if_sid>5401,5402</if_sid>
+    <match>sudo|su </match>
+    <user>^root$</user>
+    <description>Privilege escalation attempt: $(user) using $(data)</description>
+    <mitre>
+      <id>T1548</id>
+      <id>T1548.003</id>
+    </mitre>
+    <group>privilege_escalation,</group>
+  </rule>
+
+  <!-- ==========================================
+       FILE INTEGRITY - CRITICAL CHANGE (MITRE T1565)
+       ========================================== -->
+  <rule id="100120" level="14">
+    <if_sid>550,553</if_sid>
+    <match>/etc/passwd|/etc/shadow|/etc/sudoers</match>
+    <description>Critical system file modified: $(file)</description>
+    <mitre>
+      <id>T1565</id>
+      <id>T1565.001</id>
+    </mitre>
+    <group>syscheck,critical_file_change,</group>
+    <options>alert_by_email</options>
+  </rule>
+
+  <!-- ==========================================
+       LATERAL MOVEMENT - SSH (MITRE T1021.004)
+       ========================================== -->
+  <rule id="100130" level="10">
+    <if_sid>5715</if_sid>
+    <time>22:00-06:00</time>
+    <description>SSH login outside business hours from $(srcip)</description>
+    <mitre>
+      <id>T1021</id>
+      <id>T1021.004</id>
+    </mitre>
+    <group>lateral_movement,off_hours,</group>
+  </rule>
+
+  <!-- ==========================================
+       DATA EXFILTRATION - LARGE TRANSFER (MITRE T1048)
+       ========================================== -->
+  <rule id="100140" level="11">
+    <if_sid>87700</if_sid>
+    <field name="bytes_out">^[0-9]{8,}$</field>
+    <description>Large outbound data transfer detected: $(bytes_out) bytes to $(dstip)</description>
+    <mitre>
+      <id>T1048</id>
+    </mitre>
+    <group>data_exfiltration,</group>
+  </rule>
+
+  <!-- ==========================================
+       MALWARE - SUSPICIOUS PROCESS (MITRE T1059)
+       ========================================== -->
+  <rule id="100150" level="12">
+    <if_group>syscheck</if_group>
+    <match>\.exe$|\.ps1$|\.bat$|\.vbs$|base64|eval\(</match>
+    <description>Suspicious file or command detected: $(file)</description>
+    <mitre>
+      <id>T1059</id>
+    </mitre>
+    <group>malware,suspicious_execution,</group>
+  </rule>
+
+  <!-- ==========================================
+       WEB ATTACK - SQL INJECTION (MITRE T1190)
+       ========================================== -->
+  <rule id="100160" level="12">
+    <if_sid>31100,31101</if_sid>
+    <match>union.*select|drop.*table|insert.*into|delete.*from|1=1|or.*1.*=.*1</match>
+    <description>SQL Injection attempt from $(srcip): $(url)</description>
+    <mitre>
+      <id>T1190</id>
+    </mitre>
+    <group>web_attack,sqli,</group>
+  </rule>
+
+  <!-- ==========================================
+       COMMAND AND CONTROL - DNS TUNNELING (MITRE T1071.004)
+       ========================================== -->
+  <rule id="100170" level="11">
+    <if_sid>87700</if_sid>
+    <field name="query_length">^[5-9][0-9]$|^[1-9][0-9]{2,}$</field>
+    <description>Possible DNS tunneling: long query to $(query)</description>
+    <mitre>
+      <id>T1071</id>
+      <id>T1071.004</id>
+    </mitre>
+    <group>c2,dns_tunneling,</group>
+  </rule>
+
+  <!-- ==========================================
+       CONTAINER ESCAPE ATTEMPT (MITRE T1611)
+       ========================================== -->
+  <rule id="100180" level="14">
+    <if_sid>87900</if_sid>
+    <match>nsenter|mount.*proc|chroot|docker.sock</match>
+    <description>Possible container escape attempt: $(data)</description>
+    <mitre>
+      <id>T1611</id>
+    </mitre>
+    <group>container_security,escape_attempt,</group>
+    <options>alert_by_email</options>
+  </rule>
+
+  <!-- ==========================================
+       CRYPTO MINING DETECTION (MITRE T1496)
+       ========================================== -->
+  <rule id="100190" level="10">
+    <if_sid>87700</if_sid>
+    <match>stratum|xmrig|minerd|minergate|coinhive|cryptonight</match>
+    <description>Crypto mining activity detected from $(srcip)</description>
+    <mitre>
+      <id>T1496</id>
+    </mitre>
+    <group>crypto_mining,resource_hijacking,</group>
+  </rule>
+
+</group>

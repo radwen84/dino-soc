@@ -1,0 +1,84 @@
+# Mini-SOC Helm Values
+
+replicaCount:
+  backend: 2
+  frontend: 2
+
+image:
+  backend:
+    repository: registry.minisoc.local/minisoc-backend
+    tag: latest
+    pullPolicy: Always
+  frontend:
+    repository: registry.minisoc.local/minisoc-frontend
+    tag: latest
+    pullPolicy: Always
+
+ingress:
+  enabled: true
+  className: nginx
+  host: soc.minisoc.local
+  tls:
+    enabled: true
+    secretName: minisoc-tls
+
+backend:
+  port: 4000
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 512Mi
+  env:
+    NODE_ENV: production
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 6
+    targetCPU: 70
+
+frontend:
+  port: 80
+  resources:
+    requests:
+      cpu: 100m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 128Mi
+
+postgresql:
+  enabled: true
+  auth:
+    database: minisoc
+    username: minisoc
+    existingSecret: minisoc-db-secret
+  primary:
+    persistence:
+      size: 20Gi
+    resources:
+      limits:
+        cpu: "1"
+        memory: 1Gi
+
+redis:
+  enabled: true
+  auth:
+    existingSecret: minisoc-redis-secret
+  master:
+    persistence:
+      size: 5Gi
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+
+monitoring:
+  serviceMonitor:
+    enabled: true
+    interval: 15s
+
+networkPolicy:
+  enabled: true

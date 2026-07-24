@@ -1,0 +1,26 @@
+title: Suspicious Privilege Escalation
+id: c3d8f0a2-4b5e-5f9c-0d2e-6e7b8c9d1f2a
+status: stable
+description: Detects unauthorized sudo or su usage
+author: Azmi SOMAI - MiniSOC
+date: 2026/07/17
+tags:
+  - attack.privilege_escalation
+  - attack.t1548.003
+logsource:
+  category: process_creation
+  product: linux
+detection:
+  selection_sudo:
+    CommandLine|contains:
+      - 'sudo'
+      - 'su -'
+      - 'pkexec'
+  filter_known:
+    User|contains:
+      - 'admin'
+      - 'deploy'
+  condition: selection_sudo and not filter_known
+falsepositives:
+  - Legitimate admin activities
+level: high

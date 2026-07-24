@@ -1,0 +1,298 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==========================================
+// ENUMS
+// ==========================================
+
+enum IncidentSeverity {
+  critical
+  high
+  medium
+  low
+  informational
+}
+
+enum IncidentStatus {
+  new
+  triaged
+  investigating
+  contained
+  eradicated
+  recovered
+  closed
+  false_positive
+}
+
+enum AlertStatus {
+  new
+  acknowledged
+  escalated
+  resolved
+  false_positive
+}
+
+enum IOCType {
+  ip
+  domain
+  url
+  hash_md5
+  hash_sha256
+  hash_sha1
+  email
+  filename
+  registry_key
+  mutex
+  user_agent
+  cidr
+}
+
+enum IOCStatus {
+  active
+  expired
+  revoked
+}
+
+enum AssetCriticality {
+  critical
+  high
+  medium
+  low
+}
+
+// ==========================================
+// MODELS
+// ==========================================
+
+model User {
+  id                  String    @id @default(uuid()) @db.Uuid
+  email               String    @unique @db.VarChar(255)
+  passwordHash        String    @map("password_hash") @db.VarChar(255)
+  name                String    @db.VarChar(255)
+  roles               String[]  @default(["analyst_l1"])
+  mfaEnabled          Boolean   @default(false) @map("mfa_enabled")
+  mfaSecret           String?   @map("mfa_secret") @db.VarChar(255)
+  failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
+  lockedUntil         DateTime? @map("locked_until") @db.Timestamptz
+  lastLogin           DateTime? @map("last_login") @db.Timestamptz
+  isActive            Boolean   @default(true) @map("is_active")
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  assignedIncidents   Incident[] @relation("AssignedIncidents")
+  escalatedIncidents  Incident[] @relation("EscalatedIncidents")
+  createdIncidents    Incident[] @relation("CreatedIncidents")
+  createdIOCs         IOC[]
+  auditLogs           AuditLog[]
+  createdPlaybooks    Playbook[]
+
+  @@index([email])
+  @@index([isActive])
+  @@map("users")
+}
+
+model Incident {
+  id                String           @id @default(uuid()) @db.Uuid
+  title             String           @db.VarChar(500)
+  description       String?          @db.Text
+  severity          IncidentSeverity
+  status            IncidentStatus   @default(new)
+  category          String?          @db.VarChar(100)
+
+  // MITRE ATT&CK
+  mitreTactics      String[]         @map("mitre_tactics")
+  mitreTechniques   String[]         @map("mitre_techniques")
+
+  // Assignment
+  assignedToId      String?          @map("assigned_to_id") @db.Uuid
+  assignedTo        User?            @relation("AssignedIncidents", fields: [assignedToId], references: [id])
+  escalatedToId     String?          @map("escalated_to_id") @db.Uuid
+  escalatedTo       User?            @relation("EscalatedIncidents", fields: [escalatedToId], references: [id])
+
+  // Timeline
+  detectedAt        DateTime         @default(now()) @map("detected_at") @db.Timestamptz
+  acknowledgedAt    DateTime?        @map("acknowledged_at") @db.Timestamptz
+  containedAt       DateTime?        @map("contained_at") @db.Timestamptz
+  resolvedAt        DateTime?        @map("resolved_at") @db.Timestamptz
+  closedAt          DateTime?        @map("closed_at") @db.Timestamptz
+
+  // Impact
+  affectedAssets    String[]         @map("affected_assets")
+  affectedUsers     String[]         @map("affected_users")
+  businessImpact    String?          @map("business_impact") @db.Text
+
+  // Risk
+  riskScore         Int?             @map("risk_score")
+
+  // Response
+  containmentActions Json?           @map("containment_actions") @default("[]")
+  remediationSteps   Json?           @map("remediation_steps") @default("[]")
+  lessonsLearned    String?          @map("lessons_learned") @db.Text
+
+  // Source
+  source            String?          @db.VarChar(100)
+  sourceAlertIds    String[]         @map("source_alert_ids")
+  tags              Json             @default("[]")
+
+  // Audit
+  createdById       String?          @map("created_by_id") @db.Uuid
+  createdBy         User?            @relation("CreatedIncidents", fields: [createdById], references: [id])
+  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime         @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt         DateTime?        @map("deleted_at") @db.Timestamptz
+
+  // Relations
+  alerts            Alert[]
+
+  @@index([status])
+  @@index([severity])
+  @@index([assignedToId])
+  @@index([detectedAt(sort: Desc)])
+  @@map("incidents")
+}
+
+model Alert {
+  id               String      @id @default(uuid()) @db.Uuid
+  ruleId           String?     @map("rule_id") @db.VarChar(50)
+  ruleDescription  String?     @map("rule_description") @db.Text
+  level            Int?
+  source           String?     @db.VarChar(100)
+
+  // Network context
+  agentId          String?     @map("agent_id") @db.VarChar(50)
+  agentName        String?     @map("agent_name") @db.VarChar(255)
+  srcIp            String?     @map("src_ip") @db.VarChar(45)
+  dstIp            String?     @map("dst_ip") @db.VarChar(45)
+  srcPort          Int?        @map("src_port")
+  dstPort          Int?        @map("dst_port")
+
+  // MITRE
+  mitreTactic      String?     @map("mitre_tactic") @db.VarChar(100)
+  mitreTechnique   String?     @map("mitre_technique") @db.VarChar(50)
+
+  // Status
+  status           AlertStatus @default(new)
+  incidentId       String?     @map("incident_id") @db.Uuid
+  incident         Incident?   @relation(fields: [incidentId], references: [id])
+
+  // Raw data
+  rawLog           Json?       @map("raw_log")
+
+  // Timestamps
+  timestamp        DateTime    @db.Timestamptz
+  createdAt        DateTime    @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([status])
+  @@index([level(sort: Desc)])
+  @@index([timestamp(sort: Desc)])
+  @@index([srcIp])
+  @@index([incidentId])
+  @@index([mitreTechnique])
+  @@map("alerts")
+}
+
+model IOC {
+  id              String        @id @default(uuid()) @db.Uuid
+  type            IOCType
+  value           String        @db.Text
+  description     String?       @db.Text
+  status          IOCStatus     @default(active)
+
+  // Scoring
+  confidence      Int           @default(50)
+  severity        IncidentSeverity @default(medium)
+
+  // Source
+  source          String?       @db.VarChar(255)
+  sourceReference String?       @map("source_reference") @db.Text
+
+  // MITRE
+  mitreTechniques String[]      @map("mitre_techniques")
+
+  // Validity
+  firstSeen       DateTime      @default(now()) @map("first_seen") @db.Timestamptz
+  lastSeen        DateTime?     @map("last_seen") @db.Timestamptz
+  expiresAt       DateTime?     @map("expires_at") @db.Timestamptz
+
+  // Relations
+  relatedIncidents String[]     @map("related_incidents")
+  tags            Json          @default("[]")
+
+  // Audit
+  createdById     String?       @map("created_by_id") @db.Uuid
+  createdBy       User?         @relation(fields: [createdById], references: [id])
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@unique([type, value])
+  @@index([value])
+  @@index([type])
+  @@index([status])
+  @@map("iocs")
+}
+
+model Asset {
+  id              String          @id @default(uuid()) @db.Uuid
+  hostname        String          @db.VarChar(255)
+  ipAddress       String?         @map("ip_address") @db.VarChar(45)
+  macAddress      String?         @map("mac_address") @db.VarChar(17)
+  os              String?         @db.VarChar(100)
+  osVersion       String?         @map("os_version") @db.VarChar(50)
+  criticality     AssetCriticality @default(medium)
+  owner           String?         @db.VarChar(255)
+  department      String?         @db.VarChar(255)
+  location        String?         @db.VarChar(255)
+  tags            Json            @default("[]")
+  lastSeen        DateTime?       @map("last_seen") @db.Timestamptz
+  wazuhAgentId    String?         @map("wazuh_agent_id") @db.VarChar(50)
+  isActive        Boolean         @default(true) @map("is_active")
+  metadata        Json            @default("{}")
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@index([ipAddress])
+  @@index([hostname])
+  @@index([wazuhAgentId])
+  @@map("assets")
+}
+
+model AuditLog {
+  id            String    @id @default(uuid()) @db.Uuid
+  userId        String?   @map("user_id") @db.Uuid
+  user          User?     @relation(fields: [userId], references: [id])
+  action        String    @db.VarChar(100)
+  resourceType  String?   @map("resource_type") @db.VarChar(100)
+  resourceId    String?   @map("resource_id") @db.VarChar(100)
+  details       Json      @default("{}")
+  ipAddress     String?   @map("ip_address") @db.VarChar(45)
+  userAgent     String?   @map("user_agent") @db.Text
+  timestamp     DateTime  @default(now()) @db.Timestamptz
+
+  @@index([userId])
+  @@index([action])
+  @@index([timestamp(sort: Desc)])
+  @@map("audit_logs")
+}
+
+model Playbook {
+  id               String    @id @default(uuid()) @db.Uuid
+  name             String    @db.VarChar(255)
+  description      String?   @db.Text
+  triggerConditions Json      @map("trigger_conditions")
+  actions          Json
+  isActive         Boolean   @default(true) @map("is_active")
+  lastTriggered    DateTime? @map("last_triggered") @db.Timestamptz
+  executionCount   Int       @default(0) @map("execution_count")
+  createdById      String?   @map("created_by_id") @db.Uuid
+  createdBy        User?     @relation(fields: [createdById], references: [id])
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  @@map("playbooks")
+}

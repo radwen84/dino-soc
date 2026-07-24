@@ -1,0 +1,80 @@
+version: '3.9'
+
+services:
+  thehive:
+    image: strangebee/thehive:5.3
+    container_name: minisoc-thehive
+    restart: unless-stopped
+    environment:
+      - JVM_OPTS=-Xms512m -Xmx1024m
+    volumes:
+      - thehive-data:/opt/thp/thehive/data
+      - ./thehive/application.conf:/etc/thehive/application.conf
+    ports:
+      - "9000:9000"
+    networks:
+      - backend-net
+    depends_on:
+      - cassandra
+      - elasticsearch-thehive
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/api/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  cortex:
+    image: thehiveproject/cortex:3.1.8
+    container_name: minisoc-cortex
+    restart: unless-stopped
+    environment:
+      - JVM_OPTS=-Xms256m -Xmx512m
+    volumes:
+      - cortex-data:/opt/cortex/data
+    ports:
+      - "9001:9001"
+    networks:
+      - backend-net
+    depends_on:
+      - elasticsearch-thehive
+
+  cassandra:
+    image: cassandra:4.1
+    container_name: minisoc-cassandra
+    restart: unless-stopped
+    environment:
+      - CASSANDRA_CLUSTER_NAME=minisoc
+      - MAX_HEAP_SIZE=512M
+      - HEAP_NEWSIZE=128M
+    volumes:
+      - cassandra-data:/var/lib/cassandra
+    networks:
+      - backend-net
+    healthcheck:
+      test: ["CMD", "cqlsh", "-e", "describe keyspaces"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  elasticsearch-thehive:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.22
+    container_name: minisoc-es-thehive
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms256m -Xmx512m
+    volumes:
+      - es-thehive-data:/usr/share/elasticsearch/data
+    networks:
+      - backend-net
+
+volumes:
+  thehive-data:
+  cortex-data:
+  cassandra-data:
+  es-thehive-data:
+
+networks:
+  backend-net:
+    external: true

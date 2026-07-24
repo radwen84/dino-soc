@@ -1,0 +1,50 @@
+# Mini-SOC Falco Configuration
+
+json_output: true
+json_include_output_property: true
+json_include_tags_property: true
+
+log_stderr: true
+log_syslog: true
+log_level: info
+
+priority: notice
+
+rules_file:
+  - /etc/falco/falco_rules.yaml
+  - /etc/falco/falco_rules.local.yaml
+  - /etc/falco/rules.d
+
+stdout_output:
+  enabled: true
+
+file_output:
+  enabled: true
+  keep_alive: false
+  filename: /var/log/falco/events.json
+
+http_output:
+  enabled: true
+  url: http://backend:4000/api/webhooks/falco
+  user_agent: "falco/0.38"
+
+program_output:
+  enabled: false
+
+grpc:
+  enabled: true
+  bind_address: "0.0.0.0:5060"
+  threadiness: 4
+
+grpc_output:
+  enabled: true
+
+webserver:
+  enabled: true
+  listen_port: 8765
+  k8s_healthz_endpoint: /healthz
+
+metrics:
+  enabled: true
+  interval: 30s
+  output_rule: true

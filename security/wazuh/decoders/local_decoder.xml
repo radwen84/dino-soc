@@ -1,0 +1,25 @@
+<!-- Mini-SOC Custom Decoders -->
+
+<!-- Suricata EVE JSON decoder -->
+<decoder name="suricata-eve">
+  <prematch>^{"timestamp":</prematch>
+  <plugin_decoder>JSON_Decoder</plugin_decoder>
+</decoder>
+
+<!-- Zeek log decoder -->
+<decoder name="zeek-json">
+  <prematch>^{"_path":</prematch>
+  <plugin_decoder>JSON_Decoder</plugin_decoder>
+</decoder>
+
+<!-- Falco alert decoder -->
+<decoder name="falco-alert">
+  <prematch>^{"output":</prematch>
+  <plugin_decoder>JSON_Decoder</plugin_decoder>
+</decoder>
+
+<!-- Mini-SOC API audit log decoder -->
+<decoder name="minisoc-audit">
+  <prematch>^{"action":</prematch>
+  <plugin_decoder>JSON_Decoder</plugin_decoder>
+</decoder>

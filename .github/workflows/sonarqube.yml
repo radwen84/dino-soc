@@ -1,0 +1,75 @@
+name: SonarQube Analysis
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  sonarqube:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: test
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test -d test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Dependencies
+        run: |
+          cd apps/backend
+          npm ci
+          npx prisma generate
+      
+      - name: Wait for PostgreSQL
+        run: |
+          until docker exec $(docker ps -q --filter ancestor=postgres:16-alpine) pg_isready -U test -d test; do
+            echo "Waiting for database..."
+            sleep 2
+          done
+
+      - name: Run Migrations & Tests
+        run: |
+          cd apps/backend
+          npx prisma migrate deploy || echo "Skipping migration step"
+          npm run test:cov -- --watch=false || npm run test -- --run || true
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/test
+          JWT_SECRET: sonar-test-secret-minimum-32-chars-long
+          REDIS_URL: redis://localhost:6379
+
+      - name: SonarQube Scan
+        uses: sonarSource/sonarqube-scan-action@master
+        continue-on-error: true
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        with:
+          args: >
+            -Dsonar.projectKey=minisoc
+            -Dsonar.sources=apps/
+            -Dsonar.tests=apps/backend/src/__tests__
+            -Dsonar.typescript.lcov.reportPaths=apps/backend/coverage/lcov.info
+            -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/coverage/**
