@@ -14,7 +14,7 @@ COPY apps/backend/ .
 
 # Génération Prisma + compilation NestJS avec gestion d'erreur non bloquante
 RUN npx prisma generate
-RUN npm run build || (echo "Warning: Nest build had warnings, proceeding..." && mkdir -p dist)
+RUN npm run build 
 
 # Stage 2: Production Dependencies
 FROM node:20-alpine AS prod-deps

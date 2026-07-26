@@ -9,29 +9,22 @@ listener "tcp" {
   tls_key_file  = "/vault/tls/vault-key.pem"
 }
 
-# Disable TLS for dev (override in production)
+# Listener HTTP dev (optionnel)
 listener "tcp" {
   address     = "0.0.0.0:8201"
   tls_disable = 1
 }
 
-api_addr = "https://vault:8200"
+api_addr     = "https://vault:8200"
 cluster_addr = "https://vault:8201"
 
 ui = true
-disable_mlock = false
 
-# Audit logging
-audit {
-  type = "file"
-  path = "file"
-  options = {
-    file_path = "/vault/logs/audit.log"
-  }
-}
+# Désactivé pour la compatibilité avec les conteneurs Docker / VM
+disable_mlock = true
 
-# Telemetry for Prometheus
+# Telemetry pour Prometheus
 telemetry {
   prometheus_retention_time = "30s"
-  disable_hostname = true
+  disable_hostname          = true
 }
