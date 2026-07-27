@@ -16,7 +16,7 @@ export class CreateAssetDto {
   @ApiProperty({ example: 'srv-web-01' })
   @IsString()
   @IsNotEmpty()
-  hostname: string;
+  hostname!: string;
 
   @ApiPropertyOptional({ example: '10.0.1.50' })
   @IsOptional()

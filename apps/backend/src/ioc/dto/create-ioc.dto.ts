@@ -15,12 +15,12 @@ import { IOCType, IOCStatus, IncidentSeverity } from '@prisma/client';
 export class CreateIocDto {
   @ApiProperty({ enum: IOCType, example: 'ip' })
   @IsEnum(IOCType)
-  type: IOCType;
+  type!: IOCType;
 
   @ApiProperty({ example: '192.168.1.100' })
   @IsString()
   @IsNotEmpty()
-  value: string;
+  value!: string;
 
   @ApiPropertyOptional({ example: 'C2 server observed in APT28 campaign' })
   @IsOptional()
@@ -36,7 +36,7 @@ export class CreateIocDto {
   @IsInt()
   @Min(0)
   @Max(100)
-  confidence: number;
+  confidence!: number;
 
   @ApiPropertyOptional({ enum: IncidentSeverity, default: 'medium' })
   @IsOptional()

@@ -4,19 +4,19 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export class CreateUserDto {
   @ApiProperty({ example: 'analyst@minisoc.local' })
   @IsEmail()
-  email: string;
+  email!: string;
 
   @ApiProperty({ example: 'Jean Dupont' })
   @IsString()
   @MinLength(2)
   @MaxLength(100)
-  name: string;
+  name!: string;
 
   @ApiProperty({ example: 'SecureP@ssw0rd!', minLength: 8 })
   @IsString()
   @MinLength(8)
   @MaxLength(128)
-  password: string;
+  password!: string;
 
   @ApiPropertyOptional({ example: ['analyst_l1'], enum: ['admin', 'analyst_l1', 'analyst_l2', 'analyst_l3', 'threat_hunter', 'incident_responder', 'readonly'] })
   @IsOptional()

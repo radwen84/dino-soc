@@ -31,7 +31,7 @@ export function validate(config: Record<string, unknown>): EnvConfig {
 
   return {
     NODE_ENV: (config.NODE_ENV as string) || 'development',
-    PORT: parseInt(config.PORT as string, 10) || 4000,
+    PORT: parseInt((config.API_PORT || config.PORT) as string, 10) || 4000,
     DATABASE_URL: config.DATABASE_URL as string,
     JWT_SECRET: jwtSecret,
     JWT_EXPIRES_IN: (config.JWT_EXPIRES_IN as string) || '15m',

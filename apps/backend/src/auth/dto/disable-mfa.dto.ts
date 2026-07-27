@@ -5,5 +5,5 @@ export class DisableMfaDto {
   @ApiProperty({ description: 'Current password to confirm MFA disable' })
   @IsString()
   @MinLength(8)
-  password: string;
+  password!: string;
 }

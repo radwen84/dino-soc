@@ -6,7 +6,7 @@ export class CreateIncidentDto {
   @IsString()
   @MinLength(5)
   @MaxLength(500)
-  title: string;
+  title!: string;
 
   @ApiPropertyOptional({ example: 'Multiple failed SSH login attempts from IP 203.0.113.42' })
   @IsOptional()
@@ -16,7 +16,7 @@ export class CreateIncidentDto {
 
   @ApiProperty({ enum: ['critical', 'high', 'medium', 'low', 'informational'] })
   @IsEnum(['critical', 'high', 'medium', 'low', 'informational'])
-  severity: string;
+  severity!: string;
 
   @ApiPropertyOptional({ example: 'brute_force' })
   @IsOptional()

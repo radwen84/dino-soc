@@ -27,7 +27,7 @@ export enum ReportPeriod {
 export class ReportFiltersDto {
   @ApiPropertyOptional({ enum: ReportType })
   @IsEnum(ReportType)
-  type: ReportType;
+  type!: ReportType;
 
   @ApiPropertyOptional({ enum: ReportFormat, default: 'json' })
   @IsOptional()
