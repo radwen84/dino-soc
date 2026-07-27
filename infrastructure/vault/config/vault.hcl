@@ -15,9 +15,8 @@ listener "tcp" {
   tls_disable = 1
 }
 
-api_addr     = "https://vault:8200"
+api_addr = "https://vault:8200"
 cluster_addr = "https://vault:8201"
-
 ui = true
 
 # Désactivé pour la compatibilité avec les conteneurs Docker / VM

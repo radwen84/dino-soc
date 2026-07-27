@@ -57,7 +57,7 @@ async function bootstrap() {
   // Graceful shutdown
   app.enableShutdownHooks();
 
-  const port = process.env.PORT || 4000;
+  const port = Number(process.env.API_PORT || process.env.PORT || 4000);
   await app.listen(port);
   logger.log(`🛡️  Mini-SOC API running on port ${port}`);
   logger.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
