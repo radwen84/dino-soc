@@ -95,7 +95,7 @@ export class ReportsService {
       this.prisma.incident.count({
         where: {
           detectedAt: { gte: dateRange.start, lte: dateRange.end },
-          status: { in: ['resolved', 'closed'] },
+          status: { in: ['recovered', 'closed'] },
         },
       }),
       this.prisma.incident.findMany({

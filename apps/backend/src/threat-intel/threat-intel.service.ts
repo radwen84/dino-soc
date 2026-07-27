@@ -43,7 +43,8 @@ export class ThreatIntelService {
     if (localMatches.length > 0) {
       result.knownIoc = true;
       result.iocDetails = localMatches[0];
-      result.riskLevel = localMatches[0].severity;
+      const severity = localMatches[0].severity;
+      result.riskLevel = severity === 'informational'? 'low' : severity as'critical' | 'high' | 'medium' | 'low' | 'unknown';
       result.sources.push('local_ioc_db');
     }
 
