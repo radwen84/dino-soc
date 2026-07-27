@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -22,7 +23,7 @@ export class AuditService {
       await this.prisma.auditLog.create({
         data: {
           action,
-          details: details || {},
+          details: (details || {}) as Prisma.InputJsonValue,
           userId: details?.userId as string | undefined,
           resourceType: details?.resourceType as string | undefined,
           resourceId: details?.resourceId as string | undefined,
@@ -43,7 +44,7 @@ export class AuditService {
           action: entry.action,
           resourceType: entry.resourceType,
           resourceId: entry.resourceId,
-          details: entry.details || {},
+          details: (entry.details || {}) as Prisma.InputJsonValue,
           ipAddress: entry.ipAddress,
           userAgent: entry.userAgent,
         },

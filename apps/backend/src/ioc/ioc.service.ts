@@ -256,8 +256,11 @@ export class IocService {
   }
 
   private async indexIocInOpenSearch(ioc: any) {
-    try {
-      await this.opensearch.index('minisoc-iocs', ioc.id, {
+  try {
+    await this.opensearch.index(
+      'minisoc-iocs',
+      ioc.id,
+      JSON.stringify({
         type: ioc.type,
         value: ioc.value,
         status: ioc.status,
@@ -266,9 +269,11 @@ export class IocService {
         source: ioc.source,
         mitreTechniques: ioc.mitreTechniques,
         createdAt: ioc.createdAt,
-      });
-    } catch (error) {
-      this.logger.warn(`Failed to index IOC in OpenSearch: ${error.message}`);
-    }
+      }),
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    this.logger.warn(`Failed to index IOC in OpenSearch: ${message}`);
   }
+}
 }

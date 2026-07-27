@@ -305,8 +305,10 @@ services:
     environment:
       - VAULT_ADDR=http://0.0.0.0:8200
     volumes:
-      - vault_data:/vault/data
-      - ./infrastructure/vault/config.hcl:/vault/config/config.hcl:ro
+    - vault_data:/vault/data
+    - ./infrastructure/vault/config.hcl:/vault/config/config.hcl:ro
+    - ./infrastructure/vault/tls:/vault/tls:ro
+    - ./infrastructure/vault/policies:/vault/policies:ro
     command: server
     deploy:
       resources:

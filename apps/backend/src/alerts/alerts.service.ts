@@ -1,3 +1,5 @@
+
+import { AlertStatus } from '@prisma/client';
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { OpenSearchService } from '../opensearch/opensearch.service';
@@ -62,14 +64,17 @@ export class AlertsService {
   async updateStatus(id: string, status: string, incidentId?: string) {
     return this.prisma.alert.update({
       where: { id },
-      data: { status, incidentId },
+      data: { status: status as AlertStatus, incidentId }
+
     });
   }
 
   async bulkUpdateStatus(ids: string[], status: string) {
     return this.prisma.alert.updateMany({
       where: { id: { in: ids } },
-      data: { status },
+      data: {
+  status: status as AlertStatus,
+            }
     });
   }
 

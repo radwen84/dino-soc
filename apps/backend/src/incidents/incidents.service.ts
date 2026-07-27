@@ -1,3 +1,4 @@
+import { IncidentSeverity } from '@prisma/client';
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
@@ -22,7 +23,7 @@ export class IncidentsService {
       data: {
         title: dto.title,
         description: dto.description,
-        severity: dto.severity,
+        severity: dto.severity as IncidentSeverity,
         status: 'new',
         category: dto.category,
         mitreTactics: dto.mitreTactics || [],
