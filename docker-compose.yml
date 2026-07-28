@@ -310,7 +310,7 @@ services:
     - ./infrastructure/vault/config.hcl:/vault/config/config.hcl:ro
     - ./infrastructure/vault/tls:/vault/tls:ro
     - ./infrastructure/vault/policies:/vault/policies:ro
-    command: server
+    command: server -config=/vault/config/config.hcl
     deploy:
       resources:
         limits:
