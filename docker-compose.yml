@@ -195,10 +195,11 @@ services:
           memory: 256M
           cpus: "0.25"
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
+        test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+        interval: 10s
+        timeout: 5s
+        retries: 5
+        start_period: 20s
 
   # ============================================
   # WAZUH MANAGER - SIEM/HIDS
