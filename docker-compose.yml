@@ -307,10 +307,10 @@ services:
       - VAULT_ADDR=http://0.0.0.0:8200
     volumes:
     - vault_data:/vault/data
-    - ./infrastructure/vault/config.hcl:/vault/config/config.hcl:ro
+    - ./infrastructure/vault/config/vault.hcl:/vault/config/vault.hcl:ro
     - ./infrastructure/vault/tls:/vault/tls:ro
     - ./infrastructure/vault/policies:/vault/policies:ro
-    command: server -config=/vault/config/config.hcl
+    command: ["server", "-config=/vault/config/vault.hcl"]
     deploy:
       resources:
         limits:

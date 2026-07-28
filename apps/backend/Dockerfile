@@ -10,6 +10,7 @@ RUN npm ci
 COPY apps/backend/ .
 
 RUN npx prisma generate
+RUN npm install @nestjs/event-emitter @nestjs/axios prom-client
 RUN npm run build
 RUN ls -la dist && test -f dist/main.js
 
