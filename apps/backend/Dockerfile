@@ -1,5 +1,5 @@
 # Stage 1
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS builder
 WORKDIR /app
 
 COPY apps/backend/package.json apps/backend/package-lock.json ./
@@ -15,7 +15,7 @@ RUN ls -la dist && test -f dist/main.js
 
 
 # Stage 2
-FROM node:20-alpine AS prod-deps
+FROM node:24-alpine AS prod-deps
 WORKDIR /app
 
 COPY apps/backend/package.json apps/backend/package-lock.json ./
@@ -25,7 +25,7 @@ RUN npm ci --only=production && npx prisma generate
 
 
 # Stage 3
-FROM node:20-alpine AS production
+FROM node:24-alpine AS production
 
 RUN apk add --no-cache dumb-init curl && \
     addgroup -g 1001 -S nodejs && adduser -S nestjs -u 1001 -G nodejs

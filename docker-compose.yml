@@ -102,6 +102,8 @@ services:
       - WAZUH_PORT=55000
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - DATABASE_URL=${DATABASE_URL}
+      - JWT_SECRET=${JWT_SECRET}
     deploy:
       resources:
         limits:
