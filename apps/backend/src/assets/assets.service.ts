@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  ConflictException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { WazuhService } from '../wazuh/wazuh.service';
@@ -202,16 +197,26 @@ export class AssetsService {
       this.prisma.asset.count({ where: { isActive: true } }),
       this.prisma.asset.groupBy({ by: ['criticality'], _count: true }),
       this.prisma.asset.groupBy({ by: ['os'], _count: true, where: { os: { not: null } } }),
-      this.prisma.asset.groupBy({ by: ['department'], _count: true, where: { department: { not: null } } }),
+      this.prisma.asset.groupBy({
+        by: ['department'],
+        _count: true,
+        where: { department: { not: null } },
+      }),
     ]);
 
     return {
       total,
       active,
       inactive: total - active,
-      byCriticality: byCriticality.reduce((acc, item) => ({ ...acc, [item.criticality]: item._count }), {}),
+      byCriticality: byCriticality.reduce(
+        (acc, item) => ({ ...acc, [item.criticality]: item._count }),
+        {},
+      ),
       byOs: byOs.reduce((acc, item) => ({ ...acc, [item.os]: item._count }), {}),
-      byDepartment: byDepartment.reduce((acc, item) => ({ ...acc, [item.department]: item._count }), {}),
+      byDepartment: byDepartment.reduce(
+        (acc, item) => ({ ...acc, [item.department]: item._count }),
+        {},
+      ),
     };
   }
 }

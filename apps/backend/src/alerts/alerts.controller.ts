@@ -1,5 +1,12 @@
 import {
-  Controller, Get, Patch, Body, Param, Query, UseGuards, ParseUUIDPipe,
+  Controller,
+  Get,
+  Patch,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -17,7 +24,13 @@ export class AlertsController {
   constructor(private readonly alertsService: AlertsService) {}
 
   @Get()
-  @Roles(SOCRole.ANALYST_L1, SOCRole.ANALYST_L2, SOCRole.ANALYST_L3, SOCRole.ADMIN, SOCRole.READONLY)
+  @Roles(
+    SOCRole.ANALYST_L1,
+    SOCRole.ANALYST_L2,
+    SOCRole.ANALYST_L3,
+    SOCRole.ADMIN,
+    SOCRole.READONLY,
+  )
   @ApiOperation({ summary: 'List alerts with filters' })
   async findAll(@Query() filters: AlertFiltersDto) {
     return this.alertsService.findAll(filters);
@@ -40,12 +53,22 @@ export class AlertsController {
   @Get('search')
   @Roles(SOCRole.ANALYST_L2, SOCRole.ANALYST_L3, SOCRole.THREAT_HUNTER, SOCRole.ADMIN)
   @ApiOperation({ summary: 'Search alerts in OpenSearch' })
-  async search(@Query('q') query: string, @Query('from') from?: number, @Query('size') size?: number) {
+  async search(
+    @Query('q') query: string,
+    @Query('from') from?: number,
+    @Query('size') size?: number,
+  ) {
     return this.alertsService.searchInOpenSearch(query, from, size);
   }
 
   @Get(':id')
-  @Roles(SOCRole.ANALYST_L1, SOCRole.ANALYST_L2, SOCRole.ANALYST_L3, SOCRole.ADMIN, SOCRole.READONLY)
+  @Roles(
+    SOCRole.ANALYST_L1,
+    SOCRole.ANALYST_L2,
+    SOCRole.ANALYST_L3,
+    SOCRole.ADMIN,
+    SOCRole.READONLY,
+  )
   @ApiOperation({ summary: 'Get alert details' })
   async findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.alertsService.findById(id);
@@ -54,10 +77,7 @@ export class AlertsController {
   @Patch(':id/status')
   @Roles(SOCRole.ANALYST_L1, SOCRole.ANALYST_L2, SOCRole.ADMIN)
   @ApiOperation({ summary: 'Update alert status' })
-  async updateStatus(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body('status') status: string,
-  ) {
+  async updateStatus(@Param('id', ParseUUIDPipe) id: string, @Body('status') status: string) {
     return this.alertsService.updateStatus(id, status);
   }
 
@@ -71,7 +91,10 @@ export class AlertsController {
   @Patch('bulk/link-incident')
   @Roles(SOCRole.ANALYST_L1, SOCRole.ANALYST_L2, SOCRole.ADMIN)
   @ApiOperation({ summary: 'Link alerts to an incident' })
-  async linkToIncident(@Body('alertIds') alertIds: string[], @Body('incidentId') incidentId: string) {
+  async linkToIncident(
+    @Body('alertIds') alertIds: string[],
+    @Body('incidentId') incidentId: string,
+  ) {
     return this.alertsService.linkToIncident(alertIds, incidentId);
   }
 }

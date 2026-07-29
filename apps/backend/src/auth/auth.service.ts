@@ -49,13 +49,9 @@ export class AuthService {
 
     // Check if account is locked
     if (user.lockedUntil && user.lockedUntil > new Date()) {
-      const remainingMinutes = Math.ceil(
-        (user.lockedUntil.getTime() - Date.now()) / 60000,
-      );
+      const remainingMinutes = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000);
       await this.auditService.log('AUTH_LOCKED', { userId: user.id, ip, remainingMinutes });
-      throw new UnauthorizedException(
-        `Account locked. Try again in ${remainingMinutes} minutes.`,
-      );
+      throw new UnauthorizedException(`Account locked. Try again in ${remainingMinutes} minutes.`);
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
@@ -148,16 +144,13 @@ export class AuthService {
       const user = await this.usersService.findById(payload.sub);
       if (!user) throw new UnauthorizedException('User not found');
 
-      const isValid = this.totpService.verifyToken(user.mfaSecret!, totpToken);
+      const isValid = this.totpService.verifyToken(user.mfaSecret, totpToken);
       if (!isValid) {
         await this.auditService.log('MFA_FAILED', { userId: user.id, ip });
         throw new UnauthorizedException('Invalid MFA token');
       }
 
-      return (await this.login(
-        { ...user, mfaEnabled: false },
-        ip,
-      )) as LoginResponse;
+      return (await this.login({ ...user, mfaEnabled: false }, ip)) as LoginResponse;
     } catch (error) {
       if (error instanceof UnauthorizedException) throw error;
       throw new UnauthorizedException('Invalid or expired token');

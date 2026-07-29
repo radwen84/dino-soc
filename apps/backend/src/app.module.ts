@@ -48,10 +48,12 @@ import { validate } from './config/env.validation';
     ScheduleModule.forRoot(),
 
     // Rate limiting
-    ThrottlerModule.forRoot([{
-      ttl: 60000,
-      limit: 100,
-    }]),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 100,
+      },
+    ]),
 
     // Core
     PrismaModule,

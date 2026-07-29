@@ -11,12 +11,7 @@ import { MispFeedService } from './feeds/misp-feed.service';
 @Module({
   imports: [HttpModule, IocModule, AuditModule],
   controllers: [ThreatIntelController],
-  providers: [
-    ThreatIntelService,
-    OtxFeedService,
-    AbuseIpDbService,
-    MispFeedService,
-  ],
+  providers: [ThreatIntelService, OtxFeedService, AbuseIpDbService, MispFeedService],
   exports: [ThreatIntelService],
 })
 export class ThreatIntelModule {}

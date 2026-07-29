@@ -1,13 +1,4 @@
-import {
-  Controller,
-  Post,
-  Get,
-  Body,
-  UseGuards,
-  Req,
-  HttpCode,
-  HttpStatus,
-} from '@nestjs/common';
+import { Controller, Post, Get, Body, UseGuards, Req, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ThrottlerGuard, Throttle } from '@nestjs/throttler';
 import { Request } from 'express';
@@ -32,11 +23,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Login with email and password' })
   async login(@Body() loginDto: LoginDto, @Req() req: Request) {
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
-    const user = await this.authService.validateUser(
-      loginDto.email,
-      loginDto.password,
-      ip,
-    );
+    const user = await this.authService.validateUser(loginDto.email, loginDto.password, ip);
     return this.authService.login(user, ip, loginDto.totpToken);
   }
 

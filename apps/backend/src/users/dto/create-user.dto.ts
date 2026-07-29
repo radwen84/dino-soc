@@ -1,4 +1,12 @@
-import { IsEmail, IsString, MinLength, MaxLength, IsArray, IsOptional, IsIn } from 'class-validator';
+import {
+  IsEmail,
+  IsString,
+  MinLength,
+  MaxLength,
+  IsArray,
+  IsOptional,
+  IsIn,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateUserDto {
@@ -18,7 +26,18 @@ export class CreateUserDto {
   @MaxLength(128)
   password!: string;
 
-  @ApiPropertyOptional({ example: ['analyst_l1'], enum: ['admin', 'analyst_l1', 'analyst_l2', 'analyst_l3', 'threat_hunter', 'incident_responder', 'readonly'] })
+  @ApiPropertyOptional({
+    example: ['analyst_l1'],
+    enum: [
+      'admin',
+      'analyst_l1',
+      'analyst_l2',
+      'analyst_l3',
+      'threat_hunter',
+      'incident_responder',
+      'readonly',
+    ],
+  })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })

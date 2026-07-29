@@ -6,8 +6,15 @@ import { AssetsService } from '../assets/assets.service';
 import { ThreatIntelService } from '../threat-intel/threat-intel.service';
 
 interface PlaybookAction {
-  type: 'enrich_alert' | 'lookup_ioc' | 'isolate_host' | 'block_ip' |
-        'create_incident' | 'notify' | 'escalate' | 'tag_asset';
+  type:
+    | 'enrich_alert'
+    | 'lookup_ioc'
+    | 'isolate_host'
+    | 'block_ip'
+    | 'create_incident'
+    | 'notify'
+    | 'escalate'
+    | 'tag_asset';
   params: Record<string, any>;
 }
 
@@ -59,13 +66,20 @@ export class PlaybookEngine {
     return conditions.every((condition) => {
       const value = this.getNestedValue(data, condition.field);
       switch (condition.operator) {
-        case 'eq': return value === condition.value;
-        case 'gt': return value > condition.value;
-        case 'lt': return value < condition.value;
-        case 'contains': return String(value).includes(condition.value);
-        case 'in': return Array.isArray(condition.value) && condition.value.includes(value);
-        case 'regex': return new RegExp(condition.value).test(String(value));
-        default: return false;
+        case 'eq':
+          return value === condition.value;
+        case 'gt':
+          return value > condition.value;
+        case 'lt':
+          return value < condition.value;
+        case 'contains':
+          return String(value).includes(condition.value);
+        case 'in':
+          return Array.isArray(condition.value) && condition.value.includes(value);
+        case 'regex':
+          return new RegExp(condition.value).test(String(value));
+        default:
+          return false;
       }
     });
   }
@@ -79,7 +93,9 @@ export class PlaybookEngine {
         const result = await this.executeAction(action, context);
         context.results[action.type] = result;
       } catch (error) {
-        this.logger.error(`Playbook ${playbook.name} action ${action.type} failed: ${error.message}`);
+        this.logger.error(
+          `Playbook ${playbook.name} action ${action.type} failed: ${error.message}`,
+        );
         break; // Stop on failure
       }
     }

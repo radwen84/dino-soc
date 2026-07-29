@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  ConflictException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
@@ -172,10 +167,7 @@ export class IocService {
       where: {
         value: { contains: value, mode: 'insensitive' },
         status: 'active',
-        OR: [
-          { expiresAt: null },
-          { expiresAt: { gt: new Date() } },
-        ],
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
       },
       orderBy: { confidence: 'desc' },
     });
@@ -256,24 +248,24 @@ export class IocService {
   }
 
   private async indexIocInOpenSearch(ioc: any) {
-  try {
-    await this.opensearch.index(
-      'minisoc-iocs',
-      ioc.id,
-      JSON.stringify({
-        type: ioc.type,
-        value: ioc.value,
-        status: ioc.status,
-        confidence: ioc.confidence,
-        severity: ioc.severity,
-        source: ioc.source,
-        mitreTechniques: ioc.mitreTechniques,
-        createdAt: ioc.createdAt,
-      }),
-    );
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    this.logger.warn(`Failed to index IOC in OpenSearch: ${message}`);
+    try {
+      await this.opensearch.index(
+        'minisoc-iocs',
+        ioc.id,
+        JSON.stringify({
+          type: ioc.type,
+          value: ioc.value,
+          status: ioc.status,
+          confidence: ioc.confidence,
+          severity: ioc.severity,
+          source: ioc.source,
+          mitreTechniques: ioc.mitreTechniques,
+          createdAt: ioc.createdAt,
+        }),
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`Failed to index IOC in OpenSearch: ${message}`);
+    }
   }
-}
 }

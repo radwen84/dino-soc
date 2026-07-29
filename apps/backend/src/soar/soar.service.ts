@@ -96,7 +96,14 @@ export class SoarService {
         },
         actions: [
           { type: 'enrich_alert', params: {} },
-          { type: 'notify', params: { channel: 'websocket', message: 'Critical alert enriched: {{trigger.ruleDescription}}', severity: 'critical' } },
+          {
+            type: 'notify',
+            params: {
+              channel: 'websocket',
+              message: 'Critical alert enriched: {{trigger.ruleDescription}}',
+              severity: 'critical',
+            },
+          },
         ],
       },
       {
@@ -104,14 +111,15 @@ export class SoarService {
         description: 'Block source IP when IOC match with confidence > 80',
         triggerConditions: {
           triggerType: 'alert',
-          rules: [
-            { field: 'level', operator: 'gt', value: 7 },
-          ],
+          rules: [{ field: 'level', operator: 'gt', value: 7 }],
         },
         actions: [
           { type: 'lookup_ioc', params: { value: '{{trigger.srcIp}}' } },
           { type: 'block_ip', params: { ip: '{{trigger.srcIp}}' } },
-          { type: 'create_incident', params: { title: 'Malicious IP blocked: {{trigger.srcIp}}', severity: 'high' } },
+          {
+            type: 'create_incident',
+            params: { title: 'Malicious IP blocked: {{trigger.srcIp}}', severity: 'high' },
+          },
         ],
       },
       {
@@ -123,7 +131,14 @@ export class SoarService {
         },
         actions: [
           { type: 'escalate', params: { team: 'analyst_l3' } },
-          { type: 'notify', params: { channel: 'websocket', message: 'Critical incident escalated: {{trigger.title}}', severity: 'critical' } },
+          {
+            type: 'notify',
+            params: {
+              channel: 'websocket',
+              message: 'Critical incident escalated: {{trigger.title}}',
+              severity: 'critical',
+            },
+          },
         ],
       },
     ];

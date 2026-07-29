@@ -1,4 +1,3 @@
-
 import { AlertStatus } from '@prisma/client';
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
@@ -64,8 +63,7 @@ export class AlertsService {
   async updateStatus(id: string, status: string, incidentId?: string) {
     return this.prisma.alert.update({
       where: { id },
-      data: { status: status as AlertStatus, incidentId }
-
+      data: { status: status as AlertStatus, incidentId },
     });
   }
 
@@ -73,8 +71,8 @@ export class AlertsService {
     return this.prisma.alert.updateMany({
       where: { id: { in: ids } },
       data: {
-  status: status as AlertStatus,
-            }
+        status: status as AlertStatus,
+      },
     });
   }
 

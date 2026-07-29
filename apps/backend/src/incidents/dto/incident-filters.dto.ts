@@ -3,7 +3,18 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 
 export class IncidentFiltersDto extends PaginationDto {
-  @ApiPropertyOptional({ enum: ['new', 'triaged', 'investigating', 'contained', 'eradicated', 'recovered', 'closed', 'false_positive'] })
+  @ApiPropertyOptional({
+    enum: [
+      'new',
+      'triaged',
+      'investigating',
+      'contained',
+      'eradicated',
+      'recovered',
+      'closed',
+      'false_positive',
+    ],
+  })
   @IsOptional()
   @IsString()
   status?: string;

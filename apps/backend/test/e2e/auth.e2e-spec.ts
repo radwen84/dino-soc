@@ -42,10 +42,7 @@ describe('Auth (E2E)', () => {
     });
 
     it('should reject empty body', async () => {
-      await request(app.getHttpServer())
-        .post('/api/auth/login')
-        .send({})
-        .expect(400);
+      await request(app.getHttpServer()).post('/api/auth/login').send({}).expect(400);
     });
   });
 

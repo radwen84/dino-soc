@@ -258,7 +258,11 @@ export class IncidentsService {
         where: { status: { notIn: ['closed', 'false_positive'] }, deletedAt: null },
       }),
       this.prisma.incident.count({
-        where: { severity: 'critical', status: { notIn: ['closed', 'false_positive'] }, deletedAt: null },
+        where: {
+          severity: 'critical',
+          status: { notIn: ['closed', 'false_positive'] },
+          deletedAt: null,
+        },
       }),
       this.prisma.alert.count({
         where: { createdAt: { gte: new Date(Date.now() - 86400000) } },

@@ -44,7 +44,10 @@ export class ThreatIntelService {
       result.knownIoc = true;
       result.iocDetails = localMatches[0];
       const severity = localMatches[0].severity;
-      result.riskLevel = severity === 'informational'? 'low' : severity as'critical' | 'high' | 'medium' | 'low' | 'unknown';
+      result.riskLevel =
+        severity === 'informational'
+          ? 'low'
+          : (severity as 'critical' | 'high' | 'medium' | 'low' | 'unknown');
       result.sources.push('local_ioc_db');
     }
 
@@ -109,9 +112,7 @@ export class ThreatIntelService {
         results.misp = importResult.created;
       }
 
-      this.logger.log(
-        `Feed sync complete: OTX=${results.otx}, MISP=${results.misp}`,
-      );
+      this.logger.log(`Feed sync complete: OTX=${results.otx}, MISP=${results.misp}`);
     } catch (error) {
       this.logger.error(`Feed sync failed: ${error.message}`);
       results.errors.push(error.message);
@@ -128,7 +129,11 @@ export class ThreatIntelService {
       feeds: [
         { name: 'AlienVault OTX', enabled: !!process.env.OTX_API_KEY, lastSync: null },
         { name: 'AbuseIPDB', enabled: !!process.env.ABUSEIPDB_API_KEY, lastSync: null },
-        { name: 'MISP', enabled: !!(process.env.MISP_URL && process.env.MISP_API_KEY), lastSync: null },
+        {
+          name: 'MISP',
+          enabled: !!(process.env.MISP_URL && process.env.MISP_API_KEY),
+          lastSync: null,
+        },
       ],
       nextSync: this.getNextSyncTime(),
     };

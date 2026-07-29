@@ -30,13 +30,13 @@ export class WazuhService {
     try {
       const response = await firstValueFrom(
         this.httpService.post(`${this.baseUrl}/security/user/authenticate`, null, {
-          auth: { username: user, password: password! },
+          auth: { username: user, password: password },
           httpsAgent: new (require('https').Agent)({ rejectUnauthorized: false }),
         }),
       );
       this.token = response.data.data.token;
       this.tokenExpiry = Date.now() + 850000; // ~14 minutes
-      return this.token!;
+      return this.token;
     } catch (error) {
       this.logger.error('Wazuh authentication failed', error);
       throw error;

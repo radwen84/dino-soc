@@ -1,5 +1,16 @@
 import {
-  Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, ParseUUIDPipe, HttpCode, HttpStatus,
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  ParseUUIDPipe,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -27,7 +38,15 @@ export class IncidentsController {
   }
 
   @Get()
-  @Roles(SOCRole.ANALYST_L1, SOCRole.ANALYST_L2, SOCRole.ANALYST_L3, SOCRole.ADMIN, SOCRole.READONLY, SOCRole.THREAT_HUNTER, SOCRole.INCIDENT_RESPONDER)
+  @Roles(
+    SOCRole.ANALYST_L1,
+    SOCRole.ANALYST_L2,
+    SOCRole.ANALYST_L3,
+    SOCRole.ADMIN,
+    SOCRole.READONLY,
+    SOCRole.THREAT_HUNTER,
+    SOCRole.INCIDENT_RESPONDER,
+  )
   @ApiOperation({ summary: 'List incidents with filters' })
   async findAll(@Query() filters: IncidentFiltersDto) {
     return this.incidentsService.findAll(filters);
@@ -41,7 +60,13 @@ export class IncidentsController {
   }
 
   @Get(':id')
-  @Roles(SOCRole.ANALYST_L1, SOCRole.ANALYST_L2, SOCRole.ANALYST_L3, SOCRole.ADMIN, SOCRole.READONLY)
+  @Roles(
+    SOCRole.ANALYST_L1,
+    SOCRole.ANALYST_L2,
+    SOCRole.ANALYST_L3,
+    SOCRole.ADMIN,
+    SOCRole.READONLY,
+  )
   @ApiOperation({ summary: 'Get incident details' })
   async findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.incidentsService.findById(id);

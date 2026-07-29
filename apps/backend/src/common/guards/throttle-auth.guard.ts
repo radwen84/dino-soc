@@ -10,11 +10,7 @@ export class AuthThrottleGuard extends ThrottlerGuard {
     return `auth:${ip}:${email}`;
   }
 
-  protected async throwThrottlingException(
-    context: ExecutionContext,
-  ): Promise<void> {
-    throw new ThrottlerException(
-      'Too many authentication attempts. Please try again later.',
-    );
+  protected async throwThrottlingException(context: ExecutionContext): Promise<void> {
+    throw new ThrottlerException('Too many authentication attempts. Please try again later.');
   }
 }

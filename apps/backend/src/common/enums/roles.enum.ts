@@ -21,7 +21,15 @@ export const ROLE_HIERARCHY: Record<SOCRole, number> = {
 export const PERMISSIONS: Record<string, SOCRole[]> = {
   // Incidents
   'incidents.create': [SOCRole.ANALYST_L1, SOCRole.ANALYST_L2, SOCRole.ANALYST_L3, SOCRole.ADMIN],
-  'incidents.read': [SOCRole.ANALYST_L1, SOCRole.ANALYST_L2, SOCRole.ANALYST_L3, SOCRole.ADMIN, SOCRole.READONLY, SOCRole.THREAT_HUNTER, SOCRole.INCIDENT_RESPONDER],
+  'incidents.read': [
+    SOCRole.ANALYST_L1,
+    SOCRole.ANALYST_L2,
+    SOCRole.ANALYST_L3,
+    SOCRole.ADMIN,
+    SOCRole.READONLY,
+    SOCRole.THREAT_HUNTER,
+    SOCRole.INCIDENT_RESPONDER,
+  ],
   'incidents.update': [SOCRole.ANALYST_L2, SOCRole.ANALYST_L3, SOCRole.ADMIN],
   'incidents.escalate': [SOCRole.ANALYST_L2, SOCRole.ANALYST_L3, SOCRole.ADMIN],
   'incidents.close': [SOCRole.ANALYST_L2, SOCRole.ANALYST_L3, SOCRole.ADMIN],

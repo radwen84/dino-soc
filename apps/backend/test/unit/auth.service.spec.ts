@@ -35,12 +35,15 @@ describe('AuthService', () => {
         AuthService,
         { provide: JwtService, useValue: { signAsync: jest.fn().mockResolvedValue('token') } },
         { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('7d') } },
-        { provide: UsersService, useValue: {
-          findByEmail: jest.fn(),
-          updateFailedAttempts: jest.fn(),
-          resetFailedAttempts: jest.fn(),
-          updateLastLogin: jest.fn(),
-        }},
+        {
+          provide: UsersService,
+          useValue: {
+            findByEmail: jest.fn(),
+            updateFailedAttempts: jest.fn(),
+            resetFailedAttempts: jest.fn(),
+            updateLastLogin: jest.fn(),
+          },
+        },
         { provide: TotpService, useValue: { verify: jest.fn() } },
         { provide: AuditService, useValue: { log: jest.fn() } },
       ],
@@ -62,27 +65,27 @@ describe('AuthService', () => {
     it('should throw on invalid password', async () => {
       usersService.findByEmail.mockResolvedValue(mockUser as any);
 
-      await expect(
-        service.validateUser('test@minisoc.local', 'wrong-password'),
-      ).rejects.toThrow(UnauthorizedException);
+      await expect(service.validateUser('test@minisoc.local', 'wrong-password')).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('should throw if account is locked', async () => {
       const lockedUser = { ...mockUser, lockedUntil: new Date(Date.now() + 3600000) };
       usersService.findByEmail.mockResolvedValue(lockedUser as any);
 
-      await expect(
-        service.validateUser('test@minisoc.local', 'TestPassword123!'),
-      ).rejects.toThrow(UnauthorizedException);
+      await expect(service.validateUser('test@minisoc.local', 'TestPassword123!')).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('should throw if user is inactive', async () => {
       const inactiveUser = { ...mockUser, isActive: false };
       usersService.findByEmail.mockResolvedValue(inactiveUser as any);
 
-      await expect(
-        service.validateUser('test@minisoc.local', 'TestPassword123!'),
-      ).rejects.toThrow(UnauthorizedException);
+      await expect(service.validateUser('test@minisoc.local', 'TestPassword123!')).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
   });
 });

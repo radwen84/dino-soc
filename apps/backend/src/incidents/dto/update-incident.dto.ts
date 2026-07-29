@@ -17,9 +17,29 @@ export class UpdateIncidentDto {
   @IsEnum(['critical', 'high', 'medium', 'low', 'informational'])
   severity?: string;
 
-  @ApiPropertyOptional({ enum: ['new', 'triaged', 'investigating', 'contained', 'eradicated', 'recovered', 'closed', 'false_positive'] })
+  @ApiPropertyOptional({
+    enum: [
+      'new',
+      'triaged',
+      'investigating',
+      'contained',
+      'eradicated',
+      'recovered',
+      'closed',
+      'false_positive',
+    ],
+  })
   @IsOptional()
-  @IsEnum(['new', 'triaged', 'investigating', 'contained', 'eradicated', 'recovered', 'closed', 'false_positive'])
+  @IsEnum([
+    'new',
+    'triaged',
+    'investigating',
+    'contained',
+    'eradicated',
+    'recovered',
+    'closed',
+    'false_positive',
+  ])
   status?: string;
 
   @ApiPropertyOptional()

@@ -13,9 +13,10 @@ async function bootstrap() {
   const logger = new Logger('Bootstrap');
 
   const app = await NestFactory.create(AppModule, {
-    logger: process.env.NODE_ENV === 'production'
-      ? ['error', 'warn', 'log']
-      : ['error', 'warn', 'log', 'debug', 'verbose'],
+    logger:
+      process.env.NODE_ENV === 'production'
+        ? ['error', 'warn', 'log']
+        : ['error', 'warn', 'log', 'debug', 'verbose'],
   });
 
   // Global prefix
@@ -28,10 +29,7 @@ async function bootstrap() {
   // Global pipes, filters, interceptors
   app.useGlobalPipes(AppValidationPipe);
   app.useGlobalFilters(new GlobalExceptionFilter());
-  app.useGlobalInterceptors(
-    new SanitizeInterceptor(),
-    new TimeoutInterceptor(30000),
-  );
+  app.useGlobalInterceptors(new SanitizeInterceptor(), new TimeoutInterceptor(30000));
 
   // Swagger (development only)
   if (process.env.NODE_ENV !== 'production') {

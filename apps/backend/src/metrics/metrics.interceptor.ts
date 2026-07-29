@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  NestInterceptor,
-  ExecutionContext,
-  CallHandler,
-} from '@nestjs/common';
+import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
 import { Observable, tap } from 'rxjs';
 import { Request, Response } from 'express';
 import { MetricsService } from './metrics.service';
@@ -35,12 +30,8 @@ export class MetricsInterceptor implements NestInterceptor {
     const route = req.route?.path || req.path || 'unknown';
     const method = req.method;
 
-    this.metricsService.httpRequestDuration
-      .labels(method, route, String(status))
-      .observe(duration);
+    this.metricsService.httpRequestDuration.labels(method, route, String(status)).observe(duration);
 
-    this.metricsService.httpRequestsTotal
-      .labels(method, route, String(status))
-      .inc();
+    this.metricsService.httpRequestsTotal.labels(method, route, String(status)).inc();
   }
 }

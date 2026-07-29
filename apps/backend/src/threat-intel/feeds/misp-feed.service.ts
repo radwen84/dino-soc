@@ -105,7 +105,7 @@ export class MispFeedService {
       'email-src': 'email',
       'email-dst': 'email',
       filename: 'filename',
-      'regkey': 'registry_key',
+      regkey: 'registry_key',
       mutex: 'mutex',
     };
     return mapping[mispType] || null;
@@ -113,10 +113,14 @@ export class MispFeedService {
 
   private mapThreatLevel(level: string): 'critical' | 'high' | 'medium' | 'low' {
     switch (level) {
-      case '1': return 'critical';
-      case '2': return 'high';
-      case '3': return 'medium';
-      default: return 'low';
+      case '1':
+        return 'critical';
+      case '2':
+        return 'high';
+      case '3':
+        return 'medium';
+      default:
+        return 'low';
     }
   }
 }

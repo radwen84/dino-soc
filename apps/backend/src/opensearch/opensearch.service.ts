@@ -76,31 +76,43 @@ export class OpenSearchService implements OnModuleInit {
       query.bool.must.push({ range: { 'rule.level': { gte: level } } });
     }
 
-    return this.search('wazuh-alerts-*', { query, sort: [{ timestamp: { order: 'desc' } }], size: 1000 });
+    return this.search('wazuh-alerts-*', {
+      query,
+      sort: [{ timestamp: { order: 'desc' } }],
+      size: 1000,
+    });
   }
 
   async getMitreStats(days: number = 30) {
     const since = new Date(Date.now() - days * 86400000);
-    return this.aggregate('wazuh-alerts-*', {
-      mitre_techniques: {
-        terms: { field: 'rule.mitre.id', size: 50 },
+    return this.aggregate(
+      'wazuh-alerts-*',
+      {
+        mitre_techniques: {
+          terms: { field: 'rule.mitre.id', size: 50 },
+        },
+        mitre_tactics: {
+          terms: { field: 'rule.mitre.tactic', size: 20 },
+        },
       },
-      mitre_tactics: {
-        terms: { field: 'rule.mitre.tactic', size: 20 },
+      {
+        range: { timestamp: { gte: since.toISOString() } },
       },
-    }, {
-      range: { timestamp: { gte: since.toISOString() } },
-    });
+    );
   }
 
   async getTopSourceIPs(limit: number = 20, hours: number = 24) {
     const since = new Date(Date.now() - hours * 3600000);
-    return this.aggregate('wazuh-alerts-*', {
-      top_ips: {
-        terms: { field: 'data.srcip', size: limit },
+    return this.aggregate(
+      'wazuh-alerts-*',
+      {
+        top_ips: {
+          terms: { field: 'data.srcip', size: limit },
+        },
       },
-    }, {
-      range: { timestamp: { gte: since.toISOString() } },
-    });
+      {
+        range: { timestamp: { gte: since.toISOString() } },
+      },
+    );
   }
 }

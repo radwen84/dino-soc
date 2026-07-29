@@ -1,19 +1,6 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Query,
-  Res,
-  UseGuards,
-  Header,
-} from '@nestjs/common';
+import { Controller, Get, Post, Query, Res, UseGuards, Header } from '@nestjs/common';
 import { Response } from 'express';
-import {
-  ApiTags,
-  ApiBearerAuth,
-  ApiOperation,
-  ApiResponse,
-} from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { ReportsService } from './reports.service';
 import { ReportFiltersDto, ReportFormat } from './dto/report-filters.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -67,12 +54,32 @@ export class ReportsController {
   @ApiOperation({ summary: 'List available report types' })
   getReportTypes() {
     return [
-      { type: 'executive_summary', description: 'High-level overview for management', roles: ['admin', 'analyst_l3'] },
-      { type: 'incident_report', description: 'Detailed incident analysis', roles: ['admin', 'analyst_l2', 'analyst_l3'] },
-      { type: 'threat_landscape', description: 'Threat landscape and trends', roles: ['admin', 'analyst_l2', 'analyst_l3'] },
-      { type: 'kpi_metrics', description: 'SOC performance metrics (MTTD, MTTR, SLA)', roles: ['admin', 'analyst_l2', 'analyst_l3'] },
+      {
+        type: 'executive_summary',
+        description: 'High-level overview for management',
+        roles: ['admin', 'analyst_l3'],
+      },
+      {
+        type: 'incident_report',
+        description: 'Detailed incident analysis',
+        roles: ['admin', 'analyst_l2', 'analyst_l3'],
+      },
+      {
+        type: 'threat_landscape',
+        description: 'Threat landscape and trends',
+        roles: ['admin', 'analyst_l2', 'analyst_l3'],
+      },
+      {
+        type: 'kpi_metrics',
+        description: 'SOC performance metrics (MTTD, MTTR, SLA)',
+        roles: ['admin', 'analyst_l2', 'analyst_l3'],
+      },
       { type: 'compliance', description: 'Compliance and audit report', roles: ['admin'] },
-      { type: 'asset_inventory', description: 'Asset inventory overview', roles: ['admin', 'analyst_l2', 'analyst_l3'] },
+      {
+        type: 'asset_inventory',
+        description: 'Asset inventory overview',
+        roles: ['admin', 'analyst_l2', 'analyst_l3'],
+      },
     ];
   }
 
@@ -80,9 +87,7 @@ export class ReportsController {
     if (Array.isArray(data)) {
       if (data.length === 0) return '';
       const headers = Object.keys(data[0]);
-      const rows = data.map((row) =>
-        headers.map((h) => JSON.stringify(row[h] ?? '')).join(','),
-      );
+      const rows = data.map((row) => headers.map((h) => JSON.stringify(row[h] ?? '')).join(','));
       return [headers.join(','), ...rows].join('\n');
     }
 

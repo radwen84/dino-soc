@@ -1,11 +1,7 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
-import {
-  ReportFiltersDto,
-  ReportType,
-  ReportPeriod,
-} from './dto/report-filters.dto';
+import { ReportFiltersDto, ReportType, ReportPeriod } from './dto/report-filters.dto';
 
 interface DateRange {
   start: Date;
@@ -115,42 +111,43 @@ export class ReportsService {
     ]);
 
     // Calculate MTTD (Mean Time to Detect → Acknowledge)
-    const mttd = mttdData.length > 0
-      ? mttdData.reduce((sum, inc) => {
-          return sum + (inc.acknowledgedAt!.getTime() - inc.detectedAt.getTime());
-        }, 0) / mttdData.length / 60000 // Convert to minutes
-      : 0;
+    const mttd =
+      mttdData.length > 0
+        ? mttdData.reduce((sum, inc) => {
+            return sum + (inc.acknowledgedAt.getTime() - inc.detectedAt.getTime());
+          }, 0) /
+          mttdData.length /
+          60000 // Convert to minutes
+        : 0;
 
     // Calculate MTTR (Mean Time to Resolve)
-    const mttr = mttrData.length > 0
-      ? mttrData.reduce((sum, inc) => {
-          return sum + (inc.resolvedAt!.getTime() - inc.detectedAt.getTime());
-        }, 0) / mttrData.length / 3600000 // Convert to hours
-      : 0;
+    const mttr =
+      mttrData.length > 0
+        ? mttrData.reduce((sum, inc) => {
+            return sum + (inc.resolvedAt.getTime() - inc.detectedAt.getTime());
+          }, 0) /
+          mttrData.length /
+          3600000 // Convert to hours
+        : 0;
 
     return {
       overview: {
         totalIncidents,
         totalAlerts,
         resolvedIncidents,
-        resolutionRate: totalIncidents > 0
-          ? Math.round((resolvedIncidents / totalIncidents) * 100)
-          : 0,
+        resolutionRate:
+          totalIncidents > 0 ? Math.round((resolvedIncidents / totalIncidents) * 100) : 0,
       },
       severity: incidentsBySeverity.reduce(
         (acc, item) => ({ ...acc, [item.severity]: item._count }),
         {},
       ),
-      status: incidentsByStatus.reduce(
-        (acc, item) => ({ ...acc, [item.status]: item._count }),
-        {},
-      ),
+      status: incidentsByStatus.reduce((acc, item) => ({ ...acc, [item.status]: item._count }), {}),
       kpis: {
         mttd: Math.round(mttd * 100) / 100, // minutes
         mttr: Math.round(mttr * 100) / 100, // hours
-        alertToIncidentRatio: totalAlerts > 0
-          ? Math.round((totalIncidents / totalAlerts) * 100) / 100
-          : 0,
+        alertToIncidentRatio:
+          totalAlerts > 0 ? Math.round((totalIncidents / totalAlerts) * 100) / 100 : 0,
       },
     };
   }
@@ -203,12 +200,7 @@ export class ReportsService {
   }
 
   private async generateThreatLandscape(dateRange: DateRange) {
-    const [
-      topMitreTechniques,
-      topSources,
-      iocsByType,
-      topIps,
-    ] = await Promise.all([
+    const [topMitreTechniques, topSources, iocsByType, topIps] = await Promise.all([
       this.prisma.$queryRaw`
         SELECT unnest(mitre_techniques) as technique, COUNT(*) as count
         FROM incidents
@@ -244,10 +236,7 @@ export class ReportsService {
     return {
       mitreTechniques: topMitreTechniques,
       alertSources: topSources.map((s) => ({ source: s.source, count: s._count })),
-      iocDistribution: iocsByType.reduce(
-        (acc, item) => ({ ...acc, [item.type]: item._count }),
-        {},
-      ),
+      iocDistribution: iocsByType.reduce((acc, item) => ({ ...acc, [item.type]: item._count }), {}),
       topAttackerIps: topIps.map((ip) => ({ ip: ip.srcIp, count: ip._count })),
     };
   }
@@ -271,18 +260,26 @@ export class ReportsService {
     // Per-severity MTTR
     const severityMetrics = ['critical', 'high', 'medium', 'low'].map((sev) => {
       const sevIncidents = incidents.filter((i) => i.severity === sev && i.resolvedAt);
-      const avgMttr = sevIncidents.length > 0
-        ? sevIncidents.reduce((sum, i) => sum + (i.resolvedAt!.getTime() - i.detectedAt.getTime()), 0) /
-          sevIncidents.length / 3600000
-        : 0;
-      return { severity: sev, count: incidents.filter((i) => i.severity === sev).length, avgMttrHours: Math.round(avgMttr * 100) / 100 };
+      const avgMttr =
+        sevIncidents.length > 0
+          ? sevIncidents.reduce(
+              (sum, i) => sum + (i.resolvedAt.getTime() - i.detectedAt.getTime()),
+              0,
+            ) /
+            sevIncidents.length /
+            3600000
+          : 0;
+      return {
+        severity: sev,
+        count: incidents.filter((i) => i.severity === sev).length,
+        avgMttrHours: Math.round(avgMttr * 100) / 100,
+      };
     });
 
     return {
       totalIncidents: incidents.length,
-      falsePositiveRate: incidents.length > 0
-        ? Math.round((falsePositives / incidents.length) * 100)
-        : 0,
+      falsePositiveRate:
+        incidents.length > 0 ? Math.round((falsePositives / incidents.length) * 100) : 0,
       severityMetrics,
       slaCompliance: this.calculateSlaCompliance(incidents),
     };
@@ -342,9 +339,15 @@ export class ReportsService {
 
     return {
       total,
-      byCriticality: byCriticality.reduce((acc, item) => ({ ...acc, [item.criticality]: item._count }), {}),
+      byCriticality: byCriticality.reduce(
+        (acc, item) => ({ ...acc, [item.criticality]: item._count }),
+        {},
+      ),
       byOs: byOs.reduce((acc, item) => ({ ...acc, [item.os || 'unknown']: item._count }), {}),
-      status: byStatus.reduce((acc, item) => ({ ...acc, [item.isActive ? 'active' : 'inactive']: item._count }), {}),
+      status: byStatus.reduce(
+        (acc, item) => ({ ...acc, [item.isActive ? 'active' : 'inactive']: item._count }),
+        {},
+      ),
       recentlyDiscovered,
     };
   }
@@ -367,7 +370,9 @@ export class ReportsService {
         start = new Date(end.getTime() - 90 * 24 * 3600000);
         break;
       case ReportPeriod.CUSTOM:
-        start = filters.startDate ? new Date(filters.startDate) : new Date(end.getTime() - 7 * 24 * 3600000);
+        start = filters.startDate
+          ? new Date(filters.startDate)
+          : new Date(end.getTime() - 7 * 24 * 3600000);
         break;
       default:
         start = new Date(end.getTime() - 7 * 24 * 3600000);
@@ -380,7 +385,8 @@ export class ReportsService {
     const events: { timestamp: Date; event: string }[] = [];
 
     if (incident.detectedAt) events.push({ timestamp: incident.detectedAt, event: 'Detected' });
-    if (incident.acknowledgedAt) events.push({ timestamp: incident.acknowledgedAt, event: 'Acknowledged' });
+    if (incident.acknowledgedAt)
+      events.push({ timestamp: incident.acknowledgedAt, event: 'Acknowledged' });
     if (incident.containedAt) events.push({ timestamp: incident.containedAt, event: 'Contained' });
     if (incident.resolvedAt) events.push({ timestamp: incident.resolvedAt, event: 'Resolved' });
     if (incident.closedAt) events.push({ timestamp: incident.closedAt, event: 'Closed' });
@@ -394,9 +400,7 @@ export class ReportsService {
     const results: Record<string, { total: number; compliant: number; rate: number }> = {};
 
     for (const [severity, targetHours] of Object.entries(slaTargets)) {
-      const sevIncidents = incidents.filter(
-        (i) => i.severity === severity && i.resolvedAt,
-      );
+      const sevIncidents = incidents.filter((i) => i.severity === severity && i.resolvedAt);
       const compliant = sevIncidents.filter((i) => {
         const responseTime = (i.resolvedAt.getTime() - i.detectedAt.getTime()) / 3600000;
         return responseTime <= targetHours;
@@ -405,9 +409,10 @@ export class ReportsService {
       results[severity] = {
         total: sevIncidents.length,
         compliant: compliant.length,
-        rate: sevIncidents.length > 0
-          ? Math.round((compliant.length / sevIncidents.length) * 100)
-          : 100,
+        rate:
+          sevIncidents.length > 0
+            ? Math.round((compliant.length / sevIncidents.length) * 100)
+            : 100,
       };
     }
 

@@ -20,12 +20,7 @@ export function getCorsConfig(): CorsOptions {
       }
     },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: [
-      'Content-Type',
-      'Authorization',
-      'X-Request-ID',
-      'X-Forwarded-For',
-    ],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID', 'X-Forwarded-For'],
     exposedHeaders: ['X-Request-ID', 'X-RateLimit-Remaining'],
     credentials: true,
     maxAge: 86400, // 24h preflight cache

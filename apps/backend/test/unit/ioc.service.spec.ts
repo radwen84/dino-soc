@@ -71,7 +71,11 @@ describe('IocService', () => {
     });
 
     it('should throw ConflictException if IOC already exists', async () => {
-      mockPrisma.iOC.findUnique.mockResolvedValue({ id: 'existing', type: 'ip', value: '192.168.1.100' });
+      mockPrisma.iOC.findUnique.mockResolvedValue({
+        id: 'existing',
+        type: 'ip',
+        value: '192.168.1.100',
+      });
 
       await expect(service.create(createDto, 'user-id')).rejects.toThrow(ConflictException);
     });
