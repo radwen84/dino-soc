@@ -250,8 +250,10 @@ services:
       discovery.type: single-node
       OPENSEARCH_JAVA_OPTS: -Xms1g -Xmx1g
       bootstrap.memory_lock: "true"
-      plugins.security.disabled: "false"
-      OPENSEARCH_INITIAL_ADMIN_PASSWORD: "${OPENSEARCH_ADMIN_PASSWORD:-MinisocAdmin!2026Secure}"
+      plugins.security.disabled: "true"
+    ports:
+      - "9200:9200"
+      - "9600:9600"
     volumes:
       - opensearch_data:/usr/share/opensearch/data
     deploy:
