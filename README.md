@@ -115,8 +115,8 @@ Mini-SOC est une plateforme open source de **Security Operations Center** offran
 
 ```bash
 # Cloner le dépôt
-git clone https://github.com/your-org/mini-soc.git
-cd mini-soc
+git clone https://github.com/radwen84/dino-soc.git
+cd dino-soc
 
 # Copier les variables d'environnement
 cp .env.example .env

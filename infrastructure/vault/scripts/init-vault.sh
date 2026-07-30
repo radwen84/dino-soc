@@ -1,10 +1,19 @@
 #!/bin/bash
 set -euo pipefail
 
-VAULT_ADDR="${VAULT_ADDR:-http://localhost:8200}"
+# Si Vault est en HTTP dev sur 8200 :
+# VAULT_ADDR="${VAULT_ADDR:-http://localhost:8200}"
+
+# Si Vault est en HTTPS comme dans ton vault.hcl :
+VAULT_ADDR="${VAULT_ADDR:-https://localhost:8200}"
 export VAULT_ADDR
 
+# Si certificat self-signed en local, active temporairement ceci :
+export VAULT_SKIP_VERIFY="${VAULT_SKIP_VERIFY:-true}"
+
 echo "=== MiniSOC Vault Initialization ==="
+
+mkdir -p /vault/file /vault/logs
 
 # Check if already initialized
 if vault status 2>/dev/null | grep -q "Initialized.*true"; then
@@ -14,18 +23,19 @@ else
   vault operator init -key-shares=5 -key-threshold=3 \
     -format=json > /vault/file/init-keys.json
 
-  echo "⚠️  IMPORTANT: Store init-keys.json securely and delete from this location!"
+  echo "IMPORTANT: Store init-keys.json securely and delete from this location!"
 fi
 
-# Unseal (in production, use auto-unseal with AWS KMS or Transit)
+# Unseal
 echo "[2/6] Unsealing Vault..."
-UNSEAL_KEYS=$(cat /vault/file/init-keys.json | jq -r '.unseal_keys_b64[0:3][]')
+UNSEAL_KEYS=$(jq -r '.unseal_keys_b64[0:3][]' /vault/file/init-keys.json)
+
 for key in $UNSEAL_KEYS; do
-  vault operator unseal "$key"
+  vault operator unseal "$key" || true
 done
 
 # Login with root token
-ROOT_TOKEN=$(cat /vault/file/init-keys.json | jq -r '.root_token')
+ROOT_TOKEN=$(jq -r '.root_token' /vault/file/init-keys.json)
 vault login "$ROOT_TOKEN"
 
 # Enable KV v2 secrets engine
@@ -73,6 +83,7 @@ vault kv put secret/minisoc/opensearch \
 # Create AppRole for backend
 echo "Creating AppRole for backend..."
 vault auth enable approle 2>/dev/null || true
+
 vault write auth/approle/role/minisoc-backend \
   token_policies="minisoc-backend" \
   token_ttl=1h \
@@ -80,13 +91,11 @@ vault write auth/approle/role/minisoc-backend \
   secret_id_ttl=24h
 
 echo ""
-echo "✅ Vault initialization complete!"
+echo "Vault initialization complete!"
 echo "Backend Role ID: $(vault read -field=role_id auth/approle/role/minisoc-backend/role-id)"
 echo ""
-echo "⚠️  Next steps:"
-echo "  1. Store init-keys.json in a secure offline location"
+echo "Next steps:"
+echo "  1. Store /vault/file/init-keys.json in a secure offline location"
 echo "  2. Replace all CHANGE_ME values with real credentials"
 echo "  3. Generate a Secret ID for the backend AppRole"
 echo "  4. Configure the backend to use Vault for secrets"
-
-

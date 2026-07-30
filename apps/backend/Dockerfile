@@ -2,6 +2,8 @@
 FROM node:24-alpine AS builder
 WORKDIR /app
 
+RUN apk add --no-cache openssl libc6-compat
+
 COPY apps/backend/package.json apps/backend/package-lock.json ./
 COPY apps/backend/prisma ./prisma/
 
@@ -18,6 +20,8 @@ RUN ls -la dist && test -f dist/main.js
 FROM node:24-alpine AS prod-deps
 WORKDIR /app
 
+RUN apk add --no-cache openssl libc6-compat
+
 COPY apps/backend/package.json apps/backend/package-lock.json ./
 COPY apps/backend/prisma ./prisma/
 
@@ -27,7 +31,7 @@ RUN npm ci --only=production && npx prisma generate
 # Stage 3
 FROM node:24-alpine AS production
 
-RUN apk add --no-cache dumb-init curl && \
+RUN apk add --no-cache openssl libc6-compat dumb-init curl && \
     addgroup -g 1001 -S nodejs && adduser -S nestjs -u 1001 -G nodejs
 
 WORKDIR /app
