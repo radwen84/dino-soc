@@ -1,6 +1,7 @@
 import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
+import * as fs from 'fs';
 
 @Injectable()
 export class RedisService implements OnModuleInit, OnModuleDestroy {
@@ -8,16 +9,31 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   private client: Redis;
 
   constructor(private readonly configService: ConfigService) {
+    const redisPassword =
+      this.configService.get<string>('REDIS_PASSWORD') ||
+      this.readSecretFile(this.configService.get<string>('REDIS_PASSWORD_FILE')) ||
+      this.readSecretFile('/run/secrets/redis_password');
+
     this.client = new Redis({
       host: this.configService.get<string>('REDIS_HOST', 'localhost'),
-      port: this.configService.get<number>('REDIS_PORT', 6379),
-      password: this.configService.get<string>('REDIS_PASSWORD'),
+      port: Number(this.configService.get<number>('REDIS_PORT', 6379)),
+      password: redisPassword,
       maxRetriesPerRequest: 3,
       retryStrategy(times: number): number | null {
         if (times > 3) return null;
         return Math.min(times * 200, 1000);
       },
     });
+  }
+
+  private readSecretFile(path?: string): string | undefined {
+    if (!path) return undefined;
+
+    try {
+      return fs.readFileSync(path, 'utf8').trim();
+    } catch {
+      return undefined;
+    }
   }
 
   async onModuleInit(): Promise<void> {
@@ -53,6 +69,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   async getJson<T>(key: string): Promise<T | null> {
     const value = await this.get(key);
     if (!value) return null;
+
     try {
       return JSON.parse(value) as T;
     } catch {

@@ -102,6 +102,7 @@ services:
       - WAZUH_PORT=55000
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - REDIS_PASSWORD_FILE=/run/secrets/redis_password
       - DATABASE_URL=${DATABASE_URL}
       - JWT_SECRET=${JWT_SECRET}
     deploy:
