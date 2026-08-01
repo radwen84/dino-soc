@@ -252,6 +252,8 @@ services:
       OPENSEARCH_JAVA_OPTS: -Xms1g -Xmx1g
       bootstrap.memory_lock: "true"
       plugins.security.disabled: "true"
+      OPENSEARCH_INITIAL_ADMIN_PASSWORD: "${OPENSEARCH_ADMIN_PASSWORD:-MinisocAdmin!2026Secure}"
+
     ports:
       - "9200:9200"
       - "9600:9600"
