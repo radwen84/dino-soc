@@ -9,18 +9,41 @@ import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { PlusIcon, FunnelIcon } from "@heroicons/react/24/outline";
 
+interface Incident {
+  id: string;
+  severity?: string;
+  title?: string;
+  category?: string;
+  mitreTechniques?: string[];
+  status?: string;
+  assignedTo?: { name?: string };
+  detectedAt?: string;
+}
+
+interface PaginatedIncidents {
+  data: Incident[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+}
+
 export function IncidentsPage() {
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState({ status: "", severity: "" });
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading } = useQuery<PaginatedIncidents>({
     queryKey: ["incidents", page, filters],
     queryFn: async () => {
-      const params: any = { page, limit: 20 };
+      const params: Record<string, string | number> = { page, limit: 20 };
       if (filters.status) params.status = filters.status;
       if (filters.severity) params.severity = filters.severity;
-      const { data } = await api.get("/incidents", { params });
+      const { data } = await api.get<PaginatedIncidents>("/incidents", { params });
       return data;
     },
   });
@@ -30,12 +53,12 @@ export function IncidentsPage() {
       key: "severity",
       label: "Sévérité",
       width: "100px",
-      render: (item: any) => <SeverityBadge severity={item.severity} />,
+      render: (item: Incident) => <SeverityBadge severity={item.severity} />,
     },
     {
       key: "title",
       label: "Titre",
-      render: (item: any) => (
+      render: (item: Incident) => (
         <div>
           <p className="font-medium text-white">{item.title}</p>
           <p className="text-xs text-soc-muted mt-0.5">
@@ -50,13 +73,13 @@ export function IncidentsPage() {
       key: "status",
       label: "Statut",
       width: "130px",
-      render: (item: any) => <StatusBadge status={item.status} />,
+      render: (item: Incident) => <StatusBadge status={item.status} />,
     },
     {
       key: "assignedTo",
       label: "Assigné à",
       width: "150px",
-      render: (item: any) => (
+      render: (item: Incident) => (
         <span className="text-soc-muted text-xs">
           {item.assignedTo?.name || "—"}
         </span>
@@ -66,9 +89,9 @@ export function IncidentsPage() {
       key: "detectedAt",
       label: "Détecté",
       width: "120px",
-      render: (item: any) => (
+      render: (item: Incident) => (
         <span className="text-xs text-soc-muted">
-          {formatDistanceToNow(new Date(item.detectedAt), {
+          {formatDistanceToNow(new Date(item.detectedAt ?? Date.now().toString()), {
             addSuffix: true,
             locale: fr,
           })}

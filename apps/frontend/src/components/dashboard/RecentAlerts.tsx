@@ -5,12 +5,22 @@ import { Link } from "react-router-dom";
 import api from "../../lib/api";
 import { clsx } from "clsx";
 
+interface AlertItem {
+  id: string;
+  ruleDescription?: string;
+  ruleId?: string;
+  level?: number;
+  timestamp?: string;
+  srcIp?: string;
+  source?: string;
+}
+
 export function RecentAlerts() {
-  const { data } = useQuery({
+  const { data } = useQuery<AlertItem[]>({
     queryKey: ["recent-alerts"],
     queryFn: async () => {
       const { data } = await api.get("/alerts", { params: { limit: 8 } });
-      return data.data;
+      return data.data as AlertItem[];
     },
     refetchInterval: 15000,
   });
@@ -25,7 +35,7 @@ export function RecentAlerts() {
       </div>
 
       <div className="space-y-2 max-h-[280px] overflow-y-auto">
-        {data?.map((alert: any) => (
+        {data?.map((alert) => (
           <div
             key={alert.id}
             className="flex items-center gap-3 p-2 rounded hover:bg-soc-surface transition-colors"
@@ -33,11 +43,11 @@ export function RecentAlerts() {
             <div
               className={clsx(
                 "h-2 w-2 rounded-full shrink-0",
-                alert.level >= 12
+                (alert.level ?? 0) >= 12
                   ? "bg-red-500"
-                  : alert.level >= 8
+                  : (alert.level ?? 0) >= 8
                     ? "bg-orange-500"
-                    : alert.level >= 5
+                    : (alert.level ?? 0) >= 5
                       ? "bg-yellow-500"
                       : "bg-green-500",
               )}
@@ -52,7 +62,9 @@ export function RecentAlerts() {
               </p>
             </div>
             <span className="text-xs text-soc-muted shrink-0">
-              {formatDistanceToNow(new Date(alert.timestamp), { locale: fr })}
+              {formatDistanceToNow(new Date(alert.timestamp || Date.now()), {
+                locale: fr,
+              })}
             </span>
           </div>
         ))}

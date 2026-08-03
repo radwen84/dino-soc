@@ -6,17 +6,41 @@ import { clsx } from "clsx";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 
+interface Alert {
+  id: string;
+  level?: number;
+  ruleDescription?: string;
+  ruleId?: string;
+  mitreTechnique?: string;
+  source?: string;
+  status?: string;
+  srcIp?: string;
+  timestamp?: string;
+}
+
+interface PaginatedAlerts {
+  data: Alert[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+}
+
 export function AlertsPage() {
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState({ status: "", source: "" });
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading } = useQuery<PaginatedAlerts>({
     queryKey: ["alerts", page, filters],
     queryFn: async () => {
-      const params: any = { page, limit: 25 };
+      const params: Record<string, string | number> = { page, limit: 25 };
       if (filters.status) params.status = filters.status;
       if (filters.source) params.source = filters.source;
-      const { data } = await api.get("/alerts", { params });
+      const { data } = await api.get<PaginatedAlerts>("/alerts", { params });
       return data;
     },
   });
@@ -26,30 +50,31 @@ export function AlertsPage() {
       key: "level",
       label: "Niveau",
       width: "70px",
-      render: (item: any) => (
+      render: (item: Alert) => (
         <span
           className={clsx(
             "text-xs font-mono font-bold",
-            item.level >= 12
+            (item.level ?? 0) >= 12
               ? "text-red-400"
-              : item.level >= 8
+              : (item.level ?? 0) >= 8
                 ? "text-orange-400"
-                : item.level >= 5
+                : (item.level ?? 0) >= 5
                   ? "text-yellow-400"
                   : "text-green-400",
           )}
         >
-          L{item.level}
+          L{item.level ?? 0}
         </span>
       ),
     },
+
     {
       key: "ruleDescription",
       label: "Description",
-      render: (item: any) => (
+      render: (item: Alert) => (
         <div>
           <p className="text-sm text-white truncate max-w-md">
-            {item.ruleDescription || `Rule ${item.ruleId}`}
+            {item.ruleDescription ?? `Rule ${item.ruleId ?? ""}`}
           </p>
           {item.mitreTechnique && (
             <span className="text-xs text-soc-accent">
@@ -59,29 +84,34 @@ export function AlertsPage() {
         </div>
       ),
     },
+
     {
       key: "source",
       label: "Source",
       width: "100px",
-      render: (item: any) => (
-        <span className="text-xs text-soc-muted">{item.source}</span>
+      render: (item: Alert) => (
+        <span className="text-xs text-soc-muted">
+          {item.source ?? ""}
+        </span>
       ),
     },
+
     {
       key: "srcIp",
       label: "IP Source",
       width: "130px",
-      render: (item: any) => (
+      render: (item: Alert) => (
         <span className="text-xs font-mono text-soc-muted">
-          {item.srcIp || "—"}
+          {item.srcIp ?? "—"}
         </span>
       ),
     },
+
     {
       key: "status",
       label: "Statut",
       width: "100px",
-      render: (item: any) => (
+      render: (item: Alert) => (
         <span
           className={clsx(
             "badge text-xs",
@@ -96,13 +126,16 @@ export function AlertsPage() {
         </span>
       ),
     },
+
     {
       key: "timestamp",
       label: "Quand",
       width: "100px",
-      render: (item: any) => (
+      render: (item: Alert) => (
         <span className="text-xs text-soc-muted">
-          {formatDistanceToNow(new Date(item.timestamp), { locale: fr })}
+          {formatDistanceToNow(new Date(item.timestamp ?? Date.now().toString()), {
+            locale: fr,
+          })}
         </span>
       ),
     },

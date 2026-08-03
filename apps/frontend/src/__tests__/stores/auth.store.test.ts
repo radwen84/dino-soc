@@ -43,18 +43,16 @@ describe("AuthStore", () => {
   });
 
   it("should check roles correctly", () => {
-    useAuthStore
-      .getState()
-      .setAuth(
-        {
-          id: "1",
-          email: "test@test.com",
-          name: "Test",
-          roles: ["admin", "analyst_l3"],
-        },
-        "token",
-        "refresh",
-      );
+    useAuthStore.getState().setAuth(
+      {
+        id: "1",
+        email: "test@test.com",
+        name: "Test",
+        roles: ["admin", "analyst_l3"],
+      },
+      "token",
+      "refresh",
+    );
 
     expect(useAuthStore.getState().hasRole("admin")).toBe(true);
     expect(useAuthStore.getState().hasRole("analyst_l1")).toBe(false);

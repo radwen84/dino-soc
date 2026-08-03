@@ -17,7 +17,7 @@ jobs:
     container:
       image: semgrep/semgrep
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Run Semgrep
         run: |
           semgrep scan \
@@ -42,10 +42,10 @@ jobs:
   trivy-scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Trivy - Backend dependencies
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v1
         continue-on-error: true
         with:
           scan-type: 'fs'
@@ -56,7 +56,7 @@ jobs:
           vuln-type: 'library'
 
       - name: Trivy - Frontend dependencies
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v1
         continue-on-error: true
         with:
           scan-type: 'fs'
@@ -77,12 +77,12 @@ jobs:
   secret-scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: TruffleHog - Secret scanning
-        uses: trufflesecurity/trufflehog@main
+        uses: trufflesecurity/trufflehog@v2
         continue-on-error: true
         with:
           extra_args: --only-verified --results=verified
@@ -99,7 +99,7 @@ jobs:
   sbom:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Generate SBOM (backend)
         uses: anchore/sbom-action@v0
@@ -129,10 +129,10 @@ jobs:
   owasp-check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: OWASP Dependency Check
-        uses: dependency-check/Dependency-Check_Action@main
+        uses: dependency-check/Dependency-Check_Action@v1
         continue-on-error: true
         with:
           project: 'MiniSOC'
@@ -156,10 +156,10 @@ jobs:
   infra-scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Checkov - IaC security scan
-        uses: bridgecrewio/checkov-action@master
+        uses: bridgecrewio/checkov-action@v2
         with:
           directory: infrastructure/
           framework: terraform,kubernetes,dockerfile

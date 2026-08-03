@@ -8,7 +8,6 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import api from "../../lib/api";
 
 export function AlertsTimelineChart() {
   const { data } = useQuery({

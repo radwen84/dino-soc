@@ -17,7 +17,6 @@ import {
   ArrowRightOnRectangleIcon,
   BellIcon,
   Bars3Icon,
-  XMarkIcon,
 } from "@heroicons/react/24/outline";
 
 const navigation = [
