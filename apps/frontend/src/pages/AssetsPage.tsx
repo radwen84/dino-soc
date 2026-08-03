@@ -5,16 +5,38 @@ import { DataTable } from "../components/common/DataTable";
 import { PlusIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import { clsx } from "clsx";
 
+interface Asset {
+  id: string;
+  hostname?: string;
+  ipAddress?: string;
+  os?: string;
+  criticality?: string;
+  department?: string;
+  isActive?: boolean;
+}
+
+interface PaginatedAssets {
+  data: Asset[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+}
+
 export function AssetsPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading } = useQuery<PaginatedAssets>({
     queryKey: ["assets", page, search],
     queryFn: async () => {
-      const params: any = { page, limit: 20 };
+      const params: Record<string, string | number> = { page, limit: 20 };
       if (search) params.search = search;
-      const { data } = await api.get("/assets", { params });
+      const { data } = await api.get<PaginatedAssets>("/assets", { params });
       return data;
     },
   });
@@ -30,9 +52,9 @@ export function AssetsPage() {
     {
       key: "hostname",
       label: "Hostname",
-      render: (item: Record<string, unknown>) => (
+      render: (item: Asset) => (
         <span className="font-mono text-sm text-white">
-          {String(item["hostname"] ?? "")}
+          {item.hostname ?? ""}
         </span>
       ),
     },
@@ -41,9 +63,9 @@ export function AssetsPage() {
       key: "ipAddress",
       label: "IP",
       width: "130px",
-      render: (item: Record<string, unknown>) => (
+      render: (item: Asset) => (
         <span className="font-mono text-xs text-soc-muted">
-          {String(item["ipAddress"] ?? "—")}
+          {item.ipAddress ?? "—"}
         </span>
       ),
     },
@@ -52,9 +74,9 @@ export function AssetsPage() {
       key: "os",
       label: "OS",
       width: "120px",
-      render: (item: Record<string, unknown>) => (
+      render: (item: Asset) => (
         <span className="text-xs text-soc-muted">
-          {String(item["os"] ?? "—")}
+          {item.os ?? "—"}
         </span>
       ),
     },
@@ -63,18 +85,14 @@ export function AssetsPage() {
       key: "criticality",
       label: "Criticité",
       width: "90px",
-      render: (item: Record<string, unknown>) => (
+      render: (item: Asset) => (
         <span
           className={clsx(
             "text-xs font-medium",
-            criticalityColors[
-              String(
-                item["criticality"] ?? "",
-              ) as keyof typeof criticalityColors
-            ],
+            criticalityColors[item.criticality ?? "" as keyof typeof criticalityColors],
           )}
         >
-          {String(item["criticality"] ?? "")}
+          {item.criticality ?? ""}
         </span>
       ),
     },
@@ -83,9 +101,9 @@ export function AssetsPage() {
       key: "department",
       label: "Département",
       width: "130px",
-      render: (item: Record<string, unknown>) => (
+      render: (item: Asset) => (
         <span className="text-xs text-soc-muted">
-          {String(item["department"] ?? "—")}
+          {item.department ?? "—"}
         </span>
       ),
     },
@@ -94,24 +112,25 @@ export function AssetsPage() {
       key: "isActive",
       label: "Statut",
       width: "80px",
-      render: (item: Record<string, unknown>) => (
-        <span
-          className={clsx(
-            "flex items-center gap-1 text-xs",
-            (item["isActive"] as boolean)
-              ? "text-emerald-400"
-              : "text-gray-500",
-          )}
-        >
+      render: (item: Asset) => {
+        const isActive = item.isActive ?? false;
+        return (
           <span
             className={clsx(
-              "h-1.5 w-1.5 rounded-full",
-              (item["isActive"] as boolean) ? "bg-emerald-400" : "bg-gray-500",
+              "flex items-center gap-1 text-xs",
+              isActive ? "text-emerald-400" : "text-gray-500",
             )}
-          />
-          {(item["isActive"] as boolean) ? "Actif" : "Inactif"}
-        </span>
-      ),
+          >
+            <span
+              className={clsx(
+                "h-1.5 w-1.5 rounded-full",
+                isActive ? "bg-emerald-400" : "bg-gray-500",
+              )}
+            />
+            {isActive ? "Actif" : "Inactif"}
+          </span>
+        );
+      },
     },
   ];
 

@@ -6,17 +6,41 @@ import { clsx } from "clsx";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 
+interface Alert {
+  id: string;
+  level?: number;
+  ruleDescription?: string;
+  ruleId?: string;
+  mitreTechnique?: string;
+  source?: string;
+  status?: string;
+  srcIp?: string;
+  timestamp?: string;
+}
+
+interface PaginatedAlerts {
+  data: Alert[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+}
+
 export function AlertsPage() {
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState({ status: "", source: "" });
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading } = useQuery<PaginatedAlerts>({
     queryKey: ["alerts", page, filters],
     queryFn: async () => {
-      const params: any = { page, limit: 25 };
+      const params: Record<string, string | number> = { page, limit: 25 };
       if (filters.status) params.status = filters.status;
       if (filters.source) params.source = filters.source;
-      const { data } = await api.get("/alerts", { params });
+      const { data } = await api.get<PaginatedAlerts>("/alerts", { params });
       return data;
     },
   });
@@ -26,20 +50,20 @@ export function AlertsPage() {
       key: "level",
       label: "Niveau",
       width: "70px",
-      render: (item: Record<string, unknown>) => (
+      render: (item: Alert) => (
         <span
           className={clsx(
             "text-xs font-mono font-bold",
-            (item["level"] as number) >= 12
+            (item.level ?? 0) >= 12
               ? "text-red-400"
-              : (item["level"] as number) >= 8
+              : (item.level ?? 0) >= 8
                 ? "text-orange-400"
-                : (item["level"] as number) >= 5
+                : (item.level ?? 0) >= 5
                   ? "text-yellow-400"
                   : "text-green-400",
           )}
         >
-          L{String(item["level"])}
+          L{item.level ?? 0}
         </span>
       ),
     },
@@ -47,16 +71,14 @@ export function AlertsPage() {
     {
       key: "ruleDescription",
       label: "Description",
-      render: (item: Record<string, unknown>) => (
+      render: (item: Alert) => (
         <div>
           <p className="text-sm text-white truncate max-w-md">
-            {String(
-              item["ruleDescription"] ?? `Rule ${String(item["ruleId"] ?? "")}`,
-            )}
+            {item.ruleDescription ?? `Rule ${item.ruleId ?? ""}`}
           </p>
-          {item["mitreTechnique"] && (
+          {item.mitreTechnique && (
             <span className="text-xs text-soc-accent">
-              {String(item["mitreTechnique"])}
+              {item.mitreTechnique}
             </span>
           )}
         </div>
@@ -67,9 +89,9 @@ export function AlertsPage() {
       key: "source",
       label: "Source",
       width: "100px",
-      render: (item: Record<string, unknown>) => (
+      render: (item: Alert) => (
         <span className="text-xs text-soc-muted">
-          {String(item["source"] ?? "")}
+          {item.source ?? ""}
         </span>
       ),
     },
@@ -78,9 +100,9 @@ export function AlertsPage() {
       key: "srcIp",
       label: "IP Source",
       width: "130px",
-      render: (item: Record<string, unknown>) => (
+      render: (item: Alert) => (
         <span className="text-xs font-mono text-soc-muted">
-          {String(item["srcIp"] ?? "—")}
+          {item.srcIp ?? "—"}
         </span>
       ),
     },
@@ -89,18 +111,18 @@ export function AlertsPage() {
       key: "status",
       label: "Statut",
       width: "100px",
-      render: (item: Record<string, unknown>) => (
+      render: (item: Alert) => (
         <span
           className={clsx(
             "badge text-xs",
-            String(item["status"]) === "new"
+            item.status === "new"
               ? "bg-red-500/20 text-red-300"
-              : String(item["status"]) === "acknowledged"
+              : item.status === "acknowledged"
                 ? "bg-blue-500/20 text-blue-300"
                 : "bg-gray-500/20 text-gray-300",
           )}
         >
-          {String(item["status"])}
+          {item.status}
         </span>
       ),
     },
@@ -109,9 +131,9 @@ export function AlertsPage() {
       key: "timestamp",
       label: "Quand",
       width: "100px",
-      render: (item: Record<string, unknown>) => (
+      render: (item: Alert) => (
         <span className="text-xs text-soc-muted">
-          {formatDistanceToNow(new Date(String(item["timestamp"])), {
+          {formatDistanceToNow(new Date(item.timestamp ?? Date.now().toString()), {
             locale: fr,
           })}
         </span>
