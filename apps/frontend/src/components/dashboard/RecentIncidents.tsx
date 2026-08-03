@@ -6,12 +6,20 @@ import api from "../../lib/api";
 import { SeverityBadge } from "../common/SeverityBadge";
 import { StatusBadge } from "../common/StatusBadge";
 
+interface Incident {
+  id: string;
+  title: string;
+  severity: string;
+  detectedAt: string;
+  status?: string;
+}
+
 export function RecentIncidents() {
-  const { data } = useQuery({
+  const { data } = useQuery<Incident[]>({
     queryKey: ["recent-incidents"],
     queryFn: async () => {
       const { data } = await api.get("/incidents", { params: { limit: 5 } });
-      return data.data;
+      return data.data as Incident[];
     },
     refetchInterval: 30000,
   });
@@ -31,7 +39,7 @@ export function RecentIncidents() {
       </div>
 
       <div className="space-y-3">
-        {data?.map((incident: any) => (
+        {data?.map((incident) => (
           <Link
             key={incident.id}
             to={`/incidents/${incident.id}`}

@@ -5,6 +5,25 @@ import { useNotificationsStore } from "../stores/notifications.store";
 import { useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 
+// Event payload types for socket events handled by the hook
+interface AlertEvent {
+  id: string;
+  ruleDescription?: string;
+  ruleId?: string;
+  level?: number;
+  timestamp?: string;
+  srcIp?: string;
+  source?: string;
+}
+
+interface IncidentEvent {
+  id: string;
+  title?: string;
+  status?: string;
+  severity?: string;
+  detectedAt?: string;
+}
+
 export function useWebSocket() {
   const socketRef = useRef<Socket | null>(null);
   const { addNotification } = useNotificationsStore();
@@ -15,17 +34,17 @@ export function useWebSocket() {
     socketRef.current = socket;
 
     // New alert
-    socket.on("alert:new", (alert: any) => {
+    socket.on("alert:new", (alert: AlertEvent) => {
       addNotification({
         type: "alert",
         title: "Nouvelle alerte",
         message: `[${alert.source}] ${alert.ruleDescription || "Alerte détectée"}`,
         severity:
-          alert.level >= 12 ? "critical" : alert.level >= 8 ? "high" : "medium",
+          (alert.level ?? 0) >= 12 ? "critical" : (alert.level ?? 0) >= 8 ? "high" : "medium",
         link: "/alerts",
       });
 
-      if (alert.level >= 12) {
+      if ((alert.level ?? 0) >= 12) {
         toast.error(`🚨 Alerte critique: ${alert.ruleDescription}`, {
           duration: 8000,
         });
@@ -36,7 +55,7 @@ export function useWebSocket() {
     });
 
     // Incident update
-    socket.on("incident:updated", (incident: any) => {
+    socket.on("incident:updated", (incident: IncidentEvent) => {
       addNotification({
         type: "incident",
         title: `Incident mis à jour`,
@@ -50,11 +69,11 @@ export function useWebSocket() {
     });
 
     // New incident
-    socket.on("incident:created", (incident: any) => {
+    socket.on("incident:created", (incident: IncidentEvent) => {
       addNotification({
         type: "incident",
         title: "Nouvel incident",
-        message: `[${incident.severity.toUpperCase()}] ${incident.title}`,
+        message: `[${incident.severity?.toUpperCase() ?? ""]] ${incident.title}`,
         severity: incident.severity,
         link: `/incidents/${incident.id}`,
       });
