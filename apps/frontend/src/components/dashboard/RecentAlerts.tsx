@@ -62,7 +62,9 @@ export function RecentAlerts() {
               </p>
             </div>
             <span className="text-xs text-soc-muted shrink-0">
-              {formatDistanceToNow(new Date(alert.timestamp || Date.now()), { locale: fr })}
+              {formatDistanceToNow(new Date(alert.timestamp || Date.now()), {
+                locale: fr,
+              })}
             </span>
           </div>
         ))}

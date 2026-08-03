@@ -40,7 +40,11 @@ export function useWebSocket() {
         title: "Nouvelle alerte",
         message: `[${alert.source}] ${alert.ruleDescription || "Alerte détectée"}`,
         severity:
-          (alert.level ?? 0) >= 12 ? "critical" : (alert.level ?? 0) >= 8 ? "high" : "medium",
+          (alert.level ?? 0) >= 12
+            ? "critical"
+            : (alert.level ?? 0) >= 8
+              ? "high"
+              : "medium",
         link: "/alerts",
       });
 
@@ -73,7 +77,8 @@ export function useWebSocket() {
       addNotification({
         type: "incident",
         title: "Nouvel incident",
-        message: `[${incident.severity?.toUpperCase() ?? ""]] ${incident.title}`,
+        message: `[${incident.severity?.toUpperCase() ?? ""}] ${incident.title ?? "(sans titre)"}`,
+
         severity: incident.severity,
         link: `/incidents/${incident.id}`,
       });

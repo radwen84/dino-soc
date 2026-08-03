@@ -33,21 +33,23 @@ export class AlertsController {
     SOCRole.READONLY,
   )
   @ApiOperation({ summary: 'List alerts with filters' })
-  async findAll(@Query() filters: AlertFiltersDto): Promise<PaginatedResult<any>> {
+  async findAll(
+    @Query() filters: AlertFiltersDto,
+  ): Promise<PaginatedResult<Record<string, unknown>>> {
     return this.alertsService.findAll(filters);
   }
 
   @Get('critical')
   @Roles(SOCRole.ANALYST_L1, SOCRole.ANALYST_L2, SOCRole.ANALYST_L3, SOCRole.ADMIN)
   @ApiOperation({ summary: 'Get recent critical alerts' })
-  async getRecentCritical(): Promise<any[]> {
+  async getRecentCritical(): Promise<Record<string, unknown>[]> {
     return this.alertsService.getRecentCritical();
   }
 
   @Get('timeline')
   @Roles(SOCRole.ANALYST_L1, SOCRole.ANALYST_L2, SOCRole.ANALYST_L3, SOCRole.ADMIN)
   @ApiOperation({ summary: 'Get alert timeline (last 24h)' })
-  async getTimeline(@Query('hours') hours?: number): Promise<any[]> {
+  async getTimeline(@Query('hours') hours?: number): Promise<Record<string, unknown>[]> {
     return this.alertsService.getAlertTimeline(hours || 24);
   }
 
@@ -58,7 +60,7 @@ export class AlertsController {
     @Query('q') query: string,
     @Query('from') from?: number,
     @Query('size') size?: number,
-  ): Promise<any> {
+  ): Promise<Record<string, unknown>> {
     return this.alertsService.searchInOpenSearch(query, from, size);
   }
 
@@ -71,21 +73,27 @@ export class AlertsController {
     SOCRole.READONLY,
   )
   @ApiOperation({ summary: 'Get alert details' })
-  async findOne(@Param('id', ParseUUIDPipe) id: string): Promise<any> {
+  async findOne(@Param('id', ParseUUIDPipe) id: string): Promise<Record<string, unknown>> {
     return this.alertsService.findById(id);
   }
 
   @Patch(':id/status')
   @Roles(SOCRole.ANALYST_L1, SOCRole.ANALYST_L2, SOCRole.ADMIN)
   @ApiOperation({ summary: 'Update alert status' })
-  async updateStatus(@Param('id', ParseUUIDPipe) id: string, @Body('status') status: string): Promise<any> {
+  async updateStatus(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body('status') status: string,
+  ): Promise<Record<string, unknown>> {
     return this.alertsService.updateStatus(id, status);
   }
 
   @Patch('bulk/status')
   @Roles(SOCRole.ANALYST_L2, SOCRole.ADMIN)
   @ApiOperation({ summary: 'Bulk update alert status' })
-  async bulkUpdateStatus(@Body('ids') ids: string[], @Body('status') status: string): Promise<any> {
+  async bulkUpdateStatus(
+    @Body('ids') ids: string[],
+    @Body('status') status: string,
+  ): Promise<Record<string, unknown>> {
     return this.alertsService.bulkUpdateStatus(ids, status);
   }
 
@@ -95,7 +103,7 @@ export class AlertsController {
   async linkToIncident(
     @Body('alertIds') alertIds: string[],
     @Body('incidentId') incidentId: string,
-  ): Promise<any> {
+  ): Promise<Record<string, unknown>> {
     return this.alertsService.linkToIncident(alertIds, incidentId);
   }
 }

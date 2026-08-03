@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import api from "../lib/api";
 import { useAuthStore } from "../stores/auth.store";
 import toast from "react-hot-toast";
-import axios from 'axios';
+import axios from "axios";
 
 interface LoginCredentials {
   email: string;
@@ -31,12 +31,12 @@ export function useLogin() {
     onError: (error: unknown) => {
       let message = "Erreur de connexion";
       if (axios.isAxiosError(error)) {
-        const respData = error.response?.data as { message?: string } | undefined;
+        const respData = error.response?.data as
+          { message?: string } | undefined;
         message = respData?.message || message;
       }
       toast.error(message);
     },
-
   });
 }
 

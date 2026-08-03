@@ -26,83 +26,94 @@ export function AlertsPage() {
       key: "level",
       label: "Niveau",
       width: "70px",
-      render: (item: any) => (
+      render: (item: Record<string, unknown>) => (
         <span
           className={clsx(
             "text-xs font-mono font-bold",
-            item.level >= 12
+            (item["level"] as number) >= 12
               ? "text-red-400"
-              : item.level >= 8
+              : (item["level"] as number) >= 8
                 ? "text-orange-400"
-                : item.level >= 5
+                : (item["level"] as number) >= 5
                   ? "text-yellow-400"
                   : "text-green-400",
           )}
         >
-          L{item.level}
+          L{String(item["level"])}
         </span>
       ),
     },
+
     {
       key: "ruleDescription",
       label: "Description",
-      render: (item: any) => (
+      render: (item: Record<string, unknown>) => (
         <div>
           <p className="text-sm text-white truncate max-w-md">
-            {item.ruleDescription || `Rule ${item.ruleId}`}
+            {String(
+              item["ruleDescription"] ?? `Rule ${String(item["ruleId"] ?? "")}`,
+            )}
           </p>
-          {item.mitreTechnique && (
+          {item["mitreTechnique"] && (
             <span className="text-xs text-soc-accent">
-              {item.mitreTechnique}
+              {String(item["mitreTechnique"])}
             </span>
           )}
         </div>
       ),
     },
+
     {
       key: "source",
       label: "Source",
       width: "100px",
-      render: (item: any) => (
-        <span className="text-xs text-soc-muted">{item.source}</span>
+      render: (item: Record<string, unknown>) => (
+        <span className="text-xs text-soc-muted">
+          {String(item["source"] ?? "")}
+        </span>
       ),
     },
+
     {
       key: "srcIp",
       label: "IP Source",
       width: "130px",
-      render: (item: any) => (
+      render: (item: Record<string, unknown>) => (
         <span className="text-xs font-mono text-soc-muted">
-          {item.srcIp || "—"}
+          {String(item["srcIp"] ?? "—")}
         </span>
       ),
     },
+
     {
       key: "status",
       label: "Statut",
       width: "100px",
-      render: (item: any) => (
+      render: (item: Record<string, unknown>) => (
         <span
           className={clsx(
             "badge text-xs",
-            item.status === "new"
+            String(item["status"]) === "new"
               ? "bg-red-500/20 text-red-300"
-              : item.status === "acknowledged"
+              : String(item["status"]) === "acknowledged"
                 ? "bg-blue-500/20 text-blue-300"
                 : "bg-gray-500/20 text-gray-300",
           )}
         >
-          {item.status}
+          {String(item["status"])}
         </span>
       ),
     },
+
     {
       key: "timestamp",
       label: "Quand",
       width: "100px",
-      render: (item: any) => (
+      render: (item: Record<string, unknown>) => (
         <span className="text-xs text-soc-muted">
-          {formatDistanceToNow(new Date(item.timestamp), { locale: fr })}
+          {formatDistanceToNow(new Date(String(item["timestamp"])), {
+            locale: fr,
+          })}
         </span>
       ),
     },

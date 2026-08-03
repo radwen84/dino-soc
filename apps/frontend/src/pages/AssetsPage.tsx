@@ -30,71 +30,86 @@ export function AssetsPage() {
     {
       key: "hostname",
       label: "Hostname",
-      render: (item: any) => (
-        <span className="font-mono text-sm text-white">{item.hostname}</span>
+      render: (item: Record<string, unknown>) => (
+        <span className="font-mono text-sm text-white">
+          {String(item["hostname"] ?? "")}
+        </span>
       ),
     },
+
     {
       key: "ipAddress",
       label: "IP",
       width: "130px",
-      render: (item: any) => (
+      render: (item: Record<string, unknown>) => (
         <span className="font-mono text-xs text-soc-muted">
-          {item.ipAddress || "—"}
+          {String(item["ipAddress"] ?? "—")}
         </span>
       ),
     },
+
     {
       key: "os",
       label: "OS",
       width: "120px",
-      render: (item: any) => (
-        <span className="text-xs text-soc-muted">{item.os || "—"}</span>
+      render: (item: Record<string, unknown>) => (
+        <span className="text-xs text-soc-muted">
+          {String(item["os"] ?? "—")}
+        </span>
       ),
     },
+
     {
       key: "criticality",
       label: "Criticité",
       width: "90px",
-      render: (item: any) => (
+      render: (item: Record<string, unknown>) => (
         <span
           className={clsx(
             "text-xs font-medium",
             criticalityColors[
-              item.criticality as keyof typeof criticalityColors
+              String(
+                item["criticality"] ?? "",
+              ) as keyof typeof criticalityColors
             ],
           )}
         >
-          {item.criticality}
+          {String(item["criticality"] ?? "")}
         </span>
       ),
     },
+
     {
       key: "department",
       label: "Département",
       width: "130px",
-      render: (item: any) => (
-        <span className="text-xs text-soc-muted">{item.department || "—"}</span>
+      render: (item: Record<string, unknown>) => (
+        <span className="text-xs text-soc-muted">
+          {String(item["department"] ?? "—")}
+        </span>
       ),
     },
+
     {
       key: "isActive",
       label: "Statut",
       width: "80px",
-      render: (item: any) => (
+      render: (item: Record<string, unknown>) => (
         <span
           className={clsx(
             "flex items-center gap-1 text-xs",
-            item.isActive ? "text-emerald-400" : "text-gray-500",
+            (item["isActive"] as boolean)
+              ? "text-emerald-400"
+              : "text-gray-500",
           )}
         >
           <span
             className={clsx(
               "h-1.5 w-1.5 rounded-full",
-              item.isActive ? "bg-emerald-400" : "bg-gray-500",
+              (item["isActive"] as boolean) ? "bg-emerald-400" : "bg-gray-500",
             )}
           />
-          {item.isActive ? "Actif" : "Inactif"}
+          {(item["isActive"] as boolean) ? "Actif" : "Inactif"}
         </span>
       ),
     },

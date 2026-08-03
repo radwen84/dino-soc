@@ -14,8 +14,8 @@ export class AlertsService {
     private readonly opensearch: OpenSearchService,
   ) {}
 
-  async findAll(filters: AlertFiltersDto): Promise<PaginatedResult<any>> {
-    const where: any = {};
+  async findAll(filters: AlertFiltersDto): Promise<PaginatedResult<Record<string, unknown>>> {
+    const where: Record<string, unknown> = {};
 
     if (filters.status) where.status = filters.status;
     if (filters.level) where.level = { gte: filters.level };
@@ -124,7 +124,7 @@ export class AlertsService {
 
   async getAlertTimeline(hours: number = 24) {
     const since = new Date(Date.now() - hours * 3600000);
-    const alerts = await this.prisma.$queryRaw<any[]>`
+    const alerts = await this.prisma.$queryRaw<Array<Record<string, unknown>>>`
       SELECT
         date_trunc('hour', timestamp) as hour,
         COUNT(*) as count,
