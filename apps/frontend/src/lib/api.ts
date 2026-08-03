@@ -1,4 +1,7 @@
-import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
+import axios, {
+  AxiosError,
+  InternalAxiosRequestConfig,
+} from "axios";
 import { useAuthStore } from "../stores/auth.store";
 import toast from "react-hot-toast";
 
@@ -14,9 +17,11 @@ const api = axios.create({
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = useAuthStore.getState().accessToken;
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
     return config;
   },
   (error) => Promise.reject(error),
@@ -24,24 +29,30 @@ api.interceptors.request.use(
 
 // Response interceptor - handle token refresh & errors
 let isRefreshing = false;
+
 let failedQueue: Array<{
-  resolve: (value: any) => void;
-  reject: (reason?: any) => void;
+  resolve: (value: string | null) => void;
+  reject: (reason?: unknown) => void;
 }> = [];
 
-const processQueue = (error: any, token: string | null = null) => {
-  failedQueue.forEach((prom) => {
+const processQueue = (
+  error: unknown,
+  token: string | null = null,
+): void => {
+  failedQueue.forEach((promise) => {
     if (error) {
-      prom.reject(error);
+      promise.reject(error);
     } else {
-      prom.resolve(token);
+      promise.resolve(token);
     }
   });
+
   failedQueue = [];
 };
 
 api.interceptors.response.use(
   (response) => response,
+
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & {
       _retry?: boolean;
@@ -50,11 +61,14 @@ api.interceptors.response.use(
     // Handle 401 - attempt token refresh
     if (error.response?.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {
-        return new Promise((resolve, reject) => {
+        return new Promise<string | null>((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         })
           .then((token) => {
-            originalRequest.headers.Authorization = `Bearer ${token}`;
+            if (token) {
+              originalRequest.headers.Authorization = `Bearer ${token}`;
+            }
+
             return api(originalRequest);
           })
           .catch((err) => Promise.reject(err));
@@ -65,22 +79,37 @@ api.interceptors.response.use(
 
       try {
         const refreshToken = useAuthStore.getState().refreshToken;
-        if (!refreshToken) throw new Error("No refresh token");
+
+        if (!refreshToken) {
+          throw new Error("No refresh token");
+        }
 
         const response = await axios.post("/api/auth/refresh", {
           refreshToken,
         });
-        const { accessToken, refreshToken: newRefreshToken } = response.data;
 
-        useAuthStore.getState().setTokens(accessToken, newRefreshToken);
+        const {
+          accessToken,
+          refreshToken: newRefreshToken,
+        } = response.data;
+
+        useAuthStore
+          .getState()
+          .setTokens(accessToken, newRefreshToken);
+
         processQueue(null, accessToken);
 
-        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+        originalRequest.headers.Authorization =
+          `Bearer ${accessToken}`;
+
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
+
         useAuthStore.getState().logout();
+
         window.location.href = "/login";
+
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
@@ -91,9 +120,16 @@ api.interceptors.response.use(
     if (error.response?.status === 403) {
       toast.error("Accès non autorisé");
     } else if (error.response?.status === 429) {
-      toast.error("Trop de requêtes. Réessayez dans un moment.");
-    } else if (error.response?.status && error.response.status >= 500) {
-      toast.error("Erreur serveur. Veuillez réessayer.");
+      toast.error(
+        "Trop de requêtes. Réessayez dans un moment.",
+      );
+    } else if (
+      error.response?.status &&
+      error.response.status >= 500
+    ) {
+      toast.error(
+        "Erreur serveur. Veuillez réessayer.",
+      );
     }
 
     return Promise.reject(error);
