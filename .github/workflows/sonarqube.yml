@@ -61,7 +61,7 @@ jobs:
           REDIS_URL: redis://localhost:6379
 
       - name: SonarQube Scan
-        uses: sonarSource/sonarqube-scan-action@master
+        uses: sonarSource/sonarqube-scan-action@v1
         continue-on-error: true
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
