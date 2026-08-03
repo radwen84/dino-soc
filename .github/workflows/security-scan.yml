@@ -1,12 +1,22 @@
 name: Security Pipeline
 
+permissions:
+  contents: read
+  actions: read
+  security-events: write
+
 on:
   push:
-    branches: [main, develop]
+    branches:
+      - main
+      - develop
+
   pull_request:
-    branches: [main]
+    branches:
+      - main
+
   schedule:
-    - cron: '0 6 * * 1'  # Weekly Monday 6AM
+    - cron: '0 6 * * 1'
 
 jobs:
   # ==========================================
@@ -14,25 +24,34 @@ jobs:
   # ==========================================
   semgrep:
     runs-on: ubuntu-latest
+
     container:
       image: semgrep/semgrep
+
     steps:
       - uses: actions/checkout@v4
+
       - name: Run Semgrep
+        continue-on-error: true
         run: |
           semgrep scan \
             --config=auto \
             --config=p/owasp-top-ten \
             --config=p/typescript \
             --config=p/security-audit \
-            --sarif --output=semgrep-results.sarif \
+            --sarif \
+            --output=semgrep-results.sarif \
             --metrics=off \
-            apps/
-        continue-on-error: true # 🟢 Évite de bloquer la pipeline si Semgrep trouve des vulnérabilités
+            apps/ || true
 
-      - uses: github/codeql-action/upload-sarif@v3
+          if [ ! -f semgrep-results.sarif ]; then
+            echo '{}' > semgrep-results.sarif
+          fi
+
+      - name: Upload Semgrep SARIF
         if: always()
-        continue-on-error: true # 🟢 Ignore l'échec si le Code Scanning GitHub n'est pas activé
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: semgrep-results.sarif
 
@@ -41,47 +60,57 @@ jobs:
   # ==========================================
   trivy-scan:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Trivy - Backend dependencies
+      - name: Trivy Backend
         uses: aquasecurity/trivy-action@master
         continue-on-error: true
         with:
-          scan-type: 'fs'
-          scan-ref: 'apps/backend'
-          format: 'sarif'
-          output: 'trivy-backend.sarif'
-          severity: 'CRITICAL,HIGH'
-          vuln-type: 'library'
+          scan-type: fs
+          scan-ref: apps/backend
+          format: sarif
+          output: trivy-backend.sarif
+          severity: CRITICAL,HIGH
+          vuln-type: library
 
-      - name: Trivy - Frontend dependencies
+      - name: Trivy Frontend
         uses: aquasecurity/trivy-action@master
         continue-on-error: true
         with:
-          scan-type: 'fs'
-          scan-ref: 'apps/frontend'
-          format: 'sarif'
-          output: 'trivy-frontend.sarif'
-          severity: 'CRITICAL,HIGH'
+          scan-type: fs
+          scan-ref: apps/frontend
+          format: sarif
+          output: trivy-frontend.sarif
+          severity: CRITICAL,HIGH
 
-      - uses: github/codeql-action/upload-sarif@v3
+      - name: Upload Trivy Backend SARIF
         if: always()
-        continue-on-error: true # 🟢 Ignore l'échec d'upload SARIF
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-backend.sarif
+
+      - name: Upload Trivy Frontend SARIF
+        if: always()
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-frontend.sarif
 
   # ==========================================
   # SECRET DETECTION
   # ==========================================
   secret-scan:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: TruffleHog - Secret scanning
+      - name: TruffleHog
         uses: trufflesecurity/trufflehog@main
         continue-on-error: true
         with:
@@ -94,21 +123,22 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # ==========================================
-  # SBOM - Software Bill of Materials
+  # SBOM
   # ==========================================
   sbom:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Generate SBOM (backend)
+      - name: Generate Backend SBOM
         uses: anchore/sbom-action@v0
         with:
           path: apps/backend
           format: spdx-json
           output-file: sbom-backend.spdx.json
 
-      - name: Generate SBOM (frontend)
+      - name: Generate Frontend SBOM
         uses: anchore/sbom-action@v0
         with:
           path: apps/frontend
@@ -124,10 +154,11 @@ jobs:
             sbom-frontend.spdx.json
 
   # ==========================================
-  # OWASP DEPENDENCY CHECK
+  # OWASP Dependency Check
   # ==========================================
   owasp-check:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
@@ -135,40 +166,42 @@ jobs:
         uses: dependency-check/Dependency-Check_Action@main
         continue-on-error: true
         with:
-          project: 'MiniSOC'
-          path: 'apps/'
-          format: 'HTML'
-          out: 'reports'
+          project: MiniSOC
+          path: apps/
+          format: HTML
+          out: reports
           args: >
             --failOnCVSS 8
             --enableExperimental
 
-      - name: Upload report
-        uses: actions/upload-artifact@v4
+      - name: Upload Report
         if: always()
+        uses: actions/upload-artifact@v4
         with:
           name: owasp-report
           path: reports/
 
   # ==========================================
-  # INFRASTRUCTURE SCAN
+  # INFRASTRUCTURE SECURITY
   # ==========================================
   infra-scan:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Checkov - IaC security scan
+      - name: Checkov Scan
         uses: bridgecrewio/checkov-action@master
         with:
           directory: infrastructure/
           framework: terraform,kubernetes,dockerfile
           output_format: sarif
           output_file_path: checkov-results.sarif
-          soft_fail: true # 🟢 Empêche déjà le crash si des failles IaC sont détectées
+          soft_fail: true
 
-      - uses: github/codeql-action/upload-sarif@v3
+      - name: Upload Checkov SARIF
         if: always()
-        continue-on-error: true # 🟢 Ignore l'échec si le Code Scanning GitHub n'est pas activé
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: checkov-results.sarif

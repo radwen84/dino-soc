@@ -1,9 +1,24 @@
 import { useEffect, useRef } from "react";
 import { Socket } from "socket.io-client";
-import { connectSocket, disconnectSocket } from "../lib/socket";
-import { useNotificationsStore } from "../stores/notifications.store";
 import { useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
+
+import { connectSocket, disconnectSocket } from "../lib/socket";
+import { useNotificationsStore } from "../stores/notifications.store";
+
+interface Alert {
+  id: string;
+  source: string;
+  ruleDescription?: string;
+  level: number;
+}
+
+interface Incident {
+  id: string;
+  title: string;
+  status: string;
+  severity: string;
+}
 
 export function useWebSocket() {
   const socketRef = useRef<Socket | null>(null);
@@ -15,20 +30,31 @@ export function useWebSocket() {
     socketRef.current = socket;
 
     // New alert
-    socket.on("alert:new", (alert: any) => {
+    socket.on("alert:new", (alert: Alert) => {
       addNotification({
         type: "alert",
         title: "Nouvelle alerte",
-        message: `[${alert.source}] ${alert.ruleDescription || "Alerte détectée"}`,
+        message: `[${alert.source}] ${
+          alert.ruleDescription || "Alerte détectée"
+        }`,
         severity:
-          alert.level >= 12 ? "critical" : alert.level >= 8 ? "high" : "medium",
+          alert.level >= 12
+            ? "critical"
+            : alert.level >= 8
+            ? "high"
+            : "medium",
         link: "/alerts",
       });
 
       if (alert.level >= 12) {
-        toast.error(`🚨 Alerte critique: ${alert.ruleDescription}`, {
-          duration: 8000,
-        });
+        toast.error(
+          `🚨 Alerte critique: ${
+            alert.ruleDescription || "Alerte détectée"
+          }`,
+          {
+            duration: 8000,
+          }
+        );
       }
 
       queryClient.invalidateQueries({ queryKey: ["alerts"] });
@@ -36,21 +62,23 @@ export function useWebSocket() {
     });
 
     // Incident update
-    socket.on("incident:updated", (incident: any) => {
+    socket.on("incident:updated", (incident: Incident) => {
       addNotification({
         type: "incident",
-        title: `Incident mis à jour`,
+        title: "Incident mis à jour",
         message: `${incident.title} → ${incident.status}`,
         severity: incident.severity,
         link: `/incidents/${incident.id}`,
       });
 
       queryClient.invalidateQueries({ queryKey: ["incidents"] });
-      queryClient.invalidateQueries({ queryKey: ["incident", incident.id] });
+      queryClient.invalidateQueries({
+        queryKey: ["incident", incident.id],
+      });
     });
 
     // New incident
-    socket.on("incident:created", (incident: any) => {
+    socket.on("incident:created", (incident: Incident) => {
       addNotification({
         type: "incident",
         title: "Nouvel incident",
@@ -59,7 +87,10 @@ export function useWebSocket() {
         link: `/incidents/${incident.id}`,
       });
 
-      toast(`🔴 Nouvel incident: ${incident.title}`, { duration: 6000 });
+      toast(`🔴 Nouvel incident: ${incident.title}`, {
+        duration: 6000,
+      });
+
       queryClient.invalidateQueries({ queryKey: ["incidents"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
     });
