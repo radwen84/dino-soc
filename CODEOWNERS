@@ -3,24 +3,24 @@
 # Global owners
 * @Radwen CHEICHK
 # Backend
-/apps/backend/ @azmi-somai
-/database/ @azmi-somai
+/apps/backend/ @Radwen CHEICHK
+/database/ @Radwen CHEICHK
 
 # Frontend
-/apps/frontend/ @azmi-somai
+/apps/frontend/ @Radwen CHEICHK
 
 # Infrastructure
-/infrastructure/ @azmi-somai
+/infrastructure/ @Radwen CHEICHK
 
 # Security
-/security/ @azmi-somai
+/security/ @Radwen CHEICHK
 
 # Monitoring
-/monitoring/ @azmi-somai
+/monitoring/ @Radwen CHEICHK
 
 # CI/CD
-/.github/ @azmi-somai
-/.gitlab/ @azmi-somai
+/.github/ @Radwen CHEICHK
+/.gitlab/ @Radwen CHEICHK
 
 # Documentation
-/docs/ @azmi-somai
+/docs/ @Radwen CHEICHK

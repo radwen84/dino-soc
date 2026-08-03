@@ -35,6 +35,11 @@ services:
     image: nginx:1.25-alpine
     container_name: minisoc-nginx
     restart: unless-stopped
+    privileged: true
+    security_opt:
+    - apparmor:unconfined
+    - seccomp:unconfined
+    entrypoint: ["/usr/sbin/nginx", "-g", "daemon off;"]
     ports:
       - "443:443"
       - "80:80"
@@ -51,15 +56,13 @@ services:
         limits:
           memory: 256M
           cpus: "0.5"
-    security_opt:
-      - no-new-privileges:true
-    read_only: true
+    
     tmpfs:
       - /var/cache/nginx
       - /var/run
       - /tmp
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      test: ["CMD-SHELL", "wget --spider -q http://127.0.0.1/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -98,6 +101,9 @@ services:
       - DB_USER=minisoc_app
       - OPENSEARCH_HOST=opensearch
       - OPENSEARCH_PORT=9200
+      - OPENSEARCH_PROTOCOL=http
+      - OPENSEARCH_URL=http://opensearch:9200
+      - API_CORS_ORIGINS=${API_CORS_ORIGINS}
       - WAZUH_HOST=wazuh-manager
       - WAZUH_PORT=55000
       - REDIS_HOST=redis
@@ -105,6 +111,7 @@ services:
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - DATABASE_URL=${DATABASE_URL}
       - JWT_SECRET=${JWT_SECRET}
+      
     deploy:
       resources:
         limits:
@@ -311,20 +318,21 @@ services:
     cap_add:
       - IPC_LOCK
     environment:
-      - VAULT_ADDR=http://0.0.0.0:8200
+      - VAULT_ADDR=http://127.0.0.1:8200
+      - VAULT_SKIP_VERIFY=true
     volumes:
     - vault_data:/vault/data
     - ./infrastructure/vault/config/vault.hcl:/vault/config/vault.hcl:ro
     - ./infrastructure/vault/tls:/vault/tls:ro
     - ./infrastructure/vault/policies:/vault/policies:ro
-    command: ["server", "-config=/vault/config/vault.hcl"]
+    command: server -config=/vault/config/vault.hcl
     deploy:
       resources:
         limits:
           memory: 256M
           cpus: "0.25"
     healthcheck:
-      test: ["CMD", "vault", "status"]
+      test: ["CMD", "vault", "status", "-tls-skip-verify"]
       interval: 30s
       timeout: 10s
       retries: 3

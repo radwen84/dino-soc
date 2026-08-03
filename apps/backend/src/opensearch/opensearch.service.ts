@@ -13,7 +13,7 @@ export class OpenSearchService implements OnModuleInit {
     const password = this.configService.get<string>('OPENSEARCH_ADMIN_PASSWORD', 'admin');
 
     this.client = new Client({
-      node: `https://${host}:${port}`,
+      node: `http://${host}:${port}`,
       auth: {
         username: 'admin',
         password,
