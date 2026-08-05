@@ -8,12 +8,13 @@
   }
 
   body {
-    @apply bg-soc-bg text-soc-text;
+    @apply bg-soc-bg text-soc-text font-sans antialiased selection:bg-soc-primary/30 selection:text-white;
   }
 
+  /* Barre de défilement personnalisée */
   ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
   }
 
   ::-webkit-scrollbar-track {
@@ -21,7 +22,7 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-soc-border rounded-full;
+    @apply bg-soc-border rounded-full transition-colors;
   }
 
   ::-webkit-scrollbar-thumb:hover {
@@ -30,56 +31,102 @@
 }
 
 @layer components {
+  /* Cartes et Conteneurs */
   .card {
-    @apply bg-soc-card rounded-lg border border-soc-border p-4 shadow-lg;
+    @apply bg-soc-card rounded-lg border border-soc-border p-4 shadow-lg transition-all duration-200;
   }
 
+  /* Boutons */
   .btn-primary {
-    @apply bg-soc-primary hover:bg-blue-600 text-white font-medium px-4 py-2 rounded-lg
-           transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply bg-soc-primary hover:bg-blue-600 active:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg
+           transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer
+           shadow-sm flex items-center justify-center gap-2;
   }
 
   .btn-danger {
-    @apply bg-soc-danger hover:bg-red-600 text-white font-medium px-4 py-2 rounded-lg
-           transition-colors duration-200;
+    @apply bg-soc-danger hover:bg-red-600 active:bg-red-700 text-white font-medium px-4 py-2 rounded-lg
+           transition-colors duration-200 cursor-pointer disabled:opacity-50 shadow-sm;
   }
 
   .btn-ghost {
     @apply text-soc-muted hover:text-soc-text hover:bg-soc-surface px-3 py-2 rounded-lg
-           transition-colors duration-200;
+           transition-colors duration-200 cursor-pointer border border-transparent;
   }
 
+  /* Champs de saisie */
   .input {
     @apply bg-soc-surface border border-soc-border rounded-lg px-3 py-2 text-soc-text
            placeholder-soc-muted focus:outline-none focus:ring-2 focus:ring-soc-primary
-           focus:border-transparent transition-all duration-200;
+           focus:border-transparent transition-all duration-200 text-sm;
   }
 
+  /* Badges de sévérité et statut */
   .badge {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border transition-colors;
   }
 
   .badge-critical {
-    @apply badge bg-red-900/50 text-red-300 border border-red-700;
+    @apply badge bg-red-900/40 text-red-300 border-red-700/60;
   }
 
   .badge-high {
-    @apply badge bg-orange-900/50 text-orange-300 border border-orange-700;
+    @apply badge bg-orange-900/40 text-orange-300 border-orange-700/60;
   }
 
   .badge-medium {
-    @apply badge bg-yellow-900/50 text-yellow-300 border border-yellow-700;
+    @apply badge bg-yellow-900/40 text-yellow-300 border-yellow-700/60;
   }
 
   .badge-low {
-    @apply badge bg-green-900/50 text-green-300 border border-green-700;
+    @apply badge bg-green-900/40 text-green-300 border-green-700/60;
   }
 
   .badge-info {
-    @apply badge bg-blue-900/50 text-blue-300 border border-blue-700;
+    @apply badge bg-blue-900/40 text-blue-300 border-blue-700/60;
   }
 
+  .badge-success {
+    @apply badge bg-emerald-900/40 text-emerald-300 border-emerald-700/60;
+  }
+
+  .badge-warning {
+    @apply badge bg-amber-900/40 text-amber-300 border-amber-700/60;
+  }
+
+  /* Tableaux */
   .table-row {
-    @apply border-b border-soc-border hover:bg-soc-surface/50 transition-colors;
+    @apply border-b border-soc-border hover:bg-soc-surface/50 transition-colors duration-150;
+  }
+}
+
+@layer utilities {
+  /* Animation d'apparition globale */
+  .animate-fade-in {
+    animation: fadeIn 0.25s ease-in-out forwards;
+  }
+
+  /* Pulsation douce pour l'indicateur de statut temps réel */
+  .animate-pulse-slow {
+    animation: pulseSlow 3s infinite ease-in-out;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes pulseSlow {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.4;
+    }
   }
 }

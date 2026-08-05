@@ -26,6 +26,9 @@ export function ThreatIntelPage() {
       );
       return data;
     },
+    onError: () => {
+      toast.error("Impossible de récupérer la réputation");
+    },
   });
 
   const syncMutation = useMutation({
@@ -34,7 +37,10 @@ export function ThreatIntelPage() {
       return data;
     },
     onSuccess: (data) => {
-      toast.success(`Sync terminé: OTX=${data.otx}, MISP=${data.misp}`);
+      toast.success(`Sync terminé: OTX=${data?.otx || 0}, MISP=${data?.misp || 0}`);
+    },
+    onError: () => {
+      toast.error("Erreur lors de la synchronisation des flux");
     },
   });
 
@@ -42,6 +48,8 @@ export function ThreatIntelPage() {
     e.preventDefault();
     if (lookupValue.trim()) {
       lookupMutation.mutate(lookupValue.trim());
+    } else {
+      toast.error("Veuillez saisir une valeur");
     }
   };
 
@@ -50,9 +58,10 @@ export function ThreatIntelPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-white">Threat Intelligence</h1>
         <button
+          type="button"
           onClick={() => syncMutation.mutate()}
           disabled={syncMutation.isPending}
-          className="btn-ghost text-sm border border-soc-border flex items-center gap-2"
+          className="btn-ghost text-sm border border-soc-border flex items-center gap-2 cursor-pointer disabled:opacity-50"
         >
           <ArrowPathIcon
             className={clsx(
@@ -64,7 +73,7 @@ export function ThreatIntelPage() {
         </button>
       </div>
 
-      {/* Lookup */}
+      {/* Lookup Form */}
       <div className="card">
         <h3 className="text-sm font-medium text-soc-muted mb-3">
           Recherche de réputation
@@ -82,9 +91,9 @@ export function ThreatIntelPage() {
           <button
             type="submit"
             disabled={lookupMutation.isPending}
-            className="btn-primary"
+            className="btn-primary cursor-pointer disabled:opacity-50"
           >
-            Analyser
+            {lookupMutation.isPending ? "Analyse..." : "Analyser"}
           </button>
         </form>
 
@@ -123,7 +132,7 @@ export function ThreatIntelPage() {
               <div>
                 <p className="text-soc-muted">Sources</p>
                 <p className="text-white">
-                  {lookupMutation.data.sources.join(", ") || "Aucune"}
+                  {lookupMutation.data.sources?.join(", ") || "Aucune"}
                 </p>
               </div>
               {lookupMutation.data.abuseIpDb && (

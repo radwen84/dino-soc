@@ -13,9 +13,9 @@
     "lint:fix": "eslint . --ext ts,tsx --fix",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\"",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\"",
-    "test": "vitest",
-    "test:ui": "vitest --ui",
-    "test:coverage": "vitest --coverage"
+    "test": "vitest --environment jsdom",
+    "test:ui": "vitest --ui --environment jsdom",
+    "test:coverage": "vitest --coverage --environment jsdom"
   },
   "dependencies": {
     "@headlessui/react": "^2.1.2",

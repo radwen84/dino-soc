@@ -1,16 +1,27 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../lib/api";
 import { DataTable } from "../components/common/DataTable";
 import { SeverityBadge } from "../components/common/SeverityBadge";
-import { PlusIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
+import { PlusIcon, MagnifyingGlassIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
+import toast from "react-hot-toast";
 
 export function IocPage() {
+  const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const [newIoc, setNewIoc] = useState({
+    type: "ip",
+    value: "",
+    severity: "medium",
+    confidence: 80,
+    source: "Manual entry",
+  });
 
   const { data, isLoading } = useQuery({
     queryKey: ["iocs", page, search, typeFilter],
@@ -22,6 +33,26 @@ export function IocPage() {
       return data;
     },
   });
+
+  const createMutation = useMutation({
+    mutationFn: async (payload: typeof newIoc) => {
+      const { data } = await api.post("/ioc", payload);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["iocs"] });
+      toast.success("IOC ajouté avec succès");
+      setIsModalOpen(false);
+      setNewIoc({ type: "ip", value: "", severity: "medium", confidence: 80, source: "Manual entry" });
+    },
+    onError: () => toast.error("Erreur lors de l'ajout de l'IOC"),
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newIoc.value.trim()) return toast.error("Valeur requise");
+    createMutation.mutate(newIoc);
+  };
 
   const columns = [
     {
@@ -92,7 +123,10 @@ export function IocPage() {
         <h1 className="text-xl font-bold text-white">
           Indicateurs de Compromission
         </h1>
-        <button className="btn-primary flex items-center gap-2 text-sm">
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="btn-primary flex items-center gap-2 text-sm cursor-pointer"
+        >
           <PlusIcon className="h-4 w-4" />
           Ajouter un IOC
         </button>
@@ -137,6 +171,78 @@ export function IocPage() {
         isLoading={isLoading}
         emptyMessage="Aucun IOC trouvé"
       />
+
+      {/* Modal Ajouter IOC */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="card w-full max-w-md bg-soc-card border border-soc-border p-6 rounded-xl">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-white">Ajouter un IOC</h2>
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="text-soc-muted hover:text-white"
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-soc-muted mb-1">Type</label>
+                <select
+                  value={newIoc.type}
+                  onChange={(e) => setNewIoc({ ...newIoc, type: e.target.value })}
+                  className="input w-full"
+                >
+                  <option value="ip">IP</option>
+                  <option value="domain">Domaine</option>
+                  <option value="url">URL</option>
+                  <option value="hash_sha256">Hash SHA256</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-soc-muted mb-1">Valeur</label>
+                <input
+                  value={newIoc.value}
+                  onChange={(e) => setNewIoc({ ...newIoc, value: e.target.value })}
+                  placeholder="ex: 192.168.1.100 ou bad-domain.com"
+                  className="input w-full font-mono text-sm"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-soc-muted mb-1">Sévérité</label>
+                <select
+                  value={newIoc.severity}
+                  onChange={(e) => setNewIoc({ ...newIoc, severity: e.target.value })}
+                  className="input w-full"
+                >
+                  <option value="critical">Critical</option>
+                  <option value="high">High</option>
+                  <option value="medium">Medium</option>
+                  <option value="low">Low</option>
+                </select>
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="btn-ghost text-sm"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={createMutation.isPending}
+                  className="btn-primary text-sm"
+                >
+                  {createMutation.isPending ? "Création..." : "Ajouter"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

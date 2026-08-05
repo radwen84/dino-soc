@@ -5,21 +5,26 @@ import { useAuthStore } from "../stores/auth.store";
 import toast from "react-hot-toast";
 import { AxiosError } from "axios";
 
-interface LoginCredentials {
+export interface User {
+  id: string;
+  name: string;
   email: string;
-  password: string;
-  mfaCode?: string;
+  roles: string[];
 }
 
-interface LoginResponse {
+export interface LoginCredentials {
+  email?: string;
+  password?: string;
+  mfaCode?: string;
+  tempToken?: string;
+}
+
+export interface LoginResponse {
   requiresMfa?: boolean;
+  tempToken?: string;
   accessToken: string;
   refreshToken: string;
-  user: {
-    id: string;
-    name: string;
-    email: string;
-  };
+  user: User;
 }
 
 interface ApiErrorResponse {
@@ -30,17 +35,15 @@ export function useLogin() {
   const { setAuth } = useAuthStore();
   const navigate = useNavigate();
 
-  return useMutation({
-    mutationFn: async (
-      credentials: LoginCredentials,
-    ): Promise<LoginResponse> => {
+  return useMutation<LoginResponse, AxiosError<ApiErrorResponse>, LoginCredentials>({
+    mutationFn: async (credentials: LoginCredentials): Promise<LoginResponse> => {
       const { data } = await api.post("/auth/login", credentials);
       return data;
     },
 
     onSuccess: (data: LoginResponse) => {
       if (data.requiresMfa) {
-        return data;
+        return;
       }
 
       setAuth(
@@ -53,15 +56,8 @@ export function useLogin() {
       navigate("/");
     },
 
-    onError: (error: unknown) => {
-      let message = "Erreur de connexion";
-
-      if (error instanceof AxiosError) {
-        message =
-          (error.response?.data as ApiErrorResponse)?.message ??
-          message;
-      }
-
+    onError: (error: AxiosError<ApiErrorResponse>) => {
+      const message = error.response?.data?.message ?? "Erreur de connexion";
       toast.error(message);
     },
   });

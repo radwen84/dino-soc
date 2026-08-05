@@ -1,4 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useWebSocket } from "../hooks/useWebSocket";
 import api from "../lib/api";
 import { StatsCard } from "../components/dashboard/StatsCard";
@@ -13,11 +14,24 @@ import {
   FingerPrintIcon,
   ServerStackIcon,
   ClockIcon,
-  CheckCircleIcon,
+  ArrowPathIcon,
 } from "@heroicons/react/24/outline";
+import toast from "react-hot-toast";
+
+interface SeverityMetric {
+  avgMttdHours?: number;
+  avgMttrHours?: number;
+}
+
+interface KpiMetrics {
+  severityMetrics?: SeverityMetric[];
+  falsePositiveRate?: number;
+}
 
 export function DashboardPage() {
   useWebSocket();
+  const queryClient = useQueryClient();
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
   const { data: stats, isLoading } = useQuery({
     queryKey: ["dashboard-stats"],
@@ -28,9 +42,10 @@ export function DashboardPage() {
         api.get("/ioc/stats"),
         api.get("/assets/stats"),
       ]);
+      setLastUpdated(new Date());
       return {
-        incidents: incidents.data.meta,
-        alerts: alerts.data.meta,
+        incidents: incidents.data?.meta,
+        alerts: alerts.data?.meta,
         iocs: iocs.data,
         assets: assets.data,
       };
@@ -38,7 +53,7 @@ export function DashboardPage() {
     refetchInterval: 30000,
   });
 
-  const { data: kpis } = useQuery({
+  const { data: kpis } = useQuery<KpiMetrics>({
     queryKey: ["dashboard-kpis"],
     queryFn: async () => {
       const { data } = await api.get("/reports/generate", {
@@ -49,6 +64,20 @@ export function DashboardPage() {
     refetchInterval: 60000,
   });
 
+  const handleRefresh = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] }),
+      queryClient.invalidateQueries({ queryKey: ["dashboard-kpis"] }),
+      queryClient.invalidateQueries({ queryKey: ["incidents-by-status"] }),
+      queryClient.invalidateQueries({ queryKey: ["severity-distribution"] }),
+      queryClient.invalidateQueries({ queryKey: ["alerts-timeline"] }),
+      queryClient.invalidateQueries({ queryKey: ["recent-alerts"] }),
+      queryClient.invalidateQueries({ queryKey: ["recent-incidents"] }),
+    ]);
+    setLastUpdated(new Date());
+    toast.success("Tableau de bord actualisé");
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -57,13 +86,26 @@ export function DashboardPage() {
     );
   }
 
+  const mttdHours = kpis?.severityMetrics?.[0]?.avgMttdHours ?? kpis?.severityMetrics?.[0]?.avgMttrHours;
+  const mttrHours = kpis?.severityMetrics?.[0]?.avgMttrHours;
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-white">SOC Dashboard</h1>
-        <div className="flex items-center gap-2 text-sm text-soc-muted">
-          <ClockIcon className="h-4 w-4" />
-          <span>Dernière MAJ: {new Date().toLocaleTimeString("fr-FR")}</span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 text-xs text-soc-muted">
+            <ClockIcon className="h-4 w-4" />
+            <span>Dernière MAJ: {lastUpdated.toLocaleTimeString("fr-FR")}</span>
+          </div>
+          <button
+            type="button"
+            onClick={handleRefresh}
+            className="p-1.5 rounded-lg text-soc-muted hover:text-white hover:bg-soc-surface transition-colors cursor-pointer"
+            title="Rafraîchir"
+          >
+            <ArrowPathIcon className="h-4 w-4" />
+          </button>
         </div>
       </div>
 
@@ -103,8 +145,8 @@ export function DashboardPage() {
           <div className="card text-center">
             <p className="text-sm text-soc-muted">MTTD</p>
             <p className="text-2xl font-bold text-soc-accent mt-1">
-              {kpis.severityMetrics?.[0]?.avgMttrHours
-                ? `${Math.round(kpis.severityMetrics[0].avgMttrHours * 60)}min`
+              {mttdHours !== undefined
+                ? `${Math.round(mttdHours * 60)}min`
                 : "N/A"}
             </p>
             <p className="text-xs text-soc-muted mt-1">Mean Time to Detect</p>
@@ -112,9 +154,7 @@ export function DashboardPage() {
           <div className="card text-center">
             <p className="text-sm text-soc-muted">MTTR</p>
             <p className="text-2xl font-bold text-soc-warning mt-1">
-              {kpis.severityMetrics?.[0]?.avgMttrHours
-                ? `${kpis.severityMetrics[0].avgMttrHours}h`
-                : "N/A"}
+              {mttrHours !== undefined ? `${mttrHours}h` : "N/A"}
             </p>
             <p className="text-xs text-soc-muted mt-1">Mean Time to Resolve</p>
           </div>
@@ -139,7 +179,7 @@ export function DashboardPage() {
         <RecentAlerts />
       </div>
 
-      {/* Recent incidents */}
+      {/* Incidents récents */}
       <RecentIncidents />
     </div>
   );

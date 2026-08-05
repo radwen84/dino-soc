@@ -5,7 +5,7 @@ export interface Notification {
   type: "alert" | "incident" | "system" | "info";
   title: string;
   message: string;
-  severity?: "critical" | "high" | "medium" | "low";
+  severity?: "critical" | "high" | "medium" | "low" | "informational" | string;
   timestamp: Date;
   read: boolean;
   link?: string;
@@ -22,7 +22,7 @@ interface NotificationsState {
   clearAll: () => void;
 }
 
-export const useNotificationsStore = create<NotificationsState>((set, get) => ({
+export const useNotificationsStore = create<NotificationsState>((set) => ({
   notifications: [],
   unreadCount: 0,
 

@@ -42,18 +42,38 @@ const reportTypes = [
 
 export function ReportsPage() {
   const [selectedPeriod, setSelectedPeriod] = useState("last_7d");
+  const [activeReportType, setActiveReportType] = useState<string | null>(null);
 
   const generateMutation = useMutation({
     mutationFn: async (type: string) => {
+      setActiveReportType(type);
       const { data } = await api.get("/reports/generate", {
         params: { type, period: selectedPeriod, format: "json" },
       });
       return data;
     },
     onSuccess: () => {
-      toast.success("Rapport généré");
+      toast.success("Rapport généré avec succès");
+    },
+    onError: () => {
+      toast.error("Erreur lors de la génération du rapport");
+    },
+    onSettled: () => {
+      setActiveReportType(null);
     },
   });
+
+  const handleDownloadJson = (data: any, reportType: string) => {
+    const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(
+      JSON.stringify(data, null, 2)
+    )}`;
+    const downloadAnchor = document.createElement("a");
+    downloadAnchor.setAttribute("href", jsonString);
+    downloadAnchor.setAttribute("download", `rapport_${reportType}_${selectedPeriod}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -62,7 +82,7 @@ export function ReportsPage() {
         <select
           value={selectedPeriod}
           onChange={(e) => setSelectedPeriod(e.target.value)}
-          className="input text-sm"
+          className="input text-sm py-1.5"
         >
           <option value="last_24h">Dernières 24h</option>
           <option value="last_7d">7 derniers jours</option>
@@ -75,7 +95,7 @@ export function ReportsPage() {
         {reportTypes.map((report) => (
           <div
             key={report.type}
-            className="card hover:border-soc-primary/30 transition-colors"
+            className="card hover:border-soc-primary/30 transition-colors flex flex-col justify-between"
           >
             <div className="flex items-start gap-3">
               <div className="h-10 w-10 rounded-lg bg-soc-primary/10 flex items-center justify-center shrink-0">
@@ -91,24 +111,41 @@ export function ReportsPage() {
               </div>
             </div>
             <button
+              type="button"
               onClick={() => generateMutation.mutate(report.type)}
               disabled={generateMutation.isPending}
-              className="mt-4 w-full btn-ghost text-xs border border-soc-border flex items-center justify-center gap-2"
+              className="mt-4 w-full btn-ghost text-xs border border-soc-border flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
               <ArrowDownTrayIcon className="h-3.5 w-3.5" />
-              Générer
+              {generateMutation.isPending && activeReportType === report.type
+                ? "Génération..."
+                : "Générer"}
             </button>
           </div>
         ))}
       </div>
 
-      {/* Report result */}
+      {/* Résultat du rapport */}
       {generateMutation.data && (
-        <div className="card">
-          <h3 className="text-sm font-medium text-soc-muted mb-3">
-            Résultat: {generateMutation.data.metadata.type}
-          </h3>
-          <pre className="text-xs text-soc-text bg-soc-surface p-4 rounded-lg overflow-auto max-h-96 font-mono">
+        <div className="card space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-medium text-soc-muted">
+              Résultat : {generateMutation.data.metadata?.type || "Rapport"}
+            </h3>
+            <button
+              type="button"
+              onClick={() =>
+                handleDownloadJson(
+                  generateMutation.data.data,
+                  generateMutation.data.metadata?.type || "report"
+                )
+              }
+              className="btn-primary text-xs flex items-center gap-1.5 cursor-pointer"
+            >
+              <ArrowDownTrayIcon className="h-3.5 w-3.5" /> Exporter JSON
+            </button>
+          </div>
+          <pre className="text-xs text-soc-text bg-soc-surface p-4 rounded-lg overflow-auto max-h-96 font-mono border border-soc-border">
             {JSON.stringify(generateMutation.data.data, null, 2)}
           </pre>
         </div>
