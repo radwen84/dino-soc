@@ -35,6 +35,7 @@ import { validate } from './config/env.validation';
       load: [configuration],
       validate,
       expandVariables: true,
+      envFilePath: [`.env.${process.env.NODE_ENV || 'development'}`, '.env'],
     }),
 
     // Event system

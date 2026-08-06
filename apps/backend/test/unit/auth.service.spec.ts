@@ -57,7 +57,7 @@ describe('AuthService', () => {
     it('should return user on valid credentials', async () => {
       usersService.findByEmail.mockResolvedValue(mockUser as any);
 
-      const result = await service.validateUser('test@minisoc.local', 'TestPassword123!');
+      const result = await service.validateUser('test@minisoc.local', 'TestPassword123!', '127.0.0.1');
       expect(result).toBeDefined();
       expect(result.email).toBe('test@minisoc.local');
     });
@@ -65,7 +65,7 @@ describe('AuthService', () => {
     it('should throw on invalid password', async () => {
       usersService.findByEmail.mockResolvedValue(mockUser as any);
 
-      await expect(service.validateUser('test@minisoc.local', 'wrong-password')).rejects.toThrow(
+      await expect(service.validateUser('test@minisoc.local', 'wrong-password', '127.0.0.1')).rejects.toThrow(
         UnauthorizedException,
       );
     });
@@ -74,7 +74,7 @@ describe('AuthService', () => {
       const lockedUser = { ...mockUser, lockedUntil: new Date(Date.now() + 3600000) };
       usersService.findByEmail.mockResolvedValue(lockedUser as any);
 
-      await expect(service.validateUser('test@minisoc.local', 'TestPassword123!')).rejects.toThrow(
+      await expect(service.validateUser('test@minisoc.local', 'TestPassword123!', '127.0.0.1')).rejects.toThrow(
         UnauthorizedException,
       );
     });
@@ -83,7 +83,7 @@ describe('AuthService', () => {
       const inactiveUser = { ...mockUser, isActive: false };
       usersService.findByEmail.mockResolvedValue(inactiveUser as any);
 
-      await expect(service.validateUser('test@minisoc.local', 'TestPassword123!')).rejects.toThrow(
+      await expect(service.validateUser('test@minisoc.local', 'TestPassword123!', '127.0.0.1')).rejects.toThrow(
         UnauthorizedException,
       );
     });

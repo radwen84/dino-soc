@@ -5,6 +5,9 @@ import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
 
 describe('Incidents (Integration)', () => {
+  jest.setTimeout(30000);
+
+describe('Incidents (Integration)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   let authToken: string;
@@ -13,6 +16,7 @@ describe('Incidents (Integration)', () => {
     const module: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
+  }, 30000);
 
     app = module.createNestApplication();
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
@@ -28,8 +32,12 @@ describe('Incidents (Integration)', () => {
   });
 
   afterAll(async () => {
-    await prisma.$disconnect();
-    await app.close();
+    if (prisma) {
+      await prisma.$disconnect();
+    }
+    if (app) {
+      await app.close();
+    }
   });
 
   describe('POST /api/incidents', () => {

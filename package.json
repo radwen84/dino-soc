@@ -1,0 +1,13 @@
+{
+  "name": "dino-soc",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "test": "npm run test --workspaces",
+    "test:frontend": "npm run test --workspace=apps/frontend",
+    "test:backend": "npm run test --workspace=apps/backend"
+  }
+}

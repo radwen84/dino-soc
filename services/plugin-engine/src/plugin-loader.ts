@@ -10,21 +10,41 @@ export interface Plugin {
   execute: (input: any) => Promise<any>;
 }
 
+const allowedTypes = new Set(['enrichment', 'response', 'notification', 'analysis']);
+
+function isValidPlugin(plugin: any): plugin is Plugin {
+  return (
+    plugin &&
+    typeof plugin.name === 'string' &&
+    typeof plugin.version === 'string' &&
+    typeof plugin.description === 'string' &&
+    typeof plugin.execute === 'function' &&
+    allowedTypes.has(plugin.type)
+  );
+}
+
 export class PluginLoader {
   private plugins: Map<string, Plugin> = new Map();
 
   async loadPlugins(directory: string) {
-    const pluginFiles = await glob(`${directory}/*/index.{ts,js}`);
+    const normalizedDir = directory.replace(/\\/g, '/');
+    const pluginFiles = await glob(`${normalizedDir}/*/index.{ts,js}`);
 
     for (const file of pluginFiles) {
       try {
         const pluginModule = await import(path.resolve(file));
-        const plugin: Plugin = pluginModule.default || pluginModule;
+        const plugin = (pluginModule.default || pluginModule) as any;
 
-        if (plugin.name && plugin.execute) {
-          this.plugins.set(plugin.name, plugin);
-          logger.info(`Loaded plugin: ${plugin.name} v${plugin.version}`);
+        if (!isValidPlugin(plugin)) {
+          throw new Error('Invalid plugin metadata or missing execute function');
         }
+
+        if (this.plugins.has(plugin.name)) {
+          throw new Error(`Duplicate plugin name detected: ${plugin.name}`);
+        }
+
+        this.plugins.set(plugin.name, plugin);
+        logger.info(`Loaded plugin: ${plugin.name} v${plugin.version}`);
       } catch (error: any) {
         logger.error(`Failed to load plugin from ${file}: ${error.message}`);
       }

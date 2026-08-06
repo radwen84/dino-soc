@@ -1,4 +1,5 @@
 import express from 'express';
+import path from 'path';
 import { PluginLoader } from './plugin-loader';
 import { logger } from './logger';
 
@@ -26,7 +27,8 @@ app.post('/plugins/:name/execute', async (req, res) => {
 });
 
 async function start() {
-  await pluginLoader.loadPlugins('./plugins');
+  const pluginsDir = path.resolve(__dirname, '../plugins');
+  await pluginLoader.loadPlugins(pluginsDir);
   const port = process.env.PORT || 8001;
   app.listen(port, () => {
     logger.info(`Plugin Engine running on port ${port}`);
