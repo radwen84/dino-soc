@@ -20,6 +20,10 @@ interface MispAttribute {
   to_ids: boolean;
 }
 
+interface MispRestSearchResponse {
+  response?: Array<{ Event: MispEvent }>;
+}
+
 @Injectable()
 export class MispFeedService {
   private readonly logger = new Logger(MispFeedService.name);
@@ -44,7 +48,7 @@ export class MispFeedService {
       const timestamp = Math.floor(Date.now() / 1000) - hours * 3600;
 
       const response = await firstValueFrom(
-        this.httpService.post(
+        this.httpService.post<MispRestSearchResponse>(
           `${this.baseUrl}/events/restSearch`,
           { timestamp, published: true, enforceWarninglist: true },
           {
@@ -57,7 +61,7 @@ export class MispFeedService {
         ),
       );
 
-      const events: MispEvent[] = response.data.response?.map((r: any) => r.Event) || [];
+      const events: MispEvent[] = response.data.response?.map((r) => r.Event) || [];
       const iocs: CreateIocDto[] = [];
 
       for (const event of events) {
@@ -84,8 +88,9 @@ export class MispFeedService {
 
       this.logger.log(`MISP: fetched ${iocs.length} indicators from ${events.length} events`);
       return iocs;
-    } catch (error) {
-      this.logger.error(`MISP feed fetch failed: ${error.message}`);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`MISP feed fetch failed: ${message}`);
       return [];
     }
   }

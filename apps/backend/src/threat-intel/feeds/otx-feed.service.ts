@@ -22,6 +22,10 @@ interface OtxIndicator {
   description: string;
 }
 
+interface OtxPulsesResponse {
+  results?: OtxPulse[];
+}
+
 @Injectable()
 export class OtxFeedService {
   private readonly logger = new Logger(OtxFeedService.name);
@@ -43,7 +47,7 @@ export class OtxFeedService {
 
     try {
       const response = await firstValueFrom(
-        this.httpService.get(`${this.baseUrl}/pulses/subscribed`, {
+        this.httpService.get<OtxPulsesResponse>(`${this.baseUrl}/pulses/subscribed`, {
           headers: { 'X-OTX-API-KEY': this.apiKey },
           params: { limit, modified_since: this.getLastSyncDate() },
         }),
@@ -73,8 +77,9 @@ export class OtxFeedService {
 
       this.logger.log(`OTX: fetched ${iocs.length} indicators from ${pulses.length} pulses`);
       return iocs;
-    } catch (error) {
-      this.logger.error(`OTX feed fetch failed: ${error.message}`);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`OTX feed fetch failed: ${message}`);
       return [];
     }
   }

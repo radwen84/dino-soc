@@ -7,44 +7,43 @@ import { PrismaService } from '../../src/prisma/prisma.service';
 describe('Incidents (Integration)', () => {
   jest.setTimeout(30000);
 
-describe('Incidents (Integration)', () => {
-  let app: INestApplication;
-  let prisma: PrismaService;
-  let authToken: string;
+  const testContext: {
+    app?: INestApplication;
+    prisma?: PrismaService;
+    authToken?: string;
+  } = {};
 
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
-  }, 30000);
 
-    app = module.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
-    await app.init();
+    testContext.app = module.createNestApplication();
+    testContext.app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+    await testContext.app.init();
 
-    prisma = module.get<PrismaService>(PrismaService);
+    testContext.prisma = module.get<PrismaService>(PrismaService);
 
-    // Login to get token
-    const loginRes = await request(app.getHttpServer())
+    const loginRes = await request(testContext.app.getHttpServer())
       .post('/api/auth/login')
       .send({ email: 'admin@minisoc.local', password: 'Admin@MiniSOC2026!' });
-    authToken = loginRes.body.accessToken;
-  });
+    testContext.authToken = loginRes.body.accessToken;
+  }, 30000);
 
   afterAll(async () => {
-    if (prisma) {
-      await prisma.$disconnect();
+    if (testContext.prisma) {
+      await testContext.prisma.$disconnect();
     }
-    if (app) {
-      await app.close();
+    if (testContext.app) {
+      await testContext.app.close();
     }
   });
 
   describe('POST /api/incidents', () => {
     it('should create an incident', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await request(testContext.app!.getHttpServer())
         .post('/api/incidents')
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('Authorization', `Bearer ${testContext.authToken}`)
         .send({
           title: 'Test Incident - Brute Force SSH',
           description: 'Multiple failed SSH login attempts detected',
@@ -62,16 +61,15 @@ describe('Incidents (Integration)', () => {
     });
 
     it('should reject invalid severity', async () => {
-      await request(app.getHttpServer())
+      await request(testContext.app!.getHttpServer())
         .post('/api/incidents')
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('Authorization', `Bearer ${testContext.authToken}`)
         .send({ title: 'Test', severity: 'invalid' })
         .expect(400);
     });
 
     it('should reject unauthenticated requests', async () => {
-      await request(app.getHttpServer())
-        .post('/api/incidents')
+      await request(testContext.app!.getHttpServer())
         .send({ title: 'Test', severity: 'low' })
         .expect(401);
     });
@@ -79,9 +77,9 @@ describe('Incidents (Integration)', () => {
 
   describe('GET /api/incidents', () => {
     it('should return paginated incidents', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await request(testContext.app!.getHttpServer())
         .get('/api/incidents')
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('Authorization', `Bearer ${testContext.authToken}`)
         .query({ page: 1, limit: 10 })
         .expect(200);
 
@@ -91,9 +89,9 @@ describe('Incidents (Integration)', () => {
     });
 
     it('should filter by severity', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await request(testContext.app!.getHttpServer())
         .get('/api/incidents')
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('Authorization', `Bearer ${testContext.authToken}`)
         .query({ severity: 'critical' })
         .expect(200);
 
