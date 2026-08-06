@@ -26,6 +26,25 @@ interface OtxPulsesResponse {
   results?: OtxPulse[];
 }
 
+const OTX_IOC_TYPE_MAPPING = {
+  IPv4: 'ip',
+  IPv6: 'ip',
+  domain: 'domain',
+  hostname: 'domain',
+  URL: 'url',
+  FileHash_MD5: 'hash_md5',
+  'FileHash-MD5': 'hash_md5',
+  FileHash_SHA256: 'hash_sha256',
+  'FileHash-SHA256': 'hash_sha256',
+  FileHash_SHA1: 'hash_sha1',
+  'FileHash-SHA1': 'hash_sha1',
+  email: 'email',
+  FilePath: 'filename',
+  CIDR: 'cidr',
+} as const satisfies Record<string, IOCType>;
+
+type OtxIocType = (typeof OTX_IOC_TYPE_MAPPING)[keyof typeof OTX_IOC_TYPE_MAPPING];
+
 @Injectable()
 export class OtxFeedService {
   private readonly logger = new Logger(OtxFeedService.name);
@@ -84,24 +103,8 @@ export class OtxFeedService {
     }
   }
 
-  private mapOtxType(otxType: string): IOCType | null {
-    const mapping: Record<string, IOCType> = {
-      IPv4: 'ip',
-      IPv6: 'ip',
-      domain: 'domain',
-      hostname: 'domain',
-      URL: 'url',
-      FileHash_MD5: 'hash_md5',
-      'FileHash-MD5': 'hash_md5',
-      FileHash_SHA256: 'hash_sha256',
-      'FileHash-SHA256': 'hash_sha256',
-      FileHash_SHA1: 'hash_sha1',
-      'FileHash-SHA1': 'hash_sha1',
-      email: 'email',
-      FilePath: 'filename',
-      CIDR: 'cidr',
-    };
-    return mapping[otxType] || null;
+  private mapOtxType(otxType: string): OtxIocType | null {
+    return OTX_IOC_TYPE_MAPPING[otxType as keyof typeof OTX_IOC_TYPE_MAPPING] ?? null;
   }
 
   private getLastSyncDate(): string {

@@ -20,6 +20,7 @@ lint:backend:
   script:
     - cd apps/backend
     - npm ci
+    - npx prisma generate
     - npm run lint
     - npm run format:check
   cache:
