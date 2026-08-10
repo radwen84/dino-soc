@@ -67,10 +67,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24' # <-- Mis à jour de '20' à '24'
           cache: 'npm'
           cache-dependency-path: apps/backend/package-lock.json
-      - run: npm ci
+      - run: npm ci --omit=optional
         working-directory: apps/backend
       - run: npx prisma generate
         working-directory: apps/backend
@@ -110,7 +110,7 @@ jobs:
       - run: npm ci
         working-directory: apps/frontend
       - name: Run Frontend Tests
-        run: npx vitest run --coverage || npx vitest run || true # 🟢 Force le mode exécution unique sans bloquer la CI
+        run: npx vitest run --coverage || npx vitest run || true
         working-directory: apps/frontend
         env:
           CI: true
@@ -174,8 +174,8 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          context: . # 🟢 Définit la racine du monorepo comme contexte global
-          file: apps/${{ matrix.app }}/Dockerfile # 🟢 Indique précisément où trouver le Dockerfile
+          context: .
+          file: apps/${{ matrix.app }}/Dockerfile
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.image_name }}:latest

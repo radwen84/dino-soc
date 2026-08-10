@@ -35,12 +35,14 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24' # <-- Aligné sur Node 24
+          cache: 'npm'
+          cache-dependency-path: apps/backend/package-lock.json
 
       - name: Install Dependencies
         run: |
           cd apps/backend
-          npm ci
+          npm ci --omit=optional
           npx prisma generate
       
       - name: Wait for PostgreSQL
