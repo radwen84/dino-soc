@@ -26,12 +26,15 @@ export class WazuhService {
 
     const user = this.configService.get<string>('WAZUH_API_USER', 'wazuh-wui');
     const password = this.configService.get<string>('WAZUH_API_PASSWORD');
+    const nodeEnv = this.configService.get<string>('NODE_ENV', 'development');
 
     try {
       const response = await firstValueFrom(
         this.httpService.post(`${this.baseUrl}/security/user/authenticate`, null, {
           auth: { username: user, password: password },
-          httpsAgent: new (require('https').Agent)({ rejectUnauthorized: false }),
+          httpsAgent: new (require('https').Agent)({
+            rejectUnauthorized: nodeEnv === 'production',
+          }),
         }),
       );
       this.token = response.data.data.token;
@@ -45,6 +48,8 @@ export class WazuhService {
 
   private async request(method: string, path: string, data?: any): Promise<any> {
     const token = await this.authenticate();
+    const nodeEnv = this.configService.get<string>('NODE_ENV', 'development');
+
     try {
       const response = await firstValueFrom(
         this.httpService.request({
@@ -52,7 +57,9 @@ export class WazuhService {
           url: `${this.baseUrl}${path}`,
           data,
           headers: { Authorization: `Bearer ${token}` },
-          httpsAgent: new (require('https').Agent)({ rejectUnauthorized: false }),
+          httpsAgent: new (require('https').Agent)({
+            rejectUnauthorized: nodeEnv === 'production',
+          }),
         }),
       );
       return response.data;

@@ -11,6 +11,7 @@ export class OpenSearchService implements OnModuleInit {
     const host = this.configService.get<string>('OPENSEARCH_HOST', 'localhost');
     const port = this.configService.get<number>('OPENSEARCH_PORT', 9200);
     const password = this.configService.get<string>('OPENSEARCH_ADMIN_PASSWORD', 'admin');
+    const nodeEnv = this.configService.get<string>('NODE_ENV', 'development');
 
     this.client = new Client({
       node: `http://${host}:${port}`,
@@ -19,7 +20,7 @@ export class OpenSearchService implements OnModuleInit {
         password,
       },
       ssl: {
-        rejectUnauthorized: false, // Dev only - use proper certs in production
+        rejectUnauthorized: nodeEnv === 'production',
       },
     });
   }

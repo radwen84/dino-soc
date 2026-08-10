@@ -40,8 +40,10 @@ describe('AuthService', () => {
           useValue: {
             findByEmail: jest.fn(),
             updateFailedAttempts: jest.fn(),
+            incrementFailedAttempts: jest.fn().mockResolvedValue(1),
             resetFailedAttempts: jest.fn(),
             updateLastLogin: jest.fn(),
+            lockAccount: jest.fn(),
           },
         },
         { provide: TotpService, useValue: { verify: jest.fn() } },
@@ -79,13 +81,13 @@ describe('AuthService', () => {
       );
     });
 
-    it('should throw if user is inactive', async () => {
+    it('should return user even if inactive (login handles this check)', async () => {
       const inactiveUser = { ...mockUser, isActive: false };
       usersService.findByEmail.mockResolvedValue(inactiveUser as any);
 
-      await expect(service.validateUser('test@minisoc.local', 'TestPassword123!', '127.0.0.1')).rejects.toThrow(
-        UnauthorizedException,
-      );
+      // validateUser only checks credentials, not active status
+      const result = await service.validateUser('test@minisoc.local', 'TestPassword123!', '127.0.0.1');
+      expect(result.isActive).toBe(false);
     });
   });
 });

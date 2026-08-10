@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { PlaybookEngine } from './playbook-engine.service';
+import { CreatePlaybookDto, ExecutePlaybookDto } from './dto/create-playbook.dto';
 
 @Injectable()
 export class SoarService {
@@ -29,14 +30,21 @@ export class SoarService {
     return playbook;
   }
 
-  async createPlaybook(data: any, userId: string) {
+  async createPlaybook(dto: CreatePlaybookDto, userId: string) {
+    // Validate DAG before saving
+    if (!this.playbookEngine.validateDAG(dto.actions)) {
+      throw new BadRequestException(
+        'Invalid playbook: action graph contains cycles or invalid dependencies',
+      );
+    }
+
     const playbook = await this.prisma.playbook.create({
       data: {
-        name: data.name,
-        description: data.description,
-        triggerConditions: data.triggerConditions,
-        actions: data.actions,
-        isActive: data.isActive ?? true,
+        name: dto.name,
+        description: dto.description,
+        triggerConditions: dto.triggerConditions as any,
+        actions: dto.actions as any,
+        isActive: dto.isActive ?? true,
         createdById: userId,
       },
     });
@@ -45,6 +53,7 @@ export class SoarService {
       userId,
       resourceType: 'playbook',
       resourceId: playbook.id,
+      details: { actionsCount: dto.actions.length, tags: dto.tags },
     });
 
     return playbook;
@@ -67,22 +76,24 @@ export class SoarService {
     return updated;
   }
 
-  async executeManually(id: string, testData: any, userId: string) {
+  async executeManually(id: string, dto: ExecutePlaybookDto, userId: string) {
     const playbook = await this.getPlaybook(id);
-    this.logger.log(`Manual execution of playbook: ${playbook.name}`);
+    this.logger.log(`Manual execution of playbook: ${playbook.name} (dryRun=${dto.dryRun})`);
 
-    await this.playbookEngine.evaluatePlaybooks(
-      (playbook.triggerConditions as any).triggerType,
-      testData,
-    );
+    const result = await this.playbookEngine.executePlaybook(playbook, dto.testData, dto.dryRun);
 
     await this.auditService.log('PLAYBOOK_MANUAL_EXEC', {
       userId,
       resourceType: 'playbook',
       resourceId: id,
+      details: {
+        dryRun: dto.dryRun,
+        executionId: result.executionId,
+        status: result.status,
+      },
     });
 
-    return { executed: true, playbookName: playbook.name };
+    return result;
   }
 
   async getDefaultPlaybooks() {

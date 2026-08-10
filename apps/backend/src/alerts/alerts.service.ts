@@ -20,9 +20,7 @@ export class AlertsService {
     private readonly opensearch: OpenSearchService,
   ) {}
 
-  async findAll(
-    filters: AlertFiltersDto,
-  ): Promise<PaginatedResult<Alert>> {
+  async findAll(filters: AlertFiltersDto): Promise<PaginatedResult<Alert>> {
     const where: Prisma.AlertWhereInput = {};
 
     if (filters.status) where.status = filters.status as AlertStatus;
@@ -30,8 +28,7 @@ export class AlertsService {
     if (filters.source) where.source = filters.source;
     if (filters.srcIp) where.srcIp = filters.srcIp;
     if (filters.ruleId) where.ruleId = filters.ruleId;
-    if (filters.mitreTechnique)
-      where.mitreTechnique = filters.mitreTechnique;
+    if (filters.mitreTechnique) where.mitreTechnique = filters.mitreTechnique;
     if (filters.incidentId) where.incidentId = filters.incidentId;
 
     const [alerts, total] = await Promise.all([
@@ -66,9 +63,7 @@ export class AlertsService {
     };
   }
 
-  async findById(
-    id: string,
-  ): Promise<Alert> {
+  async findById(id: string): Promise<Alert> {
     const alert = await this.prisma.alert.findUnique({
       where: { id },
       include: { incident: true },
@@ -81,11 +76,7 @@ export class AlertsService {
     return alert;
   }
 
-  async updateStatus(
-    id: string,
-    status: string,
-    incidentId?: string,
-  ): Promise<Alert> {
+  async updateStatus(id: string, status: string, incidentId?: string): Promise<Alert> {
     return this.prisma.alert.update({
       where: { id },
       data: {
@@ -95,10 +86,7 @@ export class AlertsService {
     });
   }
 
-  async bulkUpdateStatus(
-    ids: string[],
-    status: string,
-  ): Promise<Prisma.BatchPayload> {
+  async bulkUpdateStatus(ids: string[], status: string): Promise<Prisma.BatchPayload> {
     return this.prisma.alert.updateMany({
       where: {
         id: {
@@ -111,10 +99,7 @@ export class AlertsService {
     });
   }
 
-  async linkToIncident(
-    alertIds: string[],
-    incidentId: string,
-  ): Promise<Prisma.BatchPayload> {
+  async linkToIncident(alertIds: string[], incidentId: string): Promise<Prisma.BatchPayload> {
     return this.prisma.alert.updateMany({
       where: {
         id: {
@@ -128,30 +113,23 @@ export class AlertsService {
     });
   }
 
-  async searchInOpenSearch(
-    query: string,
-    from = 0,
-    size = 50,
-  ): Promise<unknown> {
+  async searchInOpenSearch(query: string, from = 0, size = 50): Promise<unknown> {
     try {
-      const result = await this.opensearch.search(
-        'wazuh-alerts-*',
-        {
-          query: {
-            bool: {
-              should: [
-                { match: { 'rule.description': query } },
-                { match: { 'agent.name': query } },
-                { match: { 'data.srcip': query } },
-                { match: { 'rule.mitre.id': query } },
-              ],
-            },
+      const result = await this.opensearch.search('wazuh-alerts-*', {
+        query: {
+          bool: {
+            should: [
+              { match: { 'rule.description': query } },
+              { match: { 'agent.name': query } },
+              { match: { 'data.srcip': query } },
+              { match: { 'rule.mitre.id': query } },
+            ],
           },
-          sort: [{ timestamp: { order: 'desc' } }],
-          from,
-          size,
         },
-      );
+        sort: [{ timestamp: { order: 'desc' } }],
+        from,
+        size,
+      });
 
       return result;
     } catch (error) {
@@ -166,9 +144,7 @@ export class AlertsService {
     }
   }
 
-  async getRecentCritical(
-    limit = 20,
-  ): Promise<Alert[]> {
+  async getRecentCritical(limit = 20): Promise<Alert[]> {
     return this.prisma.alert.findMany({
       where: {
         level: { gte: 12 },
@@ -181,9 +157,7 @@ export class AlertsService {
     });
   }
 
-  async countByTimeRange(
-    hours = 24,
-  ): Promise<number> {
+  async countByTimeRange(hours = 24): Promise<number> {
     const since = new Date(Date.now() - hours * 3600000);
 
     return this.prisma.alert.count({
@@ -195,9 +169,7 @@ export class AlertsService {
     });
   }
 
-  async getAlertTimeline(
-    hours = 24,
-  ): Promise<AlertTimelinePoint[]> {
+  async getAlertTimeline(hours = 24): Promise<AlertTimelinePoint[]> {
     const since = new Date(Date.now() - hours * 3600000);
 
     const alerts = await this.prisma.$queryRaw<AlertTimelinePoint[]>`

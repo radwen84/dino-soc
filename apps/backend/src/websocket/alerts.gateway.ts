@@ -14,7 +14,8 @@ import { IncidentsService } from '../incidents/incidents.service';
 @WebSocketGateway({
   namespace: '/ws',
   cors: {
-    origin: '*',
+    origin: process.env.API_CORS_ORIGINS?.split(',') ||
+      process.env.CORS_ORIGINS?.split(',') || ['http://localhost:3000'],
     credentials: true,
   },
   transports: ['websocket', 'polling'],

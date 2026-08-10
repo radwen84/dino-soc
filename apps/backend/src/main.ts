@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import compression = require('compression');
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
 import { SanitizeInterceptor } from './common/interceptors/sanitize.interceptor';
@@ -24,6 +25,12 @@ async function bootstrap() {
 
   // Security
   app.enableCors(getCorsConfig());
+  app.use(
+    helmet({
+      contentSecurityPolicy: process.env.NODE_ENV === 'production' ? undefined : false,
+      crossOriginEmbedderPolicy: process.env.NODE_ENV === 'production',
+    }),
+  );
   app.use(compression());
 
   // Global pipes, filters, interceptors

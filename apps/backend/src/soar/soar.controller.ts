@@ -8,19 +8,25 @@ import {
   UseGuards,
   ParseUUIDPipe,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { SoarService } from './soar.service';
+import { PlaybookEngine } from './playbook-engine.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { CreatePlaybookDto, ExecutePlaybookDto } from './dto/create-playbook.dto';
+import { ApprovalDecisionDto } from './dto/approval.dto';
 
 @ApiTags('SOAR')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('soar')
 export class SoarController {
-  constructor(private readonly soarService: SoarService) {}
+  constructor(
+    private readonly soarService: SoarService,
+    private readonly playbookEngine: PlaybookEngine,
+  ) {}
 
   @Get('playbooks')
   @Roles('admin', 'analyst_l2', 'analyst_l3')
@@ -45,8 +51,9 @@ export class SoarController {
   @Post('playbooks')
   @Roles('admin', 'analyst_l3')
   @ApiOperation({ summary: 'Create a new playbook' })
-  create(@Body() data: any, @CurrentUser('id') userId: string) {
-    return this.soarService.createPlaybook(data, userId);
+  @ApiResponse({ status: 201, description: 'Playbook created successfully' })
+  create(@Body() dto: CreatePlaybookDto, @CurrentUser('id') userId: string) {
+    return this.soarService.createPlaybook(dto, userId);
   }
 
   @Patch('playbooks/:id/toggle')
@@ -58,12 +65,36 @@ export class SoarController {
 
   @Post('playbooks/:id/execute')
   @Roles('admin', 'analyst_l3')
-  @ApiOperation({ summary: 'Manually execute a playbook with test data' })
+  @ApiOperation({ summary: 'Manually execute a playbook (supports dry-run)' })
+  @ApiResponse({ status: 200, description: 'Playbook execution result' })
   execute(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() testData: any,
+    @Body() dto: ExecutePlaybookDto,
     @CurrentUser('id') userId: string,
   ) {
-    return this.soarService.executeManually(id, testData, userId);
+    return this.soarService.executeManually(id, dto, userId);
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // Human-in-the-Loop Approval Endpoints
+  // ─────────────────────────────────────────────────────────
+
+  @Get('approvals')
+  @Roles('admin', 'analyst_l3', 'incident_responder')
+  @ApiOperation({ summary: 'List pending approval requests' })
+  getPendingApprovals() {
+    return this.playbookEngine.getPendingApprovals();
+  }
+
+  @Post('approvals/:id/decide')
+  @Roles('admin', 'analyst_l3', 'incident_responder')
+  @ApiOperation({ summary: 'Approve or reject a pending SOAR action' })
+  @ApiResponse({ status: 200, description: 'Decision recorded' })
+  processApproval(
+    @Param('id') approvalId: string,
+    @Body() dto: ApprovalDecisionDto,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.playbookEngine.processApproval(approvalId, dto.decision, userId, dto.reason);
   }
 }

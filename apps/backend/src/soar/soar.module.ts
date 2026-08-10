@@ -7,11 +7,12 @@ import { AuditModule } from '../audit/audit.module';
 import { IocModule } from '../ioc/ioc.module';
 import { AssetsModule } from '../assets/assets.module';
 import { ThreatIntelModule } from '../threat-intel/threat-intel.module';
+import { WazuhModule } from '../wazuh/wazuh.module';
 
 @Module({
-  imports: [HttpModule, AuditModule, IocModule, AssetsModule, ThreatIntelModule],
+  imports: [HttpModule, AuditModule, IocModule, AssetsModule, ThreatIntelModule, WazuhModule],
   controllers: [SoarController],
   providers: [SoarService, PlaybookEngine],
-  exports: [SoarService],
+  exports: [SoarService, PlaybookEngine],
 })
 export class SoarModule {}
