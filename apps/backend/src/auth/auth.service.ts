@@ -109,7 +109,10 @@ export class AuthService {
       roles: user.roles,
     };
 
-    const accessToken = this.jwtService.sign(payload);
+    const accessToken = this.jwtService.sign(payload, {
+        issuer: 'minisoc'
+        audience: 'minisoc-api',
+     });
     const refreshToken = this.jwtService.sign(
       { sub: user.id, type: 'refresh' },
       {

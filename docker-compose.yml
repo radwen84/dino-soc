@@ -104,8 +104,10 @@ services:
       - OPENSEARCH_PROTOCOL=http
       - OPENSEARCH_URL=http://opensearch:9200
       - API_CORS_ORIGINS=${API_CORS_ORIGINS}
-      - WAZUH_HOST=wazuh-manager
-      - WAZUH_PORT=55000
+      - WAZUH_HOST=${WAZUH_HOST:-wazuh-manager}
+      - WAZUH_API_PORT=${WAZUH_API_PORT:-55000}
+      - WAZUH_API_USER=${WAZUH_API_USER:-wazuh-wui}
+      - WAZUH_API_PASSWORD=${WAZUH_API_PASSWORD}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
@@ -259,7 +261,7 @@ services:
       OPENSEARCH_JAVA_OPTS: -Xms1g -Xmx1g
       bootstrap.memory_lock: "true"
       plugins.security.disabled: "true"
-      OPENSEARCH_INITIAL_ADMIN_PASSWORD: "${OPENSEARCH_ADMIN_PASSWORD:-MinisocAdmin!2026Secure}"
+      OPENSEARCH_INITIAL_ADMIN_PASSWORD: "${OPENSEARCH_ADMIN_PASSWORD:-wDf4oKccgPgbPUbEyTdnAppK0YViFg4wWtSDcIqmvrM=}"
 
     ports:
       - "9200:9200"
@@ -296,6 +298,7 @@ services:
     network_mode: host
     cap_add:
       - NET_ADMIN
+      - NET_RAW
       - SYS_NICE
     command: -i ${SURICATA_INTERFACE:-enp0s3} -c /etc/suricata/suricata.yaml
     volumes:
@@ -318,13 +321,17 @@ services:
     cap_add:
       - IPC_LOCK
     environment:
-      - VAULT_ADDR=http://127.0.0.1:8200
+      - VAULT_ADDR=https://127.0.0.1:8200
       - VAULT_SKIP_VERIFY=true
+    ports:
+    - "8200:8200"
+    - "8201:8201"
     volumes:
     - vault_data:/vault/data
     - ./infrastructure/vault/config/vault.hcl:/vault/config/vault.hcl:ro
     - ./infrastructure/vault/tls:/vault/tls:ro
     - ./infrastructure/vault/policies:/vault/policies:ro
+    entrypoint: ["vault", "server", "-config=/vault/config/vault.hcl"]
     command: server -config=/vault/config/vault.hcl
     deploy:
       resources:

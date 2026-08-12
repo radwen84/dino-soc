@@ -1,5 +1,5 @@
 <!-- Mini-SOC Custom Rules -->
-<group name="minisoc,">
+<group name="minisoc">
 
   <!-- ==========================================
        BRUTE FORCE DETECTION (MITRE T1110)
@@ -11,10 +11,10 @@
     <info>Multiple authentication failures from same source</info>
     <description>Brute force attack detected: $(srcip)</description>
     <mitre>
-      <id>T1110</id>
+      
       <id>T1110.001</id>
     </mitre>
-    <group>authentication_failures,brute_force,</group>
+    <group>authentication_failures,brute_force</group>
     <options>alert_by_email</options>
   </rule>
 
@@ -140,6 +140,18 @@
       <id>T1496</id>
     </mitre>
     <group>crypto_mining,resource_hijacking,</group>
+  </rule>
+<!-- ==========================================
+       SURICATA IDS ALERT DETECTION (MITRE T1071.001)
+       ========================================== -->
+  <rule id="100200" level="10">
+    <decoded_as>json</decoded_as>
+    <field name="event_type">^alert$</field>
+    <description>Suricata IDS Alert: $(event_type) - $(data.alert.signature)</description>
+    <mitre>
+      <id>T1071.001</id>
+    </mitre>
+    <group>suricata,ids_alert,</group>
   </rule>
 
 </group>

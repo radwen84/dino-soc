@@ -2,7 +2,7 @@
 
 <!-- Suricata EVE JSON decoder -->
 <decoder name="suricata-eve">
-  <prematch>^{"timestamp":</prematch>
+ <prematch>^{"timestamp":</prematch> 
   <plugin_decoder>JSON_Decoder</plugin_decoder>
 </decoder>
 
