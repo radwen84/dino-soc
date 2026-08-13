@@ -215,7 +215,7 @@ mini-soc/
 
 ## 📚 Documentation
 
-- [Guide d'installation](docs/installation.md)
+- [Manuel d'installation complet](docs/INSTALLATION.md)
 - [Guide d'utilisation](docs/user-guide.md)
 - [Architecture détaillée](docs/architecture.md)
 - [API Reference (Swagger)](docs/api-reference.md)

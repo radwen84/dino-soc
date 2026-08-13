@@ -24,8 +24,6 @@ secrets:
     file: ./secrets/jwt_refresh_secret.txt
   wazuh_api_password:
     file: ./secrets/wazuh_api_password.txt
-  opensearch_admin_password:
-    file: ./secrets/opensearch_admin_password.txt
   redis_password:
     file: ./secrets/redis_password.txt
 
@@ -207,6 +205,8 @@ services:
     image: wazuh/wazuh-manager:4.9.0
     container_name: minisoc-wazuh
     restart: unless-stopped
+    secrets:
+      - wazuh_api_password
     networks:
       - siem
       - backend
@@ -220,6 +220,7 @@ services:
       - ./security/wazuh/ossec.conf:/var/ossec/etc/ossec.conf:ro
       - ./security/wazuh/rules:/var/ossec/etc/rules:ro
       - ./security/wazuh/decoders:/var/ossec/etc/decoders:ro
+      - ./security/wazuh/sync-api-password.sh:/docker-entrypoint-init.d/sync-api-password.sh:ro
       - suricata_logs:/var/log/suricata:ro
       - zeek_logs:/var/log/zeek:ro
       - falco_logs:/var/log/falco:ro
@@ -270,8 +271,11 @@ services:
       timeout: 10s
       retries: 5
 
+  # ============================================
+  # FILEBEAT - Log Shipper
+  # ============================================
   filebeat:
-    image: docker.elastic.co/beats/filebeat:7.10.2
+    image: docker.elastic.co/beats/filebeat:8.12.0
     container_name: minisoc-filebeat
     restart: unless-stopped
     user: root
@@ -351,13 +355,13 @@ services:
       - VAULT_ADDR=https://127.0.0.1:8200
       - VAULT_SKIP_VERIFY=true
     ports:
-    - "8200:8200"
-    - "8201:8201"
+      - "8200:8200"
+      - "8201:8201"
     volumes:
-    - vault_data:/vault/data
-    - ./infrastructure/vault/config/vault.hcl:/vault/config/vault.hcl:ro
-    - ./infrastructure/vault/tls:/vault/tls:ro
-    - ./infrastructure/vault/policies:/vault/policies:ro
+      - vault_data:/vault/data
+      - ./infrastructure/vault/config/vault.hcl:/vault/config/vault.hcl:ro
+      - ./infrastructure/vault/tls:/vault/tls:ro
+      - ./infrastructure/vault/policies:/vault/policies:ro
     entrypoint: ["vault", "server", "-config=/vault/config/vault.hcl"]
     command: server -config=/vault/config/vault.hcl
     deploy:
