@@ -5,8 +5,7 @@ COPY apps/frontend/package.json apps/frontend/package-lock.json ./
 RUN npm ci
 COPY apps/frontend/ .
 
-# 🟢 On ajoute "|| true" ou on désactive les vérifications strictes pour la CI
-RUN npm run build || (echo "Build warning caught, continuing..." && mkdir -p dist)
+RUN npm run build
 
 # Stage 2: Production (Nginx)
 FROM nginx:1.27-alpine AS production

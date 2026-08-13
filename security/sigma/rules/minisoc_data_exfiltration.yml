@@ -1,7 +1,8 @@
-title: Potential Data Exfiltration via DNS
+title: Long DNS Query
+name: long_dns_query
 id: d4e9a1b3-5c6f-6a0d-1e3f-7f8c9d0e2a3b
 status: experimental
-description: Detects unusually long DNS queries that may indicate DNS tunneling
+description: Detects an unusually long DNS query.
 author: Azmi SOMAI - MiniSOC
 date: 2026/07/17
 tags:
@@ -15,8 +16,28 @@ logsource:
 detection:
   selection:
     query_length|gt: 50
-  condition: selection | count() by src_ip > 100
-  timeframe: 10m
+  condition: selection
+---
+title: Potential Data Exfiltration via DNS
+id: 9bbd9a82-8ed2-45c4-ac6e-b99d4c384172
+status: experimental
+description: Detects more than 100 unusually long DNS queries from the same source IP within ten minutes.
+author: Azmi SOMAI - MiniSOC
+date: 2026/07/17
+tags:
+  - attack.exfiltration
+  - attack.t1048
+  - attack.command_and_control
+  - attack.t1071.004
+correlation:
+  type: event_count
+  rules:
+    - long_dns_query
+  group-by:
+    - src_ip
+  timespan: 10m
+  condition:
+    gt: 100
 falsepositives:
   - DKIM/SPF records
   - CDN DNS queries

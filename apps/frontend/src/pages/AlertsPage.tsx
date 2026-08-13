@@ -74,7 +74,7 @@ export function AlertsPage() {
   // Mutation pour changer le statut d'une alerte
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const response = await api.patch(`/alerts/${id}`, { status });
+      const response = await api.patch(`/alerts/${id}/status`, { status });
       return response.data;
     },
     onSuccess: (_, variables) => {

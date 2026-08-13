@@ -15,7 +15,7 @@ interface EnvConfig {
 }
 
 export function validate(config: Record<string, unknown>): EnvConfig {
-  const requiredVars = ['DATABASE_URL', 'JWT_SECRET'];
+  const requiredVars = ['DATABASE_URL', 'JWT_SECRET', 'JWT_REFRESH_SECRET'];
   const missing = requiredVars.filter((key) => !config[key]);
 
   if (missing.length > 0) {

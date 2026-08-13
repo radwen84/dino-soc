@@ -30,8 +30,9 @@ openssl rand -base64 64 > "$SECRETS_DIR/jwt_secret.txt"
 echo -e "${YELLOW}[*] Generating JWT refresh secret...${NC}"
 openssl rand -base64 64 > "$SECRETS_DIR/jwt_refresh_secret.txt"
 
-echo -e "${YELLOW}[*] Generating Wazuh API key...${NC}"
-openssl rand -base64 32 > "$SECRETS_DIR/wazuh_api_key.txt"
+echo -e "${YELLOW}[*] Creating Wazuh API password secret...${NC}"
+echo "Set this file to the password of the Wazuh API user before deployment." >&2
+touch "$SECRETS_DIR/wazuh_api_password.txt"
 
 echo -e "${YELLOW}[*] Generating OpenSearch admin password...${NC}"
 openssl rand -base64 32 > "$SECRETS_DIR/opensearch_admin_password.txt"

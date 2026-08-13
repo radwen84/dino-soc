@@ -8,17 +8,16 @@ export class OpenSearchService implements OnModuleInit {
   private client: Client;
 
   constructor(private readonly configService: ConfigService) {
-    const host = this.configService.get<string>('OPENSEARCH_HOST', 'minisoc-opensearch');
+    const host = this.configService.get<string>('OPENSEARCH_HOST', 'opensearch');
     const port = this.configService.get<number>('OPENSEARCH_PORT', 9200);
-    const password = this.configService.get<string>('OPENSEARCH_ADMIN_PASSWORD', 'wDf4oKccgPgbPUbEyTdnAppK0YViFg4wWtSDcIqmvrM=');
+    const node = this.configService.get<string>('OPENSEARCH_URL') ||
+      this.configService.get<string>('OPENSEARCH_NODE') || `http://${host}:${port}`;
+    const password = this.configService.get<string>('OPENSEARCH_ADMIN_PASSWORD');
     const nodeEnv = this.configService.get<string>('NODE_ENV', 'development');
 
     this.client = new Client({
-      node: `http://${host}:${port}`,
-      auth: {
-        username: 'admin',
-        password,
-      },
+      node,
+      ...(password ? { auth: { username: 'admin', password } } : {}),
       ssl: {
         rejectUnauthorized: nodeEnv === 'production',
       },

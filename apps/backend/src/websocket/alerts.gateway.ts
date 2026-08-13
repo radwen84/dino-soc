@@ -5,6 +5,7 @@ import {
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
 import { Logger } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { Server, Socket } from 'socket.io';
 import { OnEvent } from '@nestjs/event-emitter';
 import { Interval } from '@nestjs/schedule';
@@ -28,22 +29,34 @@ export class AlertsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private readonly alertsService: AlertsService,
     private readonly incidentsService: IncidentsService,
+    private readonly jwtService: JwtService,
   ) {}
 
   handleConnection(client: Socket): void {
+    try {
+      const token = client.handshake.auth?.token;
+      if (!token) throw new Error('Missing token');
+      this.jwtService.verify(token, { issuer: 'minisoc', audience: 'minisoc-api' });
+    } catch {
+      client.emit('connect_error', { message: 'Authentication required' });
+      client.disconnect(true);
+      return;
+    }
+    client.data.authenticated = true;
     this.connectedClients++;
     this.logger.log(`Client connected: ${client.id} (total: ${this.connectedClients})`);
   }
 
   handleDisconnect(client: Socket): void {
-    this.connectedClients--;
+    if (!client.data.authenticated) return;
+    this.connectedClients = Math.max(0, this.connectedClients - 1);
     this.logger.log(`Client disconnected: ${client.id} (total: ${this.connectedClients})`);
   }
 
   // Listen for new alerts from event emitter
   @OnEvent('alert.new')
   handleNewAlert(alert: any): void {
-    this.server.emit('new_alert', {
+    this.server.emit('alert:new', {
       id: alert.id,
       level: alert.level,
       ruleDescription: alert.ruleDescription,
@@ -57,7 +70,7 @@ export class AlertsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // Listen for incident changes
   @OnEvent('incident.created')
   handleIncidentCreated(incident: any): void {
-    this.server.emit('incident_created', {
+    this.server.emit('incident:created', {
       id: incident.id,
       title: incident.title,
       severity: incident.severity,
@@ -67,7 +80,7 @@ export class AlertsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @OnEvent('incident.status_changed')
   handleIncidentStatusChanged(data: any): void {
-    this.server.emit('incident_updated', {
+    this.server.emit('incident:updated', {
       id: data.incident.id,
       previousStatus: data.previousStatus,
       newStatus: data.newStatus,
@@ -83,7 +96,7 @@ export class AlertsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const alertCount = await this.alertsService.countByTimeRange(1);
       const stats = await this.incidentsService.getStatistics();
 
-      this.server.emit('stats_update', {
+    this.server.emit('stats:update', {
         alertsLastHour: alertCount,
         openIncidents: stats.overview.openIncidents,
         criticalIncidents: stats.overview.criticalIncidents,
@@ -97,6 +110,6 @@ export class AlertsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   // Manual broadcast method for other services
   broadcastAlert(alert: any): void {
-    this.server.emit('new_alert', alert);
+    this.server.emit('alert:new', alert);
   }
 }

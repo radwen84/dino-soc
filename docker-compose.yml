@@ -20,8 +20,10 @@ secrets:
     file: ./secrets/db_password.txt
   jwt_secret:
     file: ./secrets/jwt_secret.txt
-  wazuh_api_key:
-    file: ./secrets/wazuh_api_key.txt
+  jwt_refresh_secret:
+    file: ./secrets/jwt_refresh_secret.txt
+  wazuh_api_password:
+    file: ./secrets/wazuh_api_password.txt
   opensearch_admin_password:
     file: ./secrets/opensearch_admin_password.txt
   redis_password:
@@ -32,22 +34,17 @@ services:
   # REVERSE PROXY - Nginx
   # ============================================
   nginx:
-    image: nginx:1.25-alpine
+    build:
+      context: .
+      dockerfile: infrastructure/nginx/Dockerfile
     container_name: minisoc-nginx
     restart: unless-stopped
-    privileged: true
-    security_opt:
-    - apparmor:unconfined
-    - seccomp:unconfined
-    entrypoint: ["/usr/sbin/nginx", "-g", "daemon off;"]
     ports:
       - "443:443"
       - "80:80"
     volumes:
       - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./infrastructure/nginx/conf.d:/etc/nginx/conf.d:ro
       - ./infrastructure/nginx/ssl:/etc/nginx/ssl:ro
-      - ./apps/frontend/dist:/usr/share/nginx/html:ro
     networks:
       - frontend
       - backend
@@ -85,13 +82,13 @@ services:
       target: production
     container_name: minisoc-api
     restart: unless-stopped
-    privileged: true
     networks:
       - backend
     secrets:
       - db_password
       - jwt_secret
-      - wazuh_api_key
+      - wazuh_api_password
+      - jwt_refresh_secret
       - redis_password
     environment:
       - NODE_ENV=production
@@ -107,21 +104,19 @@ services:
       - WAZUH_HOST=${WAZUH_HOST:-wazuh-manager}
       - WAZUH_API_PORT=${WAZUH_API_PORT:-55000}
       - WAZUH_API_USER=${WAZUH_API_USER:-wazuh-wui}
-      - WAZUH_API_PASSWORD=${WAZUH_API_PASSWORD}
+      - WAZUH_API_PASSWORD_FILE=/run/secrets/wazuh_api_password
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
-      - DATABASE_URL=${DATABASE_URL}
-      - JWT_SECRET=${JWT_SECRET}
+      - DB_PASSWORD_FILE=/run/secrets/db_password
+      - JWT_SECRET_FILE=/run/secrets/jwt_secret
+      - JWT_REFRESH_SECRET_FILE=/run/secrets/jwt_refresh_secret
+      - REDIS_PASSWORD_FILE=/run/secrets/redis_password
       
     deploy:
       resources:
         limits:
           memory: 512M
           cpus: "1.0"
-    security_opt:
-      - apparmor:unconfined
-      - seccomp:unconfined
     user: "1001:1001"
     read_only: false
     tmpfs:
@@ -144,10 +139,6 @@ services:
     image: postgres:16-alpine
     container_name: minisoc-postgres
     restart: unless-stopped
-    privileged: true   # 👈 Contourne le blocage AppArmor/VirtualBox sur docker-entrypoint
-    security_opt:
-      - apparmor:unconfined
-      - seccomp:unconfined
     networks:
       - backend
     secrets:
@@ -185,10 +176,6 @@ services:
     image: redis:7-alpine
     container_name: minisoc-redis
     restart: unless-stopped
-    privileged: true   # 👈 Contourne le blocage AppArmor/VirtualBox sur docker-entrypoint
-    security_opt:
-      - apparmor:unconfined
-      - seccomp:unconfined
     networks:
       - backend
     secrets:
@@ -234,6 +221,8 @@ services:
       - ./security/wazuh/rules:/var/ossec/etc/rules:ro
       - ./security/wazuh/decoders:/var/ossec/etc/decoders:ro
       - suricata_logs:/var/log/suricata:ro
+      - zeek_logs:/var/log/zeek:ro
+      - falco_logs:/var/log/falco:ro
     deploy:
       resources:
         limits:
@@ -261,11 +250,6 @@ services:
       OPENSEARCH_JAVA_OPTS: -Xms1g -Xmx1g
       bootstrap.memory_lock: "true"
       plugins.security.disabled: "true"
-      OPENSEARCH_INITIAL_ADMIN_PASSWORD: "${OPENSEARCH_ADMIN_PASSWORD:-wDf4oKccgPgbPUbEyTdnAppK0YViFg4wWtSDcIqmvrM=}"
-
-    ports:
-      - "9200:9200"
-      - "9600:9600"
     volumes:
       - opensearch_data:/usr/share/opensearch/data
     deploy:
@@ -285,6 +269,21 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:7.10.2
+    container_name: minisoc-filebeat
+    restart: unless-stopped
+    user: root
+    command: ["filebeat", "-e", "--strict.perms=false"]
+    networks:
+      - siem
+    volumes:
+      - wazuh_logs:/var/ossec/logs:ro
+      - ./security/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+    depends_on:
+      opensearch:
+        condition: service_healthy
 
   # ============================================
   # SURICATA - Network IDS/IPS
@@ -308,6 +307,34 @@ services:
         limits:
           memory: 1G
           cpus: "2.0"
+
+  zeek:
+    build:
+      context: ./security/zeek
+      dockerfile: Dockerfile
+    container_name: minisoc-zeek
+    restart: unless-stopped
+    network_mode: host
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    volumes:
+      - zeek_logs:/var/log/zeek
+
+  falco:
+    build:
+      context: ./security/falco
+      dockerfile: Dockerfile
+    container_name: minisoc-falco
+    restart: unless-stopped
+    privileged: true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /dev:/host/dev:ro
+      - /proc:/host/proc:ro
+      - /boot:/host/boot:ro
+      - /lib/modules:/host/lib/modules:ro
+      - falco_logs:/var/log/falco
 
   # ============================================
   # VAULT - Secrets Management
@@ -482,6 +509,10 @@ volumes:
   wazuh_data:
     driver: local
   wazuh_logs:
+    driver: local
+  zeek_logs:
+    driver: local
+  falco_logs:
     driver: local
   opensearch_data:
     driver: local

@@ -8,7 +8,7 @@ export function connectSocket(): Socket {
 
   const token = useAuthStore.getState().accessToken;
 
-  socket = io("/", {
+  socket = io("/ws", {
     auth: { token },
     transports: ["websocket", "polling"],
     reconnection: true,

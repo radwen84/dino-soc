@@ -24,9 +24,7 @@ file_output:
   filename: /var/log/falco/events.json
 
 http_output:
-  enabled: true
-  url: http://backend:4000/api/webhooks/falco
-  user_agent: "falco/0.38"
+  enabled: false
 
 program_output:
   enabled: false

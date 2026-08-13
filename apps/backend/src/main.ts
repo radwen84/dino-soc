@@ -9,8 +9,10 @@ import { SanitizeInterceptor } from './common/interceptors/sanitize.interceptor'
 import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor';
 import { AppValidationPipe } from './common/pipes/validation.pipe';
 import { getCorsConfig } from './common/middleware/cors.config';
+import { loadRuntimeSecrets } from './config/load-secrets';
 
 async function bootstrap() {
+  loadRuntimeSecrets();
   const logger = new Logger('Bootstrap');
 
   const app = await NestFactory.create(AppModule, {

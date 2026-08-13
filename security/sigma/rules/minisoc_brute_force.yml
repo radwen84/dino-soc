@@ -1,7 +1,8 @@
-title: SSH Brute Force Attack
+title: SSH Failed Authentication
+name: ssh_failed_auth
 id: a8418a5a-5fc4-461a-b1e8-1f3a8f2c9b7e
 status: stable
-description: Detects multiple failed SSH authentication attempts from the same source IP
+description: Detects a failed SSH authentication attempt.
 author: Azmi SOMAI - MiniSOC
 date: 2026/07/17
 modified: 2026/07/17
@@ -16,13 +17,28 @@ detection:
   selection:
     action: failure
     service: sshd
-  condition: selection | count(source_ip) by source_ip > 5
-  timeframe: 5m
+  condition: selection
+---
+title: SSH Brute Force Attack
+id: 5e914ab6-6582-4ce8-9f86-a9ab9e38a64b
+status: stable
+description: Detects six or more failed SSH authentication attempts from the same source IP within five minutes.
+author: Azmi SOMAI - MiniSOC
+date: 2026/07/17
+tags:
+  - attack.credential_access
+  - attack.t1110.001
+  - attack.t1110
+correlation:
+  type: event_count
+  rules:
+    - ssh_failed_auth
+  group-by:
+    - source_ip
+  timespan: 5m
+  condition:
+    gte: 6
 falsepositives:
   - Automated scripts with wrong credentials
   - Misconfigured monitoring agents
 level: high
-fields:
-  - source_ip
-  - user
-  - timestamp
