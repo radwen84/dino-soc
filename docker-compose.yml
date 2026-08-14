@@ -109,7 +109,10 @@ services:
       - JWT_SECRET_FILE=/run/secrets/jwt_secret
       - JWT_REFRESH_SECRET_FILE=/run/secrets/jwt_refresh_secret
       - REDIS_PASSWORD_FILE=/run/secrets/redis_password
-      
+      - JWT_SECRET=super_secret_jwt_key_minisoc_2026_dev
+      - JWT_REFRESH_SECRET=super_secret_refresh_key_minisoc_2026_dev
+      - DATABASE_URL=postgresql://minisoc_app:MonSuperMotDePasse2026@postgres:5432/minisoc?schema=public
+      - REDIS_PASSWORD=NzD6SE1b85zb+aYqMA65ZjAEFTDg84h5Ot3LG92uN8k=
     deploy:
       resources:
         limits:
@@ -224,6 +227,7 @@ services:
       - suricata_logs:/var/log/suricata:ro
       - zeek_logs:/var/log/zeek:ro
       - falco_logs:/var/log/falco:ro
+      - wazuh_etc_shared:/var/ossec/etc/shared
     deploy:
       resources:
         limits:
@@ -251,6 +255,7 @@ services:
       OPENSEARCH_JAVA_OPTS: -Xms1g -Xmx1g
       bootstrap.memory_lock: "true"
       plugins.security.disabled: "true"
+      OPENSEARCH_INITIAL_ADMIN_PASSWORD: "MySecretPassword2026$"
     volumes:
       - opensearch_data:/usr/share/opensearch/data
     deploy:
@@ -275,7 +280,7 @@ services:
   # FILEBEAT - Log Shipper
   # ============================================
   filebeat:
-    image: docker.elastic.co/beats/filebeat:8.12.0
+    image: docker.elastic.co/beats/filebeat-oss:7.12.1
     container_name: minisoc-filebeat
     restart: unless-stopped
     user: root
@@ -318,6 +323,7 @@ services:
       dockerfile: Dockerfile
     container_name: minisoc-zeek
     restart: unless-stopped
+    command: -i enp0s3 local
     network_mode: host
     cap_add:
       - NET_RAW
@@ -332,12 +338,14 @@ services:
     container_name: minisoc-falco
     restart: unless-stopped
     privileged: true
+    command: ["/usr/bin/falco", "-o", "engine.kind=nodriver", "-o", "grpc.enabled=false"]
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /dev:/host/dev:ro
       - /proc:/host/proc:ro
       - /boot:/host/boot:ro
       - /lib/modules:/host/lib/modules:ro
+      - /sys:/host/sys:ro
       - falco_logs:/var/log/falco
 
   # ============================================
@@ -531,4 +539,6 @@ volumes:
   n8n_data:
     driver: local
   loki_data:
+    driver: local
+  wazuh_etc_shared:
     driver: local

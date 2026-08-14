@@ -23,8 +23,8 @@
 @load policy/protocols/ssh/detect-bruteforcing
 @load policy/protocols/ssl/validate-certs
 @load policy/protocols/ssl/log-hostcerts-only
-@load policy/misc/detect-traceroute
-@load policy/misc/scan
+#@load policy/misc/detect-traceroute
+#@load policy/misc/scan
 
 # JSON output for Wazuh/OpenSearch integration
 @load policy/tuning/json-logs
@@ -39,12 +39,12 @@ redef Site::local_nets += { 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16 };
 redef SSH::password_guesses_limit = 5;
 
 # Notice policy
-redef Notice::policy += {
-  [$action = Notice::ACTION_LOG,
-   $pred(n: Notice::Info) = { return n$note == SSH::Password_Guessing; }],
-  [$action = Notice::ACTION_LOG,
-   $pred(n: Notice::Info) = { return n$note == Scan::Port_Scan; }],
-};
+#redef Notice::policy += {
+#  [$action = Notice::ACTION_LOG,
+#   $pred(n: Notice::Info) = { return n$note == SSH::Password_Guessing; }],
+#  [$action = Notice::ACTION_LOG,
+#   $pred(n: Notice::Info) = { return n$note == Scan::Port_Scan; }],
+#};
 
 # Load custom scripts
 @load ./scripts/detect-dns-tunneling.zeek
