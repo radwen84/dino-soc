@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Post,
   Patch,
   Body,
   Param,
@@ -59,6 +60,17 @@ export class AlertsController {
     @Query('size') size?: number,
   ): Promise<unknown> {
     return this.alertsService.searchInOpenSearch(query, from, size);
+  }
+
+  @Post('sync-wazuh')
+  @Roles(SOCRole.ADMIN)
+  @ApiOperation({ summary: 'Manually trigger OpenSearch → PostgreSQL sync' })
+  async syncWazuh(): Promise<unknown> {
+    const result = await this.alertsService.syncFromOpenSearch();
+    return {
+      message: 'Sync completed',
+      ...result,
+    };
   }
 
   @Get(':id')

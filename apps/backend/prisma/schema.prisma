@@ -161,6 +161,7 @@ model Incident {
 
 model Alert {
   id               String      @id @default(uuid()) @db.Uuid
+  wazuhAlertId     String?     @unique @map("wazuh_alert_id") @db.VarChar(255)
   ruleId           String?     @map("rule_id") @db.VarChar(50)
   ruleDescription  String?     @map("rule_description") @db.Text
   level            Int?
@@ -196,6 +197,7 @@ model Alert {
   @@index([srcIp])
   @@index([incidentId])
   @@index([mitreTechnique])
+  @@index([agentId])
   @@map("alerts")
 }
 

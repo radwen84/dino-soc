@@ -1,5 +1,7 @@
 import { Alert, AlertStatus, Prisma } from '@prisma/client';
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { OpenSearchService } from '../opensearch/opensearch.service';
 import { AlertFiltersDto } from './dto/alert-filters.dto';
@@ -18,7 +20,122 @@ export class AlertsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly opensearch: OpenSearchService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
+
+  // ============================================
+  // SYNC: OpenSearch → PostgreSQL (Phase 1)
+  // ============================================
+
+  @Cron(CronExpression.EVERY_5_MINUTES)
+  async syncFromOpenSearch(): Promise<{ synced: number; errors: number }> {
+    this.logger.log('Starting OpenSearch → PostgreSQL sync...');
+    let synced = 0;
+    let errors = 0;
+
+    try {
+      // Determine the last known timestamp in Postgres
+      const lastAlert = await this.prisma.alert.findFirst({
+        where: { wazuhAlertId: { not: null } },
+        orderBy: { timestamp: 'desc' },
+        select: { timestamp: true },
+      });
+
+      const since = lastAlert?.timestamp ?? new Date(Date.now() - 24 * 3600000); // default: last 24h
+
+      // Query OpenSearch for alerts newer than our last sync
+      const result = await this.opensearch.search('wazuh-alerts-*', {
+        query: {
+          range: {
+            timestamp: { gt: since.toISOString() },
+          },
+        },
+        sort: [{ timestamp: { order: 'asc' } }],
+        size: 500,
+      });
+
+      const hits = result?.hits?.hits ?? [];
+
+      if (hits.length === 0) {
+        this.logger.log('Sync complete: no new alerts in OpenSearch.');
+        return { synced: 0, errors: 0 };
+      }
+
+      this.logger.log(`Found ${hits.length} new alerts in OpenSearch, syncing...`);
+
+      for (const hit of hits) {
+        try {
+          const doc = hit._source;
+          const wazuhAlertId = hit._id;
+
+          // Map OpenSearch document to Prisma Alert fields
+          const alertData: Prisma.AlertCreateInput = {
+            wazuhAlertId,
+            ruleId: doc.rule?.id?.toString() ?? null,
+            ruleDescription: doc.rule?.description ?? null,
+            level: doc.rule?.level != null ? Number(doc.rule.level) : null,
+            source: doc.agent?.name ? 'wazuh' : 'unknown',
+            agentId: doc.agent?.id?.toString() ?? null,
+            agentName: doc.agent?.name ?? null,
+            srcIp: doc.data?.srcip ?? null,
+            dstIp: doc.data?.dstip ?? null,
+            srcPort: doc.data?.srcport != null ? Number(doc.data.srcport) : null,
+            dstPort: doc.data?.dstport != null ? Number(doc.data.dstport) : null,
+            mitreTactic: Array.isArray(doc.rule?.mitre?.tactic)
+              ? doc.rule.mitre.tactic[0]
+              : doc.rule?.mitre?.tactic ?? null,
+            mitreTechnique: Array.isArray(doc.rule?.mitre?.id)
+              ? doc.rule.mitre.id[0]
+              : doc.rule?.mitre?.id ?? null,
+            status: 'new' as AlertStatus,
+            rawLog: doc as any,
+            timestamp: new Date(doc.timestamp || hit._source['@timestamp'] || new Date()),
+          };
+
+          // Upsert by wazuhAlertId — idempotent, safe for re-runs
+          const upserted = await this.prisma.alert.upsert({
+            where: { wazuhAlertId },
+            create: alertData,
+            update: {}, // no-op on existing — don't overwrite analyst modifications
+          });
+
+          // Check if this was a creation (createdAt ~ now) to emit event
+          const isNew =
+            Math.abs(upserted.createdAt.getTime() - Date.now()) < 10000;
+
+          if (isNew) {
+            synced++;
+            this.eventEmitter.emit('alert.new', upserted);
+          }
+        } catch (error) {
+          // Skip duplicate constraint errors silently, log others
+          if (
+            error instanceof Prisma.PrismaClientKnownRequestError &&
+            error.code === 'P2002'
+          ) {
+            // Already exists — expected for idempotent sync
+          } else {
+            errors++;
+            this.logger.error(
+              `Failed to sync alert ${hit._id}: ${error.message}`,
+            );
+          }
+        }
+      }
+
+      this.logger.log(
+        `Sync complete: ${synced} new alerts synced, ${errors} errors.`,
+      );
+    } catch (error) {
+      this.logger.error('OpenSearch sync failed entirely', error);
+    }
+
+    return { synced, errors };
+  }
+
+  // ============================================
+  // EXISTING METHODS (unchanged)
+  // ============================================
 
   async findAll(filters: AlertFiltersDto): Promise<PaginatedResult<Alert>> {
     const where: Prisma.AlertWhereInput = {};

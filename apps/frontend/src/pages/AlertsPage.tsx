@@ -22,10 +22,10 @@ interface Alert {
   mitreTechnique?: string;
   source: string;
   srcIp?: string;
-  destIp?: string;
+  dstIp?: string;
   status: string;
   timestamp: string;
-  rawPayload?: Record<string, any>;
+  rawLog?: Record<string, any>;
 }
 
 interface AlertsFilters {
@@ -297,7 +297,7 @@ export function AlertsPage() {
                   </div>
                   <div>
                     <span className="text-soc-muted block">IP Destination</span>
-                    <span className="text-white font-mono">{selectedAlert.destIp || "—"}</span>
+                    <span className="text-white font-mono">{selectedAlert.dstIp || "—"}</span>
                   </div>
                 </div>
 
@@ -310,11 +310,11 @@ export function AlertsPage() {
                   </div>
                 )}
 
-                {selectedAlert.rawPayload && (
+                {selectedAlert.rawLog && (
                   <div>
                     <span className="text-soc-muted block mb-1">Payload Brut (JSON)</span>
                     <pre className="p-3 bg-soc-surface text-soc-text rounded-lg font-mono text-[11px] overflow-x-auto border border-soc-border max-h-48">
-                      {JSON.stringify(selectedAlert.rawPayload, null, 2)}
+                      {JSON.stringify(selectedAlert.rawLog, null, 2)}
                     </pre>
                   </div>
                 )}

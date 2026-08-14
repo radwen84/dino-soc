@@ -18,6 +18,6 @@ setup.ilm.enabled: false
 
 output.elasticsearch:
   hosts: ["http://opensearch:9200"]
- 
+  allow_older_versions: true
   index: "wazuh-alerts-%{+yyyy.MM.dd}"
   

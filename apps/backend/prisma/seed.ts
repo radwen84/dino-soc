@@ -51,7 +51,8 @@ async function main() {
   });
   console.log(`  ✓ Analyst L2 created: ${analyst2.email}`);
 
-  // Create sample assets
+  // Create sample assets — use createMany with skipDuplicates for idempotency
+  // Since Asset has no natural unique key other than id, we check by hostname+ipAddress
   const assets = [
     { hostname: 'web-server-01', ipAddress: '10.0.2.10', os: 'Ubuntu', osVersion: '22.04', criticality: 'high' as const, department: 'Production' },
     { hostname: 'db-server-01', ipAddress: '10.0.2.11', os: 'Ubuntu', osVersion: '22.04', criticality: 'critical' as const, department: 'Production' },
@@ -61,15 +62,15 @@ async function main() {
   ];
 
   for (const asset of assets) {
-    await prisma.asset.upsert({
-      where: { id: undefined },
-      update: {},
-      create: asset,
-    });
+    // Check if exists by hostname to avoid duplicates
+    const existing = await prisma.asset.findFirst({ where: { hostname: asset.hostname } });
+    if (!existing) {
+      await prisma.asset.create({ data: asset });
+    }
   }
-  console.log(`  ✓ ${assets.length} assets created`);
+  console.log(`  ✓ ${assets.length} assets ensured`);
 
-  // Create sample IOCs
+  // Create sample IOCs — upsert by unique (type, value)
   const iocs = [
     { type: 'ip' as const, value: '203.0.113.42', description: 'Known C2 server', source: 'misp', confidence: 90, severity: 'high' as const },
     { type: 'domain' as const, value: 'malware-c2.evil.tk', description: 'Malware distribution domain', source: 'virustotal', confidence: 95, severity: 'critical' as const },
@@ -78,34 +79,50 @@ async function main() {
   ];
 
   for (const ioc of iocs) {
-    await prisma.iOC.create({ data: { ...ioc, createdById: admin.id, mitreTechniques: [], relatedIncidents: [] } });
+    await prisma.iOC.upsert({
+      where: { type_value: { type: ioc.type, value: ioc.value } },
+      update: {},
+      create: {
+        ...ioc,
+        createdById: admin.id,
+        mitreTechniques: [],
+        relatedIncidents: [],
+      },
+    });
   }
-  console.log(`  ✓ ${iocs.length} IOCs created`);
+  console.log(`  ✓ ${iocs.length} IOCs ensured`);
 
-  // Create sample incident
-  await prisma.incident.create({
-    data: {
-      title: 'SSH Brute Force Attack on web-server-01',
-      description: 'Multiple failed SSH login attempts detected from external IP 203.0.113.42. Over 500 attempts in 10 minutes. Active Response triggered: IP blocked.',
-      severity: 'high',
-      status: 'contained',
-      category: 'brute_force',
-      mitreTactics: ['TA0001'],
-      mitreTechniques: ['T1110.001'],
-      source: 'wazuh',
-      riskScore: 72,
-      assignedToId: analyst2.id,
-      createdById: admin.id,
-      detectedAt: new Date(Date.now() - 3600000),
-      acknowledgedAt: new Date(Date.now() - 3500000),
-      containedAt: new Date(Date.now() - 3400000),
-      sourceAlertIds: [],
-      affectedAssets: ['web-server-01'],
-      affectedUsers: [],
-      tags: ['ssh', 'brute-force', 'external', 'blocked'],
-    },
+  // Create sample incident — check if one already exists with same title
+  const existingIncident = await prisma.incident.findFirst({
+    where: { title: 'SSH Brute Force Attack on web-server-01' },
   });
-  console.log('  ✓ Sample incident created');
+
+  if (!existingIncident) {
+    await prisma.incident.create({
+      data: {
+        title: 'SSH Brute Force Attack on web-server-01',
+        description:
+          'Multiple failed SSH login attempts detected from external IP 203.0.113.42. Over 500 attempts in 10 minutes. Active Response triggered: IP blocked.',
+        severity: 'high',
+        status: 'contained',
+        category: 'brute_force',
+        mitreTactics: ['TA0001'],
+        mitreTechniques: ['T1110.001'],
+        source: 'wazuh',
+        riskScore: 72,
+        assignedToId: analyst2.id,
+        createdById: admin.id,
+        detectedAt: new Date(Date.now() - 3600000),
+        acknowledgedAt: new Date(Date.now() - 3500000),
+        containedAt: new Date(Date.now() - 3400000),
+        sourceAlertIds: [],
+        affectedAssets: ['web-server-01'],
+        affectedUsers: [],
+        tags: ['ssh', 'brute-force', 'external', 'blocked'],
+      },
+    });
+  }
+  console.log('  ✓ Sample incident ensured');
 
   console.log('\n✅ Seeding completed!');
   console.log('\nDefault credentials:');

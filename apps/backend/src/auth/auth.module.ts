@@ -11,11 +11,13 @@ import { RolesGuard } from './guards/roles.guard';
 import { TotpService } from './mfa/totp.service';
 import { UsersModule } from '../users/users.module';
 import { AuditModule } from '../audit/audit.module';
+import { RedisModule } from '../redis/redis.module';
 
 @Module({
   imports: [
     UsersModule,
     AuditModule,
+    RedisModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],

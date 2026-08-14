@@ -29,9 +29,19 @@ export class AuthController {
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Refresh access token' })
+  @Throttle({ short: { limit: 10, ttl: 60000 } })
+  @ApiOperation({ summary: 'Refresh access token (rotates refresh token)' })
   async refresh(@Body() dto: RefreshTokenDto) {
     return this.authService.refreshToken(dto.refreshToken);
+  }
+
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Logout — revokes refresh token server-side' })
+  async logout(@Body() dto: RefreshTokenDto) {
+    return this.authService.logout(dto.refreshToken);
   }
 
   @Post('mfa/verify')
@@ -46,6 +56,7 @@ export class AuthController {
   @Post('mfa/setup')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
+  @Throttle({ short: { limit: 3, ttl: 60000 } })
   @ApiOperation({ summary: 'Setup MFA (generate QR code)' })
   async setupMfa(@CurrentUser() user: JwtPayload) {
     return this.authService.setupMfa(user.sub);
@@ -54,6 +65,7 @@ export class AuthController {
   @Post('mfa/enable')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
+  @Throttle({ short: { limit: 5, ttl: 60000 } })
   @ApiOperation({ summary: 'Enable MFA after verifying TOTP token' })
   async enableMfa(@CurrentUser() user: JwtPayload, @Body() dto: EnableMfaDto) {
     return this.authService.enableMfa(user.sub, dto.totpToken);
@@ -62,6 +74,7 @@ export class AuthController {
   @Post('mfa/disable')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
+  @Throttle({ short: { limit: 3, ttl: 60000 } })
   @ApiOperation({ summary: 'Disable MFA (requires password)' })
   async disableMfa(@CurrentUser() user: JwtPayload, @Body() dto: DisableMfaDto) {
     return this.authService.disableMfa(user.sub, dto.password);

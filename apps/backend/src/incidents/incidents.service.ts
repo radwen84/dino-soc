@@ -3,6 +3,7 @@ import { Injectable, NotFoundException, BadRequestException, Logger } from '@nes
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { MlEngineService } from './ml-engine.service';
 import { CreateIncidentDto } from './dto/create-incident.dto';
 import { UpdateIncidentDto } from './dto/update-incident.dto';
 import { IncidentFiltersDto } from './dto/incident-filters.dto';
@@ -16,9 +17,26 @@ export class IncidentsService {
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly mlEngine: MlEngineService,
   ) {}
 
   async create(dto: CreateIncidentDto, userId: string) {
+    // Try ML-based risk scoring first, fall back to rule-based
+    let riskScore = this.calculateRiskScore(dto.severity, dto.category);
+
+    const mlResult = await this.mlEngine.getRiskScore({
+      severity: dto.severity,
+      category: dto.category,
+      mitreTechniques: dto.mitreTechniques,
+      affectedAssets: [],
+      alertCount: dto.sourceAlertIds?.length || 1,
+    });
+
+    if (mlResult) {
+      riskScore = mlResult.risk_score;
+      this.logger.log(`ML risk score used: ${riskScore} (confidence: ${mlResult.confidence})`);
+    }
+
     const incident = await this.prisma.incident.create({
       data: {
         title: dto.title,
@@ -30,7 +48,7 @@ export class IncidentsService {
         mitreTechniques: dto.mitreTechniques || [],
         source: dto.source || 'manual',
         sourceAlertIds: dto.sourceAlertIds || [],
-        riskScore: this.calculateRiskScore(dto.severity, dto.category),
+        riskScore,
         tags: dto.tags || [],
         createdById: userId,
         detectedAt: new Date(),
