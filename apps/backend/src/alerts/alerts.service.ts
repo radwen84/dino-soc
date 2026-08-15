@@ -50,7 +50,7 @@ export class AlertsService {
             timestamp: { gt: since.toISOString() },
           },
         },
-        sort: [{ timestamp: { order: 'asc' } }],
+        sort: [{ '@timestamp': { order: 'asc' } }],
         size: 500,
       });
 
@@ -243,7 +243,7 @@ export class AlertsService {
             ],
           },
         },
-        sort: [{ timestamp: { order: 'desc' } }],
+        sort: [{ '@timestamp': { order: 'desc' } }],
         from,
         size,
       });

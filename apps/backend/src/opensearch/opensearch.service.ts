@@ -67,7 +67,7 @@ export class OpenSearchService implements OnModuleInit {
     const query: any = {
       bool: {
         must: [
-          { range: { timestamp: { gte: startDate.toISOString(), lte: endDate.toISOString() } } },
+          { range: { '@timestamp': { gte: startDate.toISOString(), lte: endDate.toISOString() } } },
         ],
       },
     };
@@ -78,7 +78,7 @@ export class OpenSearchService implements OnModuleInit {
 
     return this.search('wazuh-alerts-*', {
       query,
-      sort: [{ timestamp: { order: 'desc' } }],
+      sort: [{ '@timestamp': { order: 'desc' } }],
       size: 1000,
     });
   }
@@ -96,7 +96,7 @@ export class OpenSearchService implements OnModuleInit {
         },
       },
       {
-        range: { timestamp: { gte: since.toISOString() } },
+        range: { '@timestamp': { gte: since.toISOString() } },
       },
     );
   }
@@ -111,7 +111,7 @@ export class OpenSearchService implements OnModuleInit {
         },
       },
       {
-        range: { timestamp: { gte: since.toISOString() } },
+        range: { '@timestamp': { gte: since.toISOString() } },
       },
     );
   }
