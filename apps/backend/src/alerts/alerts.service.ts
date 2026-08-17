@@ -1,4 +1,4 @@
-import { Alert, AlertStatus, Prisma } from '@prisma/client';
+import { Alert, AlertStatus, IncidentSeverity, Prisma } from '@prisma/client';
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -256,7 +256,8 @@ export class AlertsService {
           data: {
             title: `[Auto] ${alert.ruleDescription || `Alerte Rule ${alert.ruleId}`}`,
             description: alert.ruleDescription || `Alerte escaladée automatiquement (rule: ${alert.ruleId}, level: ${alert.level})`,
-            severity: this.mapLevelToSeverity(alert.level),
+            
+            severity: this.mapLevelToSeverity(alert.level) as IncidentSeverity,
             status: 'new',
             category: 'alert_escalation',
             source: 'auto_escalation',
@@ -286,10 +287,10 @@ export class AlertsService {
   }
 
   private mapLevelToSeverity(level: number | null): string {
-    if (!level) return 'medium';
-    if (level >= 12) return 'critical';
-    if (level >= 8) return 'high';
-    if (level >= 5) return 'medium';
+    if (!level) return IncidentSeverity.medium;
+    if (level >= 12) return IncidentSeverity.critical;
+    if (level >= 8) return IncidentSeverity.high;
+    if (level >= 5) return IncidentSeverity.medium;
     return 'low';
   }
 
