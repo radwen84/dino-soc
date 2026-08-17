@@ -185,8 +185,25 @@ export class AlertsService {
       this.prisma.alert.count({ where }),
     ]);
 
+    // Bug C fix: enrich alerts with description from rawLog if missing
+    const enrichedAlerts = alerts.map((alert) => {
+      if (!alert.ruleDescription && alert.rawLog) {
+        const raw = alert.rawLog as any;
+        // Try to extract from rawLog (could be parsed Wazuh doc or Filebeat wrapper)
+        let wazuhDoc = raw;
+        if (typeof raw.message === 'string') {
+          try { wazuhDoc = JSON.parse(raw.message); } catch { /* ignore */ }
+        }
+        const description = wazuhDoc?.rule?.description;
+        if (description) {
+          return { ...alert, ruleDescription: description };
+        }
+      }
+      return alert;
+    });
+
     return {
-      data: alerts,
+      data: enrichedAlerts,
       meta: {
         total,
         page: filters.page,
@@ -208,17 +225,72 @@ export class AlertsService {
       throw new NotFoundException('Alert not found');
     }
 
+    // Bug C fix: enrich with description from rawLog if missing
+    if (!alert.ruleDescription && alert.rawLog) {
+      const raw = alert.rawLog as any;
+      let wazuhDoc = raw;
+      if (typeof raw.message === 'string') {
+        try { wazuhDoc = JSON.parse(raw.message); } catch { /* ignore */ }
+      }
+      if (wazuhDoc?.rule?.description) {
+        (alert as any).ruleDescription = wazuhDoc.rule.description;
+      }
+    }
+
     return alert;
   }
 
   async updateStatus(id: string, status: string, incidentId?: string): Promise<Alert> {
-    return this.prisma.alert.update({
+    const alert = await this.prisma.alert.update({
       where: { id },
       data: {
         status: status as AlertStatus,
         incidentId,
       },
     });
+
+    // Bug A fix: Auto-create incident when alert is escalated
+    if (status === 'escalated' && !incidentId) {
+      try {
+        const incident = await this.prisma.incident.create({
+          data: {
+            title: `[Auto] ${alert.ruleDescription || `Alerte Rule ${alert.ruleId}`}`,
+            description: alert.ruleDescription || `Alerte escaladée automatiquement (rule: ${alert.ruleId}, level: ${alert.level})`,
+            severity: this.mapLevelToSeverity(alert.level),
+            status: 'new',
+            category: 'alert_escalation',
+            source: 'auto_escalation',
+            sourceAlertIds: [alert.id],
+            mitreTactics: alert.mitreTactic ? [alert.mitreTactic] : [],
+            mitreTechniques: alert.mitreTechnique ? [alert.mitreTechnique] : [],
+            riskScore: Math.min((alert.level || 5) * 7, 100),
+            tags: ['auto-escalated'],
+            detectedAt: alert.timestamp || new Date(),
+          },
+        });
+
+        // Link the alert to the new incident
+        await this.prisma.alert.update({
+          where: { id },
+          data: { incidentId: incident.id },
+        });
+
+        this.eventEmitter.emit('incident.created', incident);
+        this.logger.log(`Auto-created incident ${incident.id} from escalated alert ${id}`);
+      } catch (error) {
+        this.logger.error(`Failed to auto-create incident for alert ${id}: ${error.message}`);
+      }
+    }
+
+    return alert;
+  }
+
+  private mapLevelToSeverity(level: number | null): string {
+    if (!level) return 'medium';
+    if (level >= 12) return 'critical';
+    if (level >= 8) return 'high';
+    if (level >= 5) return 'medium';
+    return 'low';
   }
 
   async bulkUpdateStatus(ids: string[], status: string): Promise<Prisma.BatchPayload> {

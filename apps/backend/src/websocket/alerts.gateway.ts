@@ -38,7 +38,8 @@ export class AlertsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       if (!token) throw new Error('Missing token');
       this.jwtService.verify(token, { issuer: 'minisoc', audience: 'minisoc-api' });
     } catch {
-      client.emit('connect_error', { message: 'Authentication required' });
+      // Bug B fix: 'connect_error' is reserved in Socket.IO v3+, use custom event name
+      client.emit('auth_error', { message: 'Authentication required' });
       client.disconnect(true);
       return;
     }

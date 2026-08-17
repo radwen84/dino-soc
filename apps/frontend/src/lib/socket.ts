@@ -29,6 +29,11 @@ export function connectSocket(): Socket {
     console.error("[WS] Connection error:", error.message);
   });
 
+  socket.on("auth_error", (data) => {
+    console.error("[WS] Authentication failed:", data.message);
+    socket?.disconnect();
+  });
+
   return socket;
 }
 
