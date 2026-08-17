@@ -44,10 +44,11 @@ export class AlertsService {
       const since = lastAlert?.timestamp ?? new Date(Date.now() - 24 * 3600000); // default: last 24h
 
       // Query OpenSearch for alerts newer than our last sync
+      // FIX: Use '@timestamp' (Filebeat/OpenSearch field) instead of 'timestamp' (Wazuh internal)
       const result = await this.opensearch.search('wazuh-alerts-*', {
         query: {
           range: {
-            timestamp: { gt: since.toISOString() },
+            '@timestamp': { gt: since.toISOString() },
           },
         },
         sort: [{ '@timestamp': { order: 'asc' } }],
@@ -65,10 +66,27 @@ export class AlertsService {
 
       for (const hit of hits) {
         try {
-          const doc = hit._source;
+          const rawDoc = hit._source;
           const wazuhAlertId = hit._id;
 
-          // Map OpenSearch document to Prisma Alert fields
+          // FIX: Parse the Wazuh JSON from _source.message (Filebeat wraps it as a string)
+          // Supports both formats:
+          //   A) Structured Wazuh doc directly in _source (no Filebeat)
+          //   B) Filebeat document with Wazuh JSON inside _source.message
+          let doc = rawDoc;
+          if (typeof rawDoc.message === 'string') {
+            try {
+              doc = JSON.parse(rawDoc.message);
+            } catch (parseError) {
+              this.logger.warn(
+                `Failed to parse Wazuh message for OpenSearch alert ${wazuhAlertId}`,
+              );
+              errors++;
+              continue;
+            }
+          }
+
+          // Map parsed Wazuh document to Prisma Alert fields
           const alertData: Prisma.AlertCreateInput = {
             wazuhAlertId,
             ruleId: doc.rule?.id?.toString() ?? null,

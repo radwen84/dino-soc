@@ -1,0 +1,58 @@
+﻿diff --git a/apps/backend/src/alerts/alerts.service.ts b/apps/backend/src/alerts/alerts.service.ts
+index 81bed2b..a9dbccf 100644
+--- a/apps/backend/src/alerts/alerts.service.ts
++++ b/apps/backend/src/alerts/alerts.service.ts
+@@ -44,10 +44,11 @@ export class AlertsService {
+       const since = lastAlert?.timestamp ?? new Date(Date.now() - 24 * 3600000); // default: last 24h
+ 
+       // Query OpenSearch for alerts newer than our last sync
++      // FIX: Use '@timestamp' (Filebeat/OpenSearch field) instead of 'timestamp' (Wazuh internal)
+       const result = await this.opensearch.search('wazuh-alerts-*', {
+         query: {
+           range: {
+-            timestamp: { gt: since.toISOString() },
++            '@timestamp': { gt: since.toISOString() },
+           },
+         },
+         sort: [{ '@timestamp': { order: 'asc' } }],
+@@ -65,10 +66,27 @@ export class AlertsService {
+ 
+       for (const hit of hits) {
+         try {
+-          const doc = hit._source;
++          const rawDoc = hit._source;
+           const wazuhAlertId = hit._id;
+ 
+-          // Map OpenSearch document to Prisma Alert fields
++          // FIX: Parse the Wazuh JSON from _source.message (Filebeat wraps it as a string)
++          // Supports both formats:
++          //   A) Structured Wazuh doc directly in _source (no Filebeat)
++          //   B) Filebeat document with Wazuh JSON inside _source.message
++          let doc = rawDoc;
++          if (typeof rawDoc.message === 'string') {
++            try {
++              doc = JSON.parse(rawDoc.message);
++            } catch (parseError) {
++              this.logger.warn(
++                `Failed to parse Wazuh message for OpenSearch alert ${wazuhAlertId}`,
++              );
++              errors++;
++              continue;
++            }
++          }
++
++          // Map parsed Wazuh document to Prisma Alert fields
+           const alertData: Prisma.AlertCreateInput = {
+             wazuhAlertId,
+             ruleId: doc.rule?.id?.toString() ?? null,
+@@ -89,7 +107,8 @@ export class AlertsService {
+               : doc.rule?.mitre?.id ?? null,
+             status: 'new' as AlertStatus,
+             rawLog: doc as any,
+-            timestamp: new Date(doc.timestamp || hit._source['@timestamp'] || new Date()),
++            // FIX: Use Wazuh timestamp first, fallback to OpenSearch @timestamp, then now()
++            timestamp: new Date(doc.timestamp || rawDoc['@timestamp'] || new Date()),
+           };
+ 
+           // Upsert by wazuhAlertId â€” idempotent, safe for re-runs
+
