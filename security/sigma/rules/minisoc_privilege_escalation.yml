@@ -2,8 +2,8 @@ title: Suspicious Privilege Escalation
 id: c3d8f0a2-4b5e-5f9c-0d2e-6e7b8c9d1f2a
 status: stable
 description: Detects unauthorized sudo or su usage
-author: Azmi SOMAI - MiniSOC
-date: 2026/07/17
+author: CHEICHK Radwen - MiniSOC
+
 tags:
   - attack.privilege_escalation
   - attack.t1548.003

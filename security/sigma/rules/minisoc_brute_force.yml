@@ -3,9 +3,7 @@ name: ssh_failed_auth
 id: a8418a5a-5fc4-461a-b1e8-1f3a8f2c9b7e
 status: stable
 description: Detects a failed SSH authentication attempt.
-author: Azmi SOMAI - MiniSOC
-date: 2026/07/17
-modified: 2026/07/17
+author: CHEICHK Radwen - MiniSOC
 tags:
   - attack.credential_access
   - attack.t1110.001

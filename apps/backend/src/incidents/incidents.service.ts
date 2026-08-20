@@ -4,6 +4,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { MlEngineService } from './ml-engine.service';
+import { TheHiveService } from './thehive.service';
 import { CreateIncidentDto } from './dto/create-incident.dto';
 import { UpdateIncidentDto } from './dto/update-incident.dto';
 import { IncidentFiltersDto } from './dto/incident-filters.dto';
@@ -18,6 +19,7 @@ export class IncidentsService {
     private readonly auditService: AuditService,
     private readonly eventEmitter: EventEmitter2,
     private readonly mlEngine: MlEngineService,
+    private readonly theHive: TheHiveService,
   ) {}
 
   async create(dto: CreateIncidentDto, userId: string) {
@@ -65,7 +67,52 @@ export class IncidentsService {
     this.eventEmitter.emit('incident.created', incident);
     this.logger.log(`Incident created: ${incident.id} - ${incident.title}`);
 
+    // Push to TheHive 5 asynchronously (fire-and-forget, non-blocking)
+    this.pushToTheHive(incident, dto).catch((err) =>
+      this.logger.warn(`TheHive push failed for incident ${incident.id}: ${err.message}`),
+    );
+
     return incident;
+  }
+
+  /**
+   * Push incident to TheHive 5 and trigger Cortex analyzers on observables.
+   * This runs asynchronously — failure does not block incident creation.
+   */
+  private async pushToTheHive(incident: any, dto: CreateIncidentDto): Promise<void> {
+    const theHiveAlert = await this.theHive.pushIncident({
+      id: incident.id,
+      title: incident.title,
+      description: incident.description || '',
+      severity: dto.severity,
+      category: dto.category,
+      mitreTactics: dto.mitreTactics,
+      mitreTechniques: dto.mitreTechniques,
+      riskScore: incident.riskScore,
+      timestamp: incident.detectedAt,
+    });
+
+    if (theHiveAlert) {
+      this.logger.log(`Incident ${incident.id} pushed to TheHive as alert ${theHiveAlert._id}`);
+
+      // Trigger Cortex analyzers on source IPs from linked alerts
+      if (dto.sourceAlertIds?.length) {
+        const alerts = await this.prisma.alert.findMany({
+          where: { id: { in: dto.sourceAlertIds } },
+          select: { srcIp: true, dstIp: true },
+        });
+
+        const ips = new Set<string>();
+        for (const alert of alerts) {
+          if (alert.srcIp) ips.add(alert.srcIp);
+          if (alert.dstIp) ips.add(alert.dstIp);
+        }
+
+        for (const ip of ips) {
+          await this.theHive.runAnalyzers('ip', ip).catch(() => {});
+        }
+      }
+    }
   }
 
   async findAll(filters: IncidentFiltersDto): Promise<PaginatedResult<any>> {

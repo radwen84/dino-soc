@@ -1,4 +1,6 @@
-# Mini-SOC Helm Values
+# ============================================================
+# Mini-SOC Helm Values — Full Stack Configuration
+# ============================================================
 
 replicaCount:
   backend: 2
@@ -22,6 +24,9 @@ ingress:
     enabled: true
     secretName: minisoc-tls
 
+# ========================
+# Backend API
+# ========================
 backend:
   port: 4000
   resources:
@@ -33,12 +38,38 @@ backend:
       memory: 512Mi
   env:
     NODE_ENV: production
+    OPENSEARCH_URL: "http://opensearch.minisoc.svc.cluster.local:9200"
+    MISP_URL: "http://misp.minisoc.svc.cluster.local:80"
+    ML_ENGINE_URL: "http://ml-engine.minisoc.svc.cluster.local:8000"
+    THEHIVE_URL: "http://thehive.minisoc.svc.cluster.local:9000"
+    THEHIVE_ORGANIZATION: "Mini-SOC"
+    CORTEX_URL: "http://cortex.minisoc.svc.cluster.local:9001"
+    WAZUH_HOST: "wazuh-manager.minisoc.svc.cluster.local"
+    WAZUH_API_PORT: "55000"
+    REDIS_HOST: "redis.minisoc.svc.cluster.local"
+    REDIS_PORT: "6379"
+  secrets:
+    existingSecret: minisoc-secrets
+    keys:
+      databaseUrl: database-url
+      jwtSecret: jwt-secret
+      jwtRefreshSecret: jwt-refresh-secret
+      redisPassword: redis-password
+      wazuhApiPassword: wazuh-api-password
+      mispApiKey: misp-api-key
+      abuseipdbApiKey: abuseipdb-api-key
+      otxApiKey: otx-api-key
+      thehiveApiKey: thehive-api-key
+      cortexApiKey: cortex-api-key
   hpa:
     enabled: true
     minReplicas: 2
     maxReplicas: 6
     targetCPU: 70
 
+# ========================
+# Frontend
+# ========================
 frontend:
   port: 80
   resources:
@@ -49,6 +80,9 @@ frontend:
       cpu: 250m
       memory: 128Mi
 
+# ========================
+# PostgreSQL
+# ========================
 postgresql:
   enabled: true
   auth:
@@ -63,6 +97,9 @@ postgresql:
         cpu: "1"
         memory: 1Gi
 
+# ========================
+# Redis
+# ========================
 redis:
   enabled: true
   auth:
@@ -75,10 +112,149 @@ redis:
         cpu: 500m
         memory: 256Mi
 
+# ========================
+# OpenSearch
+# ========================
+opensearch:
+  enabled: true
+  replicas: 1
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+  persistence:
+    size: 50Gi
+  javaOpts: "-Xms1g -Xmx1g"
+
+# ========================
+# MISP Local
+# ========================
+misp:
+  enabled: true
+  core:
+    image: ghcr.io/misp/misp-docker/misp-core:latest
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+      limits:
+        cpu: 1500m
+        memory: 2Gi
+    persistence:
+      size: 20Gi
+  db:
+    image: mariadb:10.11
+    resources:
+      limits:
+        cpu: 500m
+        memory: 1Gi
+    persistence:
+      size: 10Gi
+  redis:
+    image: redis:7.2-alpine
+    resources:
+      limits:
+        cpu: 250m
+        memory: 256Mi
+
+# ========================
+# TheHive 5
+# ========================
+thehive:
+  enabled: true
+  image: strangebee/thehive:5.3
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 1000m
+      memory: 1536Mi
+  persistence:
+    data:
+      size: 20Gi
+    index:
+      size: 10Gi
+  jvmOpts: "-Xms512m -Xmx1024m"
+
+# ========================
+# Cortex
+# ========================
+cortex:
+  enabled: true
+  image: thehiveproject/cortex:3.1.8
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+  persistence:
+    size: 10Gi
+  jvmOpts: "-Xms256m -Xmx512m"
+
+# ========================
+# ML Engine
+# ========================
+mlEngine:
+  enabled: true
+  image: registry.minisoc.local/minisoc-ml-engine:latest
+  port: 8000
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+
+# ========================
+# Wazuh Manager
+# ========================
+wazuh:
+  enabled: true
+  image: wazuh/wazuh-manager:4.9.0
+  resources:
+    limits:
+      cpu: "2"
+      memory: 2Gi
+  persistence:
+    data:
+      size: 20Gi
+    logs:
+      size: 10Gi
+
+# ========================
+# n8n (SOAR)
+# ========================
+n8n:
+  enabled: true
+  image: n8nio/n8n:1.48.0
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# ========================
+# Monitoring
+# ========================
 monitoring:
   serviceMonitor:
     enabled: true
     interval: 15s
+  prometheus:
+    enabled: true
+    retention: 30d
+  grafana:
+    enabled: true
+    adminPassword: existingSecret
 
+# ========================
+# Network Policies
+# ========================
 networkPolicy:
   enabled: true

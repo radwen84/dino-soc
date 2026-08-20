@@ -109,10 +109,24 @@ services:
       - JWT_SECRET_FILE=/run/secrets/jwt_secret
       - JWT_REFRESH_SECRET_FILE=/run/secrets/jwt_refresh_secret
       - REDIS_PASSWORD_FILE=/run/secrets/redis_password
-      - JWT_SECRET=super_secret_jwt_key_minisoc_2026_dev
-      - JWT_REFRESH_SECRET=super_secret_refresh_key_minisoc_2026_dev
-      - DATABASE_URL=postgresql://minisoc_app:MonSuperMotDePasse2026@postgres:5432/minisoc?schema=public
-      - REDIS_PASSWORD=NzD6SE1b85zb+aYqMA65ZjAEFTDg84h5Ot3LG92uN8k=
+      # Threat Intelligence
+      - MISP_URL=http://misp:80
+      - MISP_API_KEY=${MISP_API_KEY:-}
+      - ABUSEIPDB_API_KEY=${ABUSEIPDB_API_KEY:-}
+      - OTX_API_KEY=${OTX_API_KEY:-}
+      - TAXII_URL=${TAXII_URL:-}
+      - TAXII_API_ROOT=${TAXII_API_ROOT:-}
+      - TAXII_COLLECTION_ID=${TAXII_COLLECTION_ID:-}
+      - TAXII_USERNAME=${TAXII_USERNAME:-}
+      - TAXII_PASSWORD=${TAXII_PASSWORD:-}
+      # ML Engine
+      - ML_ENGINE_URL=http://ml-engine:8000
+      # TheHive & Cortex
+      - THEHIVE_URL=http://thehive:9000
+      - THEHIVE_API_KEY=${THEHIVE_API_KEY:-}
+      - THEHIVE_ORGANIZATION=${THEHIVE_ORGANIZATION:-Mini-SOC}
+      - CORTEX_URL=http://cortex:9001
+      - CORTEX_API_KEY=${CORTEX_API_KEY:-}
     deploy:
       resources:
         limits:
@@ -349,6 +363,154 @@ services:
       - falco_logs:/var/log/falco
 
   # ============================================
+  # MISP LOCAL - Threat Intelligence Platform
+  # ============================================
+  misp:
+    image: ghcr.io/misp/misp-docker/misp-core:latest
+    container_name: minisoc-misp
+    restart: unless-stopped
+    networks:
+      - backend
+    environment:
+      - MISP_BASEURL=http://misp:80
+      - MISP_ADMIN_EMAIL=admin@minisoc.local
+      - MISP_ADMIN_PASSPHRASE=${MISP_ADMIN_PASSPHRASE:-ChangeMe2026!}
+      - MYSQL_HOST=misp-db
+      - MYSQL_PORT=3306
+      - MYSQL_DATABASE=misp
+      - MYSQL_USER=${MISP_DB_USER:-misp}
+      - MYSQL_PASSWORD=${MISP_DB_PASSWORD:-MispDbPassword2026}
+      - REDIS_HOST=misp-redis
+      - REDIS_PORT=6379
+    volumes:
+      - misp_data:/var/www/MISP/app/files
+      - misp_config:/var/www/MISP/app/Config
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "1.5"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost/users/login || exit 1"]
+      interval: 30s
+      timeout: 15s
+      retries: 10
+      start_period: 120s
+    depends_on:
+      misp-db:
+        condition: service_healthy
+      misp-redis:
+        condition: service_healthy
+
+  misp-db:
+    image: mariadb:10.11
+    container_name: minisoc-misp-db
+    restart: unless-stopped
+    networks:
+      - backend
+    environment:
+      - MYSQL_DATABASE=misp
+      - MYSQL_USER=${MISP_DB_USER:-misp}
+      - MYSQL_PASSWORD=${MISP_DB_PASSWORD:-MispDbPassword2026}
+      - MYSQL_ROOT_PASSWORD=${MISP_DB_ROOT_PASSWORD:-MispRootPassword2026}
+    volumes:
+      - misp_db_data:/var/lib/mysql
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "0.5"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  misp-redis:
+    image: redis:7.2-alpine
+    container_name: minisoc-misp-redis
+    restart: unless-stopped
+    networks:
+      - backend
+    command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru
+    volumes:
+      - misp_redis_data:/data
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.25"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # THEHIVE 5 - Incident Response Platform
+  # ============================================
+  thehive:
+    image: strangebee/thehive:5.3
+    container_name: minisoc-thehive
+    restart: unless-stopped
+    networks:
+      - backend
+    environment:
+      - JVM_OPTS=-Xms512m -Xmx1024m
+    volumes:
+      - thehive_data:/opt/thp/thehive/data
+      - thehive_index:/opt/thp/thehive/index
+    ports:
+      - "9000:9000"
+    deploy:
+      resources:
+        limits:
+          memory: 1536M
+          cpus: "1.0"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9000/api/v1/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    depends_on:
+      opensearch:
+        condition: service_healthy
+
+  # ============================================
+  # CORTEX - Observable Analysis & Response
+  # ============================================
+  cortex:
+    image: thehiveproject/cortex:3.1.8
+    container_name: minisoc-cortex
+    restart: unless-stopped
+    networks:
+      - backend
+    environment:
+      - JVM_OPTS=-Xms256m -Xmx512m
+      - job_directory=/opt/cortex/jobs
+    volumes:
+      - cortex_data:/opt/cortex/data
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - "9001:9001"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.0"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9001/api/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    depends_on:
+      opensearch:
+        condition: service_healthy
+
+  # ============================================
   # VAULT - Secrets Management
   # ============================================
   vault:
@@ -541,4 +703,18 @@ volumes:
   loki_data:
     driver: local
   wazuh_etc_shared:
+    driver: local
+  misp_data:
+    driver: local
+  misp_config:
+    driver: local
+  misp_db_data:
+    driver: local
+  misp_redis_data:
+    driver: local
+  thehive_data:
+    driver: local
+  thehive_index:
+    driver: local
+  cortex_data:
     driver: local

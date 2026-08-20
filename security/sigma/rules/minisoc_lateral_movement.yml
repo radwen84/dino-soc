@@ -2,8 +2,8 @@ title: Lateral Movement via SSH Off-Hours
 id: b2c7e9f1-3a4d-4e8b-9c1f-5d6a7b8c9d0e
 status: experimental
 description: SSH connections outside business hours may indicate lateral movement
-author: Azmi SOMAI - MiniSOC
-date: 2026/07/17
+author: CHEICHK Radwen - MiniSOC
+
 tags:
   - attack.lateral_movement
   - attack.t1021.004

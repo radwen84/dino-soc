@@ -10,7 +10,11 @@ import { MispFeedService } from './feeds/misp-feed.service';
 import { StixTaxiiService } from './feeds/stix-taxii.service';
 
 @Module({
-  imports: [HttpModule, IocModule, AuditModule],
+  imports: [
+    HttpModule.register({ timeout: 10000, maxRedirects: 3 }),
+    IocModule,
+    AuditModule,
+  ],
   controllers: [ThreatIntelController],
   providers: [
     ThreatIntelService,

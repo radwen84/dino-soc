@@ -49,11 +49,69 @@ spec:
                 secretKeyRef:
                   name: minisoc-secrets
                   key: jwt-secret
-            - name: REDIS_URL
+            - name: JWT_REFRESH_SECRET
               valueFrom:
                 secretKeyRef:
                   name: minisoc-secrets
-                  key: redis-url
+                  key: jwt-refresh-secret
+            - name: REDIS_HOST
+              value: "redis.minisoc.svc.cluster.local"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: minisoc-secrets
+                  key: redis-password
+            - name: OPENSEARCH_URL
+              value: "http://opensearch.minisoc.svc.cluster.local:9200"
+            - name: WAZUH_HOST
+              value: "wazuh-manager.minisoc.svc.cluster.local"
+            - name: WAZUH_API_PORT
+              value: "55000"
+            - name: WAZUH_API_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: minisoc-secrets
+                  key: wazuh-api-password
+            # Threat Intelligence
+            - name: MISP_URL
+              value: "http://misp.minisoc.svc.cluster.local:80"
+            - name: MISP_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minisoc-secrets
+                  key: misp-api-key
+            - name: ABUSEIPDB_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minisoc-secrets
+                  key: abuseipdb-api-key
+            - name: OTX_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minisoc-secrets
+                  key: otx-api-key
+            # ML Engine
+            - name: ML_ENGINE_URL
+              value: "http://ml-engine.minisoc.svc.cluster.local:8000"
+            # TheHive & Cortex
+            - name: THEHIVE_URL
+              value: "http://thehive.minisoc.svc.cluster.local:9000"
+            - name: THEHIVE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minisoc-secrets
+                  key: thehive-api-key
+            - name: THEHIVE_ORGANIZATION
+              value: "Mini-SOC"
+            - name: CORTEX_URL
+              value: "http://cortex.minisoc.svc.cluster.local:9001"
+            - name: CORTEX_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minisoc-secrets
+                  key: cortex-api-key
           resources:
             requests:
               cpu: 250m

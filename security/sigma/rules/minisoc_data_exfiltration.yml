@@ -3,8 +3,8 @@ name: long_dns_query
 id: d4e9a1b3-5c6f-6a0d-1e3f-7f8c9d0e2a3b
 status: experimental
 description: Detects an unusually long DNS query.
-author: Azmi SOMAI - MiniSOC
-date: 2026/07/17
+author: CHEICHK Radwen - MiniSOC
+
 tags:
   - attack.exfiltration
   - attack.t1048
