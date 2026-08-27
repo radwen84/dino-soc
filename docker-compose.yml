@@ -7,13 +7,10 @@ networks:
     driver: bridge
   backend:
     driver: bridge
-    internal: true
   monitoring:
     driver: bridge
-    internal: true
   siem:
     driver: bridge
-    internal: true
 
 secrets:
   db_password:
@@ -46,11 +43,6 @@ services:
     networks:
       - frontend
       - backend
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: "0.5"
     tmpfs:
       - /var/cache/nginx
       - /var/run
@@ -65,9 +57,6 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    depends_on:
-      nestjs-api:
-        condition: service_healthy
 
   # ============================================
   # BACKEND - NestJS API
@@ -79,8 +68,11 @@ services:
       target: production
     container_name: minisoc-api
     restart: unless-stopped
+    ports:
+      - "3000:3000"
     networks:
       - backend
+      - frontend
     secrets:
       - db_password
       - jwt_secret
@@ -104,43 +96,13 @@ services:
       - WAZUH_HOST=${WAZUH_HOST:-wazuh-manager}
       - WAZUH_API_PORT=${WAZUH_API_PORT:-55000}
       - WAZUH_API_USER=${WAZUH_API_USER:-wazuh-wui}
-      - WAZUH_API_PASSWORD_FILE=/run/secrets/wazuh_api_password
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - DB_PASSWORD_FILE=/run/secrets/db_password
-      - JWT_SECRET_FILE=/run/secrets/jwt_secret
-      - JWT_REFRESH_SECRET_FILE=/run/secrets/jwt_refresh_secret
-      - REDIS_PASSWORD_FILE=/run/secrets/redis_password
-      - MISP_URL=http://misp:80
-      - MISP_API_KEY=${MISP_API_KEY:-}
-      - ABUSEIPDB_API_KEY=${ABUSEIPDB_API_KEY:-}
-      - OTX_API_KEY=${OTX_API_KEY:-}
-      - TAXII_URL=${TAXII_URL:-}
-      - TAXII_API_ROOT=${TAXII_API_ROOT:-}
-      - TAXII_COLLECTION_ID=${TAXII_COLLECTION_ID:-}
-      - TAXII_USERNAME=${TAXII_USERNAME:-}
-      - TAXII_PASSWORD=${TAXII_PASSWORD:-}
       - ML_ENGINE_URL=http://ml-engine:8000
       - THEHIVE_URL=http://thehive:9000
-      - THEHIVE_API_KEY=${THEHIVE_API_KEY:-}
-      - THEHIVE_ORGANIZATION=${THEHIVE_ORGANIZATION:-Mini-SOC}
       - CORTEX_URL=http://cortex:9001
-      - CORTEX_API_KEY=${CORTEX_API_KEY:-}
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: "1.0"
-    user: "1001:1001"
-    read_only: false
     tmpfs:
       - /tmp
-    healthcheck:
-      test: ["CMD-SHELL", "node -e 'require(\"http\").get(\"http://localhost:4000/api/health\", (r) => {if (r.statusCode !== 200) process.exit(1);})' || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 10
-      start_period: 60s
     depends_on:
       postgres:
         condition: service_healthy
@@ -154,30 +116,24 @@ services:
     image: postgres:16-alpine
     container_name: minisoc-postgres
     restart: unless-stopped
+    ports: 
+      - "5432:5432"
     networks:
       - backend
     secrets:
       - db_password
     environment:
-      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
-      POSTGRES_DB: minisoc
-      POSTGRES_USER: minisoc_app
+      POSTGRES_DB: ${POSTGRES_DB:-minisoc}
+      POSTGRES_USER: ${POSTGRES_USER:-minisoc_app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-minisoc_db_password_2026}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./infrastructure/docker/postgres/init:/docker-entrypoint-initdb.d:ro
-      - ./infrastructure/docker/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
-    command: postgres -c config_file=/etc/postgresql/postgresql.conf
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-          cpus: "1.0"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U minisoc_app -d minisoc"]
-      interval: 10s
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-minisoc_app} -d ${POSTGRES_DB:-minisoc}"]
+      interval: 5s
       timeout: 5s
       retries: 12
-      start_period: 90s
+      start_period: 10s
     logging:
       driver: "json-file"
       options:
@@ -191,29 +147,17 @@ services:
     image: redis:7-alpine
     container_name: minisoc-redis
     restart: unless-stopped
+    ports:
+      - "6379:6379"
     networks:
       - backend
-    secrets:
-      - redis_password
-    command: >
-      sh -c 'redis-server
-      --requirepass "$$(cat /run/secrets/redis_password)"
-      --maxmemory 256mb
-      --maxmemory-policy allkeys-lru
-      --appendonly yes'
     volumes:
       - redis_data:/data
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: "0.25"
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli -a \"$$(cat /run/secrets/redis_password)\" ping | grep PONG"]
-      interval: 10s
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 5s
       timeout: 5s
       retries: 5
-      start_period: 20s
 
   # ============================================
   # WAZUH MANAGER - SIEM/HIDS
@@ -234,23 +178,9 @@ services:
     volumes:
       - wazuh_data:/var/ossec/data
       - wazuh_logs:/var/ossec/logs
-      - ./security/wazuh/ossec.conf:/var/ossec/etc/ossec.conf:ro
-      - ./security/wazuh/rules:/var/ossec/etc/rules:ro
-      - ./security/wazuh/decoders:/var/ossec/etc/decoders:ro
-      - ./security/wazuh/sync-api-password.sh:/docker-entrypoint-init.d/sync-api-password.sh:ro
       - suricata_logs:/var/log/suricata:ro
       - zeek_logs:/var/log/zeek:ro
       - falco_logs:/var/log/falco:ro
-      - wazuh_etc_shared:/var/ossec/etc/shared
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-          cpus: "2.0"
-    ulimits:
-      nofile:
-        soft: 65536
-        hard: 65536
 
   # ============================================
   # OPENSEARCH - SIEM Data Lake
@@ -266,47 +196,18 @@ services:
       cluster.name: minisoc-cluster
       node.name: opensearch-node1
       discovery.type: single-node
-      OPENSEARCH_JAVA_OPTS: -Xms1g -Xmx1g
+      OPENSEARCH_JAVA_OPTS: -Xms512m -Xmx512m
       bootstrap.memory_lock: "true"
       plugins.security.disabled: "true"
-      OPENSEARCH_INITIAL_ADMIN_PASSWORD: "MySecretPassword2026$"
+    ports:
+      - "9200:9200"
     volumes:
       - opensearch_data:/usr/share/opensearch/data
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-          cpus: "2.0"
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-      nofile:
-        soft: 65536
-        hard: 65536
     healthcheck:
       test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -qE '\"status\":\"(green|yellow)\"'"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-
-  # ============================================
-  # FILEBEAT - Log Shipper
-  # ============================================
-  filebeat:
-    image: docker.elastic.co/beats/filebeat-oss:7.12.1
-    container_name: minisoc-filebeat
-    restart: unless-stopped
-    user: root
-    command: ["filebeat", "-e", "--strict.perms=false"]
-    networks:
-      - siem
-    volumes:
-      - wazuh_logs:/var/ossec/logs:ro
-      - ./security/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
-    depends_on:
-      opensearch:
-        condition: service_healthy
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   # ============================================
   # SURICATA - Network IDS/IPS
@@ -325,14 +226,8 @@ services:
     environment:
       - ORACLE_PORTS=1521
       - HTTP_PORTS=80
-    command: -i ${CAPTURE_INTERFACE:-eth0} -c /etc/suricata/suricata.yaml
     volumes:
       - suricata_logs:/var/log/suricata
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-          cpus: "2.0"
 
   # ============================================
   # ZEEK - Network Security Monitoring
@@ -343,7 +238,6 @@ services:
       dockerfile: Dockerfile
     container_name: minisoc-zeek
     restart: unless-stopped
-    command: -i ${CAPTURE_INTERFACE:-eth0} local
     network_mode: host
     cap_add:
       - NET_RAW
@@ -361,7 +255,6 @@ services:
     container_name: minisoc-falco
     restart: unless-stopped
     privileged: true
-    command: ["/usr/bin/falco", "-o", "engine.kind=nodriver", "-o", "grpc.enabled=false"]
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /dev:/host/dev:ro
@@ -372,89 +265,18 @@ services:
       - falco_logs:/var/log/falco
 
   # ============================================
-  # MISP LOCAL - Threat Intelligence Platform
+  # ML ANOMALY ENGINE - FastAPI
   # ============================================
-  misp:
-    image: ghcr.io/misp/misp-docker/misp-core:latest
-    container_name: minisoc-misp
+  ml-engine:
+    build:
+      context: ./apps/ml-engine
+      dockerfile: Dockerfile
+    container_name: minisoc-ml-engine
     restart: unless-stopped
+    ports:
+      - "8000:8000"
     networks:
       - backend
-    environment:
-      - MISP_BASEURL=http://misp:80
-      - MISP_ADMIN_EMAIL=admin@minisoc.local
-      - MISP_ADMIN_PASSPHRASE=${MISP_ADMIN_PASSPHRASE:-ChangeMe2026!}
-      - MYSQL_HOST=misp-db
-      - MYSQL_PORT=3306
-      - MYSQL_DATABASE=misp
-      - MYSQL_USER=${MISP_DB_USER:-misp}
-      - MYSQL_PASSWORD=${MISP_DB_PASSWORD:-MispDbPassword2026}
-      - REDIS_HOST=misp-redis
-      - REDIS_PORT=6379
-    volumes:
-      - misp_data:/var/www/MISP/app/files
-      - misp_config:/var/www/MISP/app/Config
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-          cpus: "1.5"
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost/users/login || exit 1"]
-      interval: 30s
-      timeout: 15s
-      retries: 10
-      start_period: 120s
-    depends_on:
-      misp-db:
-        condition: service_healthy
-      misp-redis:
-        condition: service_healthy
-
-  misp-db:
-    image: mariadb:10.11
-    container_name: minisoc-misp-db
-    restart: unless-stopped
-    networks:
-      - backend
-    environment:
-      - MYSQL_DATABASE=misp
-      - MYSQL_USER=${MISP_DB_USER:-misp}
-      - MYSQL_PASSWORD=${MISP_DB_PASSWORD:-MispDbPassword2026}
-      - MYSQL_ROOT_PASSWORD=${MISP_DB_ROOT_PASSWORD:-MispRootPassword2026}
-    volumes:
-      - misp_db_data:/var/lib/mysql
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-          cpus: "0.5"
-    healthcheck:
-      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 60s
-
-  misp-redis:
-    image: redis:7.2-alpine
-    container_name: minisoc-misp-redis
-    restart: unless-stopped
-    networks:
-      - backend
-    command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru
-    volumes:
-      - misp_redis_data:/data
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: "0.25"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
   # ============================================
   # THEHIVE 5 - Incident Response Platform
@@ -465,27 +287,16 @@ services:
     restart: unless-stopped
     networks:
       - backend
-    environment:
-      - JVM_OPTS=-Xms512m -Xmx1024m
+    ports:
+      - "9000:9000"
     volumes:
       - thehive_data:/opt/thp/thehive/data
       - thehive_index:/opt/thp/thehive/index
-    ports:
-      - "9000:9000"
-    deploy:
-      resources:
-        limits:
-          memory: 1536M
-          cpus: "1.0"
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:9000/api/v1/status || exit 1"]
-      interval: 30s
-      timeout: 10s
+      interval: 15s
+      timeout: 5s
       retries: 5
-      start_period: 90s
-    depends_on:
-      opensearch:
-        condition: service_healthy
 
   # ============================================
   # CORTEX - Observable Analysis & Response
@@ -496,28 +307,16 @@ services:
     restart: unless-stopped
     networks:
       - backend
-    environment:
-      - JVM_OPTS=-Xms256m -Xmx512m
-      - job_directory=/opt/cortex/jobs
+    ports:
+      - "9001:9001"
     volumes:
       - cortex_data:/opt/cortex/data
       - /var/run/docker.sock:/var/run/docker.sock:ro
-    ports:
-      - "9001:9001"
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-          cpus: "1.0"
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:9001/api/status || exit 1"]
-      interval: 30s
-      timeout: 10s
+      interval: 15s
+      timeout: 5s
       retries: 5
-      start_period: 60s
-    depends_on:
-      opensearch:
-        condition: service_healthy
 
   # ============================================
   # VAULT - Secrets Management
@@ -528,30 +327,11 @@ services:
     restart: unless-stopped
     networks:
       - backend
-    cap_add:
-      - IPC_LOCK
-    environment:
-      - VAULT_ADDR=https://127.0.0.1:8200
-      - VAULT_SKIP_VERIFY=true
     ports:
       - "8200:8200"
-      - "8201:8201"
-    volumes:
-      - vault_data:/vault/data
-      - ./infrastructure/vault/config/vault.hcl:/vault/config/vault.hcl:ro
-      - ./infrastructure/vault/tls:/vault/tls:ro
-      - ./infrastructure/vault/policies:/vault/policies:ro
-    entrypoint: ["vault", "server", "-config=/vault/config/vault.hcl"]
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: "0.25"
-    healthcheck:
-      test: ["CMD", "vault", "status", "-tls-skip-verify"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+    environment:
+      - VAULT_DEV_ROOT_TOKEN_ID=root
+      - VAULT_DEV_LISTEN_ADDRESS=0.0.0.0:8200
 
   # ============================================
   # n8n - SOAR (Workflow Automation)
@@ -560,30 +340,19 @@ services:
     image: n8nio/n8n:1.48.0
     container_name: minisoc-n8n
     restart: unless-stopped
+    ports:
+      - "5678:5678"
     networks:
       - backend
-    secrets:
-      - db_password
     environment:
-      - N8N_BASIC_AUTH_ACTIVE=true
-      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER:-admin}
-      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD:-changeme}
-      - WEBHOOK_URL=https://soc.local/n8n/
-      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-changeme}
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_HOST=postgres
       - DB_POSTGRESDB_PORT=5432
-      - DB_POSTGRESDB_DATABASE=n8n
-      - DB_POSTGRESDB_USER=minisoc_app
-      - DB_POSTGRESDB_PASSWORD_FILE=/run/secrets/db_password
+      - DB_POSTGRESDB_DATABASE=${DB_POSTGRESDB_DATABASE:-n8n}
+      - DB_POSTGRESDB_USER=${DB_POSTGRESDB_USER:-minisoc_app}
+      - DB_POSTGRESDB_PASSWORD=${DB_POSTGRESDB_PASSWORD:-minisoc_db_password_2026}
     volumes:
       - n8n_data:/home/node/.n8n
-      - ./infrastructure/n8n/workflows:/home/node/workflows:ro
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: "0.5"
     depends_on:
       postgres:
         condition: service_healthy
@@ -595,22 +364,13 @@ services:
     image: prom/prometheus:v2.53.0
     container_name: minisoc-prometheus
     restart: unless-stopped
+    ports:
+      - "9090:9090"
     networks:
       - monitoring
       - backend
     volumes:
-      - ./infrastructure/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./infrastructure/monitoring/prometheus/alerts:/etc/prometheus/alerts:ro
       - prometheus_data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.retention.time=30d'
-      - '--web.enable-lifecycle'
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: "0.5"
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
       interval: 15s
@@ -624,108 +384,38 @@ services:
     image: grafana/grafana:11.1.0
     container_name: minisoc-grafana
     restart: unless-stopped
+    ports:
+      - "3001:3000"
     networks:
       - monitoring
       - frontend
     environment:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-changeme}
-      - GF_SERVER_ROOT_URL=https://soc.local/grafana
-      - GF_SERVER_SERVE_FROM_SUB_PATH=true
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./infrastructure/monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
-      - ./infrastructure/monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: "0.5"
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
-      interval: 30s
-      timeout: 10s
+      interval: 15s
+      timeout: 5s
       retries: 3
-
-  # ============================================
-  # ALERTMANAGER
-  # ============================================
-  alertmanager:
-    image: prom/alertmanager:v0.27.0
-    container_name: minisoc-alertmanager
-    restart: unless-stopped
-    networks:
-      - monitoring
-    volumes:
-      - ./infrastructure/monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
-    deploy:
-      resources:
-        limits:
-          memory: 128M
-          cpus: "0.25"
-
-  # ============================================
-  # LOKI - Log Aggregation
-  # ============================================
-  loki:
-    image: grafana/loki:2.9.8
-    container_name: minisoc-loki
-    restart: unless-stopped
-    networks:
-      - monitoring
-    volumes:
-      - ./infrastructure/monitoring/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
-      - loki_data:/loki
-    command: -config.file=/etc/loki/local-config.yaml
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: "0.5"
 
 # ============================================
 # VOLUMES
 # ============================================
 volumes:
   postgres_data:
-    driver: local
   redis_data:
-    driver: local
   wazuh_data:
-    driver: local
   wazuh_logs:
-    driver: local
   zeek_logs:
-    driver: local
   falco_logs:
-    driver: local
   opensearch_data:
-    driver: local
   suricata_logs:
-    driver: local
   prometheus_data:
-    driver: local
   grafana_data:
-    driver: local
   vault_data:
-    driver: local
   n8n_data:
-    driver: local
-  loki_data:
-    driver: local
-  wazuh_etc_shared:
-    driver: local
-  misp_data:
-    driver: local
-  misp_config:
-    driver: local
-  misp_db_data:
-    driver: local
-  misp_redis_data:
-    driver: local
   thehive_data:
-    driver: local
   thehive_index:
-    driver: local
   cortex_data:
-    driver: local
