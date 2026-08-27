@@ -113,8 +113,8 @@ jobs:
       - name: 7. TEST SIEM & DATA LAKE (OpenSearch & Wazuh)
         run: |
           echo "=== Attente Active OpenSearch Cluster ==="
-          TIMEOUT=20
-          until docker exec minisoc-opensearch curl -s http://localhost:9200/_cluster/health | grep -qE '"status":"(green|yellow)"' || [ $TIMEOUT -eq 0 ]; do
+          TIMEOUT=30
+          until [ "$(docker inspect -f '{{.State.Running}}' minisoc-opensearch 2>/dev/null)" = "true" ] && docker exec minisoc-opensearch curl -s http://localhost:9200/_cluster/health | grep -qE '"status":"(green|yellow)"' || [ $TIMEOUT -eq 0 ]; do
             echo "Attente du démarrage d'OpenSearch... ($TIMEOUT essais restants)"
             sleep 5
             TIMEOUT=$((TIMEOUT-1))
