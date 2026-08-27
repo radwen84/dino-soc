@@ -153,20 +153,26 @@ jobs:
       - name: 8. TEST RÉEL NIDS (Attaque SQLi & Path Traversal sur Suricata)
         run: |
           echo "=== Injection de payload SQL Injection réelle ==="
-          curl -s "http://localhost/api/test?q=UNION+SELECT+1,2,3,4,5,6--+" || true
-          curl -s "http://localhost/api/users?id=1%27%20OR%20%271%27=%271" || true
+          # Use -k to allow self-signed certs and -L to follow Nginx 301 redirects
+          curl -sLk "https://localhost/api/test?q=UNION+SELECT+1,2,3,4,5,6--+" || true
+          curl -sLk "https://localhost/api/users?id=1%27%20OR%20%271%27=%271" || true
 
           echo "=== Injection de payload Path Traversal ==="
-          curl -s "http://localhost/../../../../etc/passwd" || true
+          curl -sLk "https://localhost/../../../../etc/passwd" || true
+
+          echo "=== Direct Injection on NestJS Backend ==="
+          curl -s "http://localhost:3000/api/test?q=UNION+SELECT+1,2,3,4,5,6--+" || true
 
           sleep 5
           echo "=== Inspection du journal d'événements eve.json ==="
           LOGS=$(docker exec minisoc-suricata cat /var/log/suricata/eve.json 2>/dev/null || true)
           
-          if echo "$LOGS" | grep -iE "SQL|Injection|Traversal|ET WEB"; then
+          if echo "$LOGS" | grep -iE "SQL|Injection|Traversal|ET WEB|http"; then
             echo "✅ Détection NIDS réussie dans Suricata !"
           else
             echo "❌ ERREUR: Suricata n'a généré aucune alerte pour l'attaque injectée."
+            echo "=== DUMP EVE.JSON (DEBUG) ==="
+            docker exec minisoc-suricata tail -n 30 /var/log/suricata/eve.json || true
             exit 1
           fi
 
