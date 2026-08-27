@@ -189,6 +189,7 @@ services:
     image: opensearchproject/opensearch:2.14.0
     container_name: minisoc-opensearch
     restart: unless-stopped
+    user: "1000:1000"
     networks:
       - siem
       - backend

@@ -24,6 +24,9 @@ jobs:
         run: |
           sudo sysctl -w vm.max_map_count=262144 || true
           sudo ip link set eth0 promisc on || true
+          # Attribution des permissions pour les volumes de conteneurs non-root (OpenSearch UID 1000)
+          sudo mkdir -p /var/lib/docker/volumes/
+          sudo chmod -R 777 /var/lib/docker/volumes/ || true
 
       - name: 3. Initialisation des Secrets & Injection de l'Environnement .env
         run: |
@@ -104,6 +107,9 @@ jobs:
           echo "=== ETAT DES CONTENEURS ==="
           docker compose ps
           
+          echo "=== LOGS OPENSEARCH (DEBUG) ==="
+          docker logs minisoc-opensearch 2>&1 | tail -n 100 || true
+
           echo "=== LOGS VAULT (DEBUG) ==="
           docker logs minisoc-vault 2>&1 | tail -n 50 || true
 
@@ -114,14 +120,20 @@ jobs:
         run: |
           echo "=== Attente Active OpenSearch Cluster ==="
           TIMEOUT=30
-          until [ "$(docker inspect -f '{{.State.Running}}' minisoc-opensearch 2>/dev/null)" = "true" ] && docker exec minisoc-opensearch curl -s http://localhost:9200/_cluster/health | grep -qE '"status":"(green|yellow)"' || [ $TIMEOUT -eq 0 ]; do
+          until curl -s http://localhost:9200/_cluster/health | grep -qE '"status":"(green|yellow)"' || [ $TIMEOUT -eq 0 ]; do
             echo "Attente du démarrage d'OpenSearch... ($TIMEOUT essais restants)"
             sleep 5
             TIMEOUT=$((TIMEOUT-1))
           done
 
+          if [ $TIMEOUT -eq 0 ]; then
+            echo "::error::OpenSearch n'a pas pu démarrer."
+            docker logs minisoc-opensearch --tail 100
+            exit 1
+          fi
+
           echo "=== Verification OpenSearch Cluster ==="
-          docker exec minisoc-opensearch curl -s http://localhost:9200/_cluster/health
+          curl -s http://localhost:9200/_cluster/health
           
           echo -e "\n=== Verification Wazuh Manager API ==="
           docker exec minisoc-wazuh curl -k -u wazuh-wui:wazuh_api_password_2026 https://localhost:55000/manager/status || true
