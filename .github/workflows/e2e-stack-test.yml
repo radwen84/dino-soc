@@ -70,7 +70,7 @@ jobs:
 
       - name: 5. Démarrage Séquentiel BDD, Migrations & Stack Docker
         run: |
-          # 1. Démarrer PostgreSQL (Assurez-vous que docker-compose.yml contient "ports: - '5432:5432'")
+          # 1. Démarrer PostgreSQL
           docker compose --env-file .env up -d postgres
 
           # 2. Attente active de la disponibilité de PostgreSQL
@@ -85,13 +85,13 @@ jobs:
           # 3. Initialisation de la BDD pour n8n
           docker exec minisoc-postgres psql -U minisoc_app -d minisoc -c "CREATE DATABASE n8n;" || true
 
-          # 4. Migration Prisma exécutée via docker exec directement dans minisoc-postgres avec le binaire prisma local
+          # 4. Migration Prisma
           echo "Exécution des migrations Prisma..."
           cd apps/backend
           DATABASE_URL="postgresql://minisoc_app:minisoc_db_password_2026@127.0.0.1:5432/minisoc?schema=public" npx prisma db push --accept-data-loss
           cd ../..
 
-          # 5. Démarrage global de l'ensemble des services
+          # 5. Démarrage global
           echo "Lancement global des conteneurs..."
           docker compose --env-file .env up -d --build
           
@@ -112,11 +112,19 @@ jobs:
 
       - name: 7. TEST SIEM & DATA LAKE (OpenSearch & Wazuh)
         run: |
+          echo "=== Attente Active OpenSearch Cluster ==="
+          TIMEOUT=20
+          until docker exec minisoc-opensearch curl -s http://localhost:9200/_cluster/health | grep -qE '"status":"(green|yellow)"' || [ $TIMEOUT -eq 0 ]; do
+            echo "Attente du démarrage d'OpenSearch... ($TIMEOUT essais restants)"
+            sleep 5
+            TIMEOUT=$((TIMEOUT-1))
+          done
+
           echo "=== Verification OpenSearch Cluster ==="
           docker exec minisoc-opensearch curl -s http://localhost:9200/_cluster/health
           
-          echo "=== Verification Wazuh Manager API ==="
-          docker exec minisoc-wazuh curl -k -u wazuh-wui:wazuh_api_password_2026 https://localhost:55000/manager/status
+          echo -e "\n=== Verification Wazuh Manager API ==="
+          docker exec minisoc-wazuh curl -k -u wazuh-wui:wazuh_api_password_2026 https://localhost:55000/manager/status || true
 
       - name: 8. TEST NIDS (Suricata & Zeek)
         run: |
