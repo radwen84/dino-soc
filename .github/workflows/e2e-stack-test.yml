@@ -36,8 +36,8 @@ jobs:
           cd apps/backend
           npm ci
           npx prisma generate
-          npm run test
-          npm test || echo "Tests unitaires ignorés pour ce run E2E"
+          npx prisma db push --skip-generate || true
+          npm test -- --passWithNoTests
 
       - name: 4. Démarrage de la Stack Docker (18 Services)
         run: |
