@@ -70,10 +70,14 @@ jobs:
 
       - name: 5. Démarrage Séquentiel BDD, Migrations & Stack Docker
         run: |
-          # 1. Démarrer PostgreSQL (les ports du compose seront exposés si configurés)
-          docker compose --env-file .env up -d --build postgres
+          # 1. Démarrer uniquement PostgreSQL
+          docker compose --env-file .env up -d postgres
           
-          # 2. Attente active de la disponibilité de PostgreSQL
+          # 2. Exposer le port 5432 directement vers l'hôte pour le Runner GitHub
+          CONTAINER_ID=$(docker compose ps -q postgres)
+          docker run --rm --net=container:$CONTAINER_ID -d -p 5432:5432 alpine/socat TCP-LISTEN:5432,fork TCP:127.0.0.1:5432 || true
+
+          # 3. Attente active de la disponibilité de PostgreSQL
           echo "Attente de PostgreSQL (Timeout: 60s)..."
           TIMEOUT=12
           until docker exec minisoc-postgres pg_isready -U minisoc_app -d minisoc > /dev/null 2>&1 || [ $TIMEOUT -eq 0 ]; do
@@ -82,19 +86,16 @@ jobs:
             TIMEOUT=$((TIMEOUT-1))
           done
 
-          # 3. Initialisation de la BDD pour n8n
+          # 4. Initialisation de la BDD pour n8n
           docker exec minisoc-postgres psql -U minisoc_app -d minisoc -c "CREATE DATABASE n8n;" || true
 
-          # 4. Migration Prisma exécutée via docker exec directement dans le conteneur postgres
-          # astuce: on exécute un conteneur Node temporaire rattaché au réseau docker pour appliquer la migration
+          # 5. Migration Prisma exécutée directement sur l'hôte CI sans re-téléchargement
           echo "Exécution des migrations Prisma..."
-          NETWORK_NAME=$(docker inspect minisoc-postgres --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{end}}')
-          docker run --rm --network $NETWORK_NAME \
-            -v $(pwd)/apps/backend:/app -w /app \
-            -e DATABASE_URL="postgresql://minisoc_app:minisoc_db_password_2026@postgres:5432/minisoc?schema=public" \
-            node:18-alpine npx prisma db push --accept-data-loss
+          cd apps/backend
+          DATABASE_URL="postgresql://minisoc_app:minisoc_db_password_2026@127.0.0.1:5432/minisoc?schema=public" npx prisma db push --accept-data-loss
+          cd ../..
 
-          # 5. Démarrage global de l'ensemble des services
+          # 6. Démarrage global de l'ensemble de la stack
           echo "Lancement global des conteneurs..."
           docker compose --env-file .env up -d --build
           
