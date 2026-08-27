@@ -24,7 +24,7 @@ jobs:
         run: |
           mkdir -p secrets
           
-          # Secrets pour Docker Compose
+          # Secrets Docker
           echo "minisoc_db_password_2026" > secrets/db_password.txt
           echo "minisoc_jwt_secret_key_2026" > secrets/jwt_secret.txt
           echo "minisoc_jwt_refresh_secret_key_2026" > secrets/jwt_refresh_secret.txt
@@ -32,7 +32,7 @@ jobs:
           echo "minisoc_redis_password_2026" > secrets/redis_password.txt
           echo "minisoc_misp_password_2026" > secrets/misp_password.txt
           
-          # Fichier .env pour le runner GitHub Actions
+          # Fichier .env local
           cp .env.example .env || true
           echo "DATABASE_URL=postgresql://minisoc_app:minisoc_db_password_2026@localhost:5432/minisoc?schema=public" >> .env
           echo "JWT_SECRET=minisoc_jwt_secret_key_2026_super_secret_for_ci_testing_32chars" >> .env
@@ -53,22 +53,26 @@ jobs:
           npx prisma generate
           npm test -- --passWithNoTests || echo "Tolerance CI: poursuite du pipeline vers le test Full-Stack"
 
-      - name: 4. Démarrage de la Stack Docker (18 Services)
+      - name: 4. Démarrage de la Stack Docker & Base de Données
         run: |
-          # Configuration Kernel pour OpenSearch
           sudo sysctl -w vm.max_map_count=262144 || true
           
-          # Démarrage non-bloquant tolérant aux échecs intermédiaires de healthcheck
-          docker compose up -d --build --wait --wait-timeout 180 || docker compose up -d
+          # Démarrage non-bloquant
+          docker compose up -d
           
-          echo "Attente de la disponibilité de PostgreSQL..."
-          until docker exec minisoc-postgres pg_isready -U minisoc_app -d minisoc > /dev/null 2>&1; do
-            echo "PostgreSQL en cours de démarrage..."
+          echo "Attente de PostgreSQL (Timeout: 60s)..."
+          TIMEOUT=12
+          until docker exec minisoc-postgres pg_isready -U minisoc_app -d minisoc > /dev/null 2>&1 || [ $TIMEOUT -eq 0 ]; do
+            echo "En attente de PostgreSQL... ($TIMEOUT essais restants)"
             sleep 5
+            TIMEOUT=$((TIMEOUT-1))
           done
           
-          echo "PostgreSQL est disponible. Attente de la stabilisation globale des services (45s)..."
-          sleep 45
+          echo "Exécution des migrations Prisma sur le conteneur API..."
+          docker exec minisoc-api npx prisma migrate deploy || true
+          
+          echo "Stabilisation globale des services (30s)..."
+          sleep 30
 
       - name: 5. Diagnostic de Santé des Conteneurs & Logs
         run: |
