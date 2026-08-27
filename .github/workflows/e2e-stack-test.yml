@@ -20,11 +20,11 @@ jobs:
       - name: 1. Checkout du Code Source
         uses: actions/checkout@v4
 
-      - name: 2. Preparation Système & Réseau du Hôte (CI/CD)
+      - name: 2. Préparation Système & Réseau du Hôte (CI/CD)
         run: |
           sudo sysctl -w vm.max_map_count=262144 || true
           sudo ip link set eth0 promisc on || true
-          # Preparation des permissions pour les volumes de conteneurs (OpenSearch UID 1000)
+          # Préparation des permissions pour les volumes de conteneurs (OpenSearch UID 1000)
           sudo mkdir -p /var/lib/docker/volumes/
           sudo chmod -R 777 /var/lib/docker/volumes/ || true
 
@@ -69,7 +69,7 @@ jobs:
           cd apps/backend
           npm ci
           npx prisma generate
-          npm test -- --passWithNoTests || echo "Tolerance CI: poursuite du pipeline"
+          npm test -- --passWithNoTests || echo "Tolérance CI: poursuite du pipeline"
 
       - name: 5. Démarrage Séquentiel BDD, Migrations & Stack Docker
         run: |
@@ -100,6 +100,36 @@ jobs:
           
           echo "Stabilisation globale des services (45s)..."
           sleep 45
+
+      - name: 5b. Initialisation & Déverrouillage Automatique de Vault (Unseal)
+        run: |
+          echo "=== Attente du démarrage du service Vault ==="
+          TIMEOUT=12
+          until docker exec minisoc-vault vault status -tls-skip-verify > /dev/null 2>&1 || [ $TIMEOUT -eq 0 ]; do
+            echo "Attente de Vault... ($TIMEOUT essais restants)"
+            sleep 3
+            TIMEOUT=$((TIMEOUT-1))
+          done
+
+          echo "=== Initialisation de Vault (Génération des Unseal Keys) ==="
+          INIT_JSON=$(docker exec -e VAULT_ADDR='https://127.0.0.1:8200' -e VAULT_SKIP_VERIFY=true minisoc-vault vault operator init -format=json 2>/dev/null || true)
+
+          KEY1=$(echo "$INIT_JSON" | jq -r '.unseal_keys_b64[0]')
+          KEY2=$(echo "$INIT_JSON" | jq -r '.unseal_keys_b64[1]')
+          KEY3=$(echo "$INIT_JSON" | jq -r '.unseal_keys_b64[2]')
+
+          if [ -n "$KEY1" ] && [ "$KEY1" != "null" ]; then
+            echo "=== Exécution des 3 opérations Unseal ==="
+            docker exec -e VAULT_ADDR='https://127.0.0.1:8200' -e VAULT_SKIP_VERIFY=true minisoc-vault vault operator unseal "$KEY1" > /dev/null
+            docker exec -e VAULT_ADDR='https://127.0.0.1:8200' -e VAULT_SKIP_VERIFY=true minisoc-vault vault operator unseal "$KEY2" > /dev/null
+            docker exec -e VAULT_ADDR='https://127.0.0.1:8200' -e VAULT_SKIP_VERIFY=true minisoc-vault vault operator unseal "$KEY3" > /dev/null
+            echo "✅ Vault unsealed avec succès !"
+          else
+            echo "⚠️ Vault est déjà initialisé ou déverrouillé."
+          fi
+
+          echo "=== Statut final de Vault ==="
+          docker exec -e VAULT_ADDR='https://127.0.0.1:8200' -e VAULT_SKIP_VERIFY=true minisoc-vault vault status
 
       - name: 6. Diagnostic de Santé des Conteneurs & Logs (En cas d'échec)
         if: always()
@@ -143,17 +173,19 @@ jobs:
                }'
 
           sleep 2
-          echo "=== Verification Ingestion OpenSearch ==="
+          echo "=== Vérification Ingestion OpenSearch ==="
           SEARCH_RES=$(curl -s "http://localhost:9200/minisoc-alerts/_search?q=source:Github_Actions_Real_Test")
           echo "$SEARCH_RES" | grep -q "E2E Real Attack Simulation Ingested" && echo "✅ OpenSearch Data Lake OK" || { echo "❌ Échec Ingestion OpenSearch"; exit 1; }
           
-          echo -e "\n=== Verification Wazuh Manager API ==="
-          docker exec minisoc-wazuh curl -k -u wazuh-wui:wazuh_api_password_2026 https://localhost:55000/manager/status | grep -q '"state":"run"' && echo "✅ Wazuh Manager OK" || echo "⚠️ Warning: Wazuh non disponible"
+          echo -e "\n=== Vérification Wazuh Manager API ==="
+          WAZUH_CONTAINER=$(docker ps --format "{{.Names}}" | grep -E "wazuh" | head -n 1)
+          if [ -n "$WAZUH_CONTAINER" ]; then
+            docker exec $WAZUH_CONTAINER curl -k -u wazuh-wui:wazuh_api_password_2026 https://localhost:55000/manager/status | grep -q '"state":"run"' && echo "✅ Wazuh Manager OK" || echo "⚠️ Warning: Wazuh non disponible"
+          fi
 
       - name: 8. TEST RÉEL NIDS (Attaque SQLi & Path Traversal sur Suricata)
         run: |
           echo "=== Injection de payload SQL Injection réelle ==="
-          # Use -k to allow self-signed certs and -L to follow Nginx 301 redirects
           curl -sLk "https://localhost/api/test?q=UNION+SELECT+1,2,3,4,5,6--+" || true
           curl -sLk "https://localhost/api/users?id=1%27%20OR%20%271%27=%271" || true
 
@@ -215,17 +247,63 @@ jobs:
             exit 1
           fi
 
-      - name: 11. TEST CASE MANAGEMENT & THREAT INTEL (TheHive & Cortex)
+      - name: 11. TEST RÉEL SYNC MANUELLE WAZUH & PIPELINE OPENSEARCH
+        run: |
+          echo "=== 1. Obtenir un token admin ==="
+          LOGIN_RES=$(curl -sLk -X POST "https://localhost/api/auth/login" \
+            -H "Content-Type: application/json" \
+            -d '{"email":"admin@minisoc.local","password":"Admin@MiniSOC2026!"}')
+
+          TOKEN=$(echo "$LOGIN_RES" | jq -r '.accessToken // .access_token // .token')
+
+          if [ -z "$TOKEN" ] || [ "$TOKEN" == "null" ]; then
+            echo "❌ ERREUR: Impossible de récupérer le token JWT Admin."
+            echo "Réponse API Login: $LOGIN_RES"
+            exit 1
+          fi
+          echo "✅ Token JWT Admin récupéré avec succès !"
+
+          echo "=== 2. Déclencher la sync Wazuh ==="
+          SYNC_RES=$(curl -sLk -X POST "https://localhost/api/alerts/sync-wazuh" \
+            -H "Authorization: Bearer $TOKEN")
+          echo "Réponse Sync: $SYNC_RES"
+
+          echo "=== 3. Vérifier les alertes en BDD PostgreSQL ==="
+          PG_COUNT=$(docker exec minisoc-postgres psql -U minisoc_app -d minisoc -t -c "SELECT COUNT(*) FROM alerts WHERE wazuh_alert_id IS NOT NULL;" 2>/dev/null | tr -d ' ' || echo "0")
+          echo "Nombre d'alertes en base PostgreSQL: ${PG_COUNT}"
+
+          echo "=== 4. Vérifier l'API REST Backend (/api/alerts) ==="
+          API_RES=$(curl -sLk "https://localhost/api/alerts" -H "Authorization: Bearer $TOKEN")
+          TOTAL_API=$(echo "$API_RES" | jq -r '.meta.total // .total // 0')
+          echo "Nombre d'alertes via API REST: $TOTAL_API"
+
+          echo "=== 5. Vérifier la pipeline Wazuh -> OpenSearch ==="
+          WAZUH_CONTAINER=$(docker ps --format "{{.Names}}" | grep -E "wazuh" | head -n 1)
+          if [ -n "$WAZUH_CONTAINER" ]; then
+            docker exec $WAZUH_CONTAINER ls -la /var/ossec/logs/alerts/alerts.json || echo "⚠️ Journal alerts.json non trouvé"
+          fi
+
+          FILEBEAT_CONTAINER=$(docker ps --format "{{.Names}}" | grep -E "filebeat" | head -n 1)
+          if [ -n "$FILEBEAT_CONTAINER" ]; then
+            echo "=== Logs Filebeat ==="
+            docker logs $FILEBEAT_CONTAINER --tail 20 || true
+          fi
+
+          echo "=== Comptage des documents OpenSearch (wazuh-alerts-*) ==="
+          OS_COUNT=$(curl -s "http://localhost:9200/wazuh-alerts-*/_count" | jq -r '.count // 0')
+          echo "Documents dans OpenSearch (wazuh-alerts-*): $OS_COUNT"
+
+      - name: 12. TEST CASE MANAGEMENT & THREAT INTEL (TheHive & Cortex)
         run: |
           curl -s -f http://localhost:9000/api/v1/status && echo "✅ TheHive OK" || echo "⚠️ TheHive non prêt"
           curl -s -f http://localhost:9001/api/status && echo "✅ Cortex OK" || echo "⚠️ Cortex non prêt"
 
-      - name: 12. TEST OBSERVABILITÉ (Prometheus & Grafana)
+      - name: 13. TEST OBSERVABILITÉ (Prometheus & Grafana)
         run: |
           curl -s -f http://localhost:9090/-/healthy && echo "✅ Prometheus OK" || echo "⚠️ Prometheus non prêt"
           curl -s -f http://localhost:3000/api/health && echo "✅ Grafana OK" || echo "⚠️ Grafana non prêt"
 
-      - name: 13. Audit de Sécurité (Trivy SAST)
+      - name: 14. Audit de Sécurité (Trivy SAST)
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
@@ -234,6 +312,6 @@ jobs:
           severity: 'CRITICAL,HIGH'
           exit-code: '0'
 
-      - name: 14. Nettoyage de l'Environnement
+      - name: 15. Nettoyage de l'Environnement
         if: always()
         run: docker compose down -v
