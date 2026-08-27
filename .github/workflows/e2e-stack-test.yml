@@ -105,14 +105,14 @@ jobs:
         run: |
           echo "=== Attente du démarrage du service Vault ==="
           TIMEOUT=12
-          until docker exec minisoc-vault vault status -tls-skip-verify > /dev/null 2>&1 || [ $TIMEOUT -eq 0 ]; do
+          until docker exec minisoc-vault vault status -address='http://127.0.0.1:8200' > /dev/null 2>&1 || [ $TIMEOUT -eq 0 ]; do
             echo "Attente de Vault... ($TIMEOUT essais restants)"
             sleep 3
             TIMEOUT=$((TIMEOUT-1))
           done
 
           echo "=== Initialisation de Vault (Génération des Unseal Keys) ==="
-          INIT_JSON=$(docker exec -e VAULT_ADDR='https://127.0.0.1:8200' -e VAULT_SKIP_VERIFY=true minisoc-vault vault operator init -format=json 2>/dev/null || true)
+          INIT_JSON=$(docker exec -e VAULT_ADDR='http://127.0.0.1:8200' minisoc-vault vault operator init -format=json 2>/dev/null || true)
 
           KEY1=$(echo "$INIT_JSON" | jq -r '.unseal_keys_b64[0]')
           KEY2=$(echo "$INIT_JSON" | jq -r '.unseal_keys_b64[1]')
@@ -120,16 +120,16 @@ jobs:
 
           if [ -n "$KEY1" ] && [ "$KEY1" != "null" ]; then
             echo "=== Exécution des 3 opérations Unseal ==="
-            docker exec -e VAULT_ADDR='https://127.0.0.1:8200' -e VAULT_SKIP_VERIFY=true minisoc-vault vault operator unseal "$KEY1" > /dev/null
-            docker exec -e VAULT_ADDR='https://127.0.0.1:8200' -e VAULT_SKIP_VERIFY=true minisoc-vault vault operator unseal "$KEY2" > /dev/null
-            docker exec -e VAULT_ADDR='https://127.0.0.1:8200' -e VAULT_SKIP_VERIFY=true minisoc-vault vault operator unseal "$KEY3" > /dev/null
+            docker exec -e VAULT_ADDR='http://127.0.0.1:8200' minisoc-vault vault operator unseal "$KEY1" > /dev/null
+            docker exec -e VAULT_ADDR='http://127.0.0.1:8200' minisoc-vault vault operator unseal "$KEY2" > /dev/null
+            docker exec -e VAULT_ADDR='http://127.0.0.1:8200' minisoc-vault vault operator unseal "$KEY3" > /dev/null
             echo "✅ Vault unsealed avec succès !"
           else
             echo "⚠️ Vault est déjà initialisé ou déverrouillé."
           fi
 
           echo "=== Statut final de Vault ==="
-          docker exec -e VAULT_ADDR='https://127.0.0.1:8200' -e VAULT_SKIP_VERIFY=true minisoc-vault vault status
+          docker exec -e VAULT_ADDR='http://127.0.0.1:8200' minisoc-vault vault status
 
       - name: 6. Diagnostic de Santé des Conteneurs & Logs (En cas d'échec)
         if: always()
