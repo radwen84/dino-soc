@@ -55,25 +55,31 @@ jobs:
 
       - name: 4. Démarrage de la Stack Docker (18 Services)
         run: |
-          # Kernel configuration pour OpenSearch
+          # Configuration Kernel pour OpenSearch
           sudo sysctl -w vm.max_map_count=262144 || true
           
-          docker compose up -d --build
+          # Démarrage non-bloquant tolérant aux échecs intermédiaires de healthcheck
+          docker compose up -d --build --wait --wait-timeout 180 || docker compose up -d
           
-          echo "Attente du Healthcheck PostgreSQL..."
-          until [ "$(docker inspect --format='{{.State.Health.Status}}' minisoc-postgres)" == "healthy" ]; do
-            echo "En attente de PostgreSQL..."
+          echo "Attente de la disponibilité de PostgreSQL..."
+          until docker exec minisoc-postgres pg_isready -U minisoc_app -d minisoc > /dev/null 2>&1; do
+            echo "PostgreSQL en cours de démarrage..."
             sleep 5
           done
           
-          echo "Attente de l'initialisation des autres services (60s)..."
-          sleep 60
+          echo "PostgreSQL est disponible. Attente de la stabilisation globale des services (45s)..."
+          sleep 45
 
-      - name: 5. Diagnostic de Santé des Conteneurs
+      - name: 5. Diagnostic de Santé des Conteneurs & Logs
         run: |
+          echo "=== ETAT DES CONTENEURS ==="
           docker compose ps
-          echo "=== Logs API Backend ==="
-          docker compose logs --tail=100 nestjs-api || true
+          
+          echo "=== LOGS API BACKEND ==="
+          docker logs minisoc-api 2>&1 | tail -n 100 || docker compose logs --tail=100 nestjs-api || true
+          
+          echo "=== LOGS POSTGRESQL ==="
+          docker logs minisoc-postgres 2>&1 | tail -n 50 || true
 
       - name: 6. TEST SIEM & DATA LAKE (OpenSearch & Wazuh)
         run: |

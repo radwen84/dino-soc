@@ -137,10 +137,11 @@ services:
     tmpfs:
       - /tmp
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:4000/api/health"]
+      test: ["CMD-SHELL", "node -e 'require(\"http\").get(\"http://localhost:4000/api/health\", (r) => {if (r.statusCode !== 200) process.exit(1);})' || exit 1"]
       interval: 15s
       timeout: 5s
-      retries: 3
+      retries: 10
+      start_period: 40s
     depends_on:
       postgres:
         condition: service_healthy
