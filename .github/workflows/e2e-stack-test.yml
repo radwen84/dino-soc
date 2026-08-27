@@ -38,7 +38,7 @@ jobs:
           echo "minisoc_redis_password_2026" > secrets/redis_password.txt
           echo "minisoc_misp_password_2026" > secrets/misp_password.txt
           
-          # Génération du .env complet avec les variables NIDS Suricata
+          # Génération du .env complet
           cat <<EOF > .env
           POSTGRES_USER=minisoc_app
           POSTGRES_PASSWORD=minisoc_db_password_2026
@@ -68,12 +68,12 @@ jobs:
           npx prisma generate
           npm test -- --passWithNoTests || echo "Tolerance CI: poursuite du pipeline"
 
-      - name: 5. Démarrage de la Stack Docker & Base de Données
+      - name: 5. Démarrage Séquentiel BDD, Migrations & Stack Docker
         run: |
-          # 1. Démarrage de la stack
-          docker compose --env-file .env up -d --build
+          # 1. Démarrer uniquement la base de données PostgreSQL
+          docker compose --env-file .env up -d postgres
           
-          # 2. Attente active de PostgreSQL
+          # 2. Attente active de la disponibilité de PostgreSQL
           echo "Attente de PostgreSQL (Timeout: 60s)..."
           TIMEOUT=12
           until docker exec minisoc-postgres pg_isready -U minisoc_app -d minisoc > /dev/null 2>&1 || [ $TIMEOUT -eq 0 ]; do
@@ -82,12 +82,19 @@ jobs:
             TIMEOUT=$((TIMEOUT-1))
           done
 
-          # 3. Création de la BDD pour n8n
+          # 3. Initialisation de la BDD pour n8n
           docker exec minisoc-postgres psql -U minisoc_app -d minisoc -c "CREATE DATABASE n8n;" || true
 
-          # 4. Exécution explicite des migrations Prisma
-          echo "Exécution de prisma db push sur le conteneur API..."
-          docker exec -e DATABASE_URL="postgresql://minisoc_app:minisoc_db_password_2026@postgres:5432/minisoc?schema=public" minisoc-api npx prisma db push --accept-data-loss
+          # 4. Migration Prisma exécutée AVANT le boot de l'API (Résout le crash du container API)
+          echo "Exécution préliminaire des migrations Prisma..."
+          docker run --rm --network host \
+            -v $(pwd)/apps/backend:/app -w /app \
+            -e DATABASE_URL="postgresql://minisoc_app:minisoc_db_password_2026@localhost:5432/minisoc?schema=public" \
+            node:20 npx prisma db push --accept-data-loss
+
+          # 5. Démarrage global de l'ensemble des services
+          echo "Lancement global des conteneurs..."
+          docker compose --env-file .env up -d --build
           
           echo "Stabilisation globale des services (30s)..."
           sleep 30
