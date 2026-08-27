@@ -20,7 +20,15 @@ jobs:
       - name: 1. Checkout du Code Source
         uses: actions/checkout@v4
 
-      - name: 2. Initialisation des Secrets & Variables d'Environnement
+      - name: 2. Preparation Système & Réseau du Hôte (CI/CD)
+        run: |
+          # Augmentation de la mémoire virtuelle globale pour OpenSearch
+          sudo sysctl -w vm.max_map_count=262144 || true
+          
+          # Activation du mode promiscuous sur l'interface principale du runner GitHub
+          sudo ip link set eth0 promisc on || true
+
+      - name: 3. Initialisation des Secrets & Injection de l'Environnement .env
         run: |
           mkdir -p secrets
           
@@ -33,19 +41,18 @@ jobs:
           echo "minisoc_redis_password_2026" > secrets/redis_password.txt
           echo "minisoc_misp_password_2026" > secrets/misp_password.txt
           
-          # Fichier .env local pour Docker Compose
-          cp .env.example .env || true
-          {
-            echo "DATABASE_URL=postgresql://minisoc_app:minisoc_db_password_2026@postgres:5432/minisoc?schema=public"
-            echo "JWT_SECRET=minisoc_jwt_secret_key_2026_super_secret_32chars"
-            echo "JWT_REFRESH_SECRET=minisoc_jwt_refresh_secret_key_2026_super_secret_32chars"
-            echo "API_CORS_ORIGINS=*"
-          } >> .env
-          
+          # Génération du fichier .env complet et explicite pour Docker Compose
+          cat <<EOF > .env
+          DATABASE_URL=postgresql://minisoc_app:minisoc_db_password_2026@postgres:5432/minisoc?schema=public
+          JWT_SECRET=minisoc_jwt_secret_key_2026_super_secret_32chars
+          JWT_REFRESH_SECRET=minisoc_jwt_refresh_secret_key_2026_super_secret_32chars
+          API_CORS_ORIGINS=*
+          EOF
+
           chmod +x ./scripts/generate-certs.sh || true
           ./scripts/generate-certs.sh || true
 
-      - name: 3. Compilation Backend & Validation des Tests Unitaires
+      - name: 4. Compilation Backend & Validation des Tests Unitaires
         env:
           DATABASE_URL: "postgresql://minisoc_app:minisoc_db_password_2026@localhost:5432/minisoc?schema=public"
           JWT_SECRET: "minisoc_jwt_secret_key_2026_super_secret_32chars"
@@ -56,16 +63,10 @@ jobs:
           npx prisma generate
           npm test -- --passWithNoTests || echo "Tolerance CI: poursuite du pipeline vers le test Full-Stack"
 
-      - name: 4. Démarrage de la Stack Docker & Base de Données
-        env:
-          DATABASE_URL: "postgresql://minisoc_app:minisoc_db_password_2026@postgres:5432/minisoc?schema=public"
-          JWT_SECRET: "minisoc_jwt_secret_key_2026_super_secret_32chars"
-          JWT_REFRESH_SECRET: "minisoc_jwt_refresh_secret_key_2026_super_secret_32chars"
+      - name: 5. Démarrage de la Stack Docker & Base de Données
         run: |
-          sudo sysctl -w vm.max_map_count=262144 || true
-          
-          # Démarrage de la stack avec variables injectées au runtime Docker
-          docker compose up -d --build || true
+          # Force le passage du fichier .env à tous les conteneurs au boot
+          docker compose --env-file .env up -d --build || true
           
           echo "Attente de PostgreSQL (Timeout: 60s)..."
           TIMEOUT=12
@@ -76,12 +77,12 @@ jobs:
           done
           
           echo "Exécution des migrations Prisma sur le conteneur API..."
-          docker exec minisoc-api npx prisma migrate deploy || true
+          docker exec -e DATABASE_URL="postgresql://minisoc_app:minisoc_db_password_2026@postgres:5432/minisoc?schema=public" minisoc-api npx prisma migrate deploy || true
           
           echo "Stabilisation globale des services (60s)..."
           sleep 60
 
-      - name: 5. Diagnostic de Santé des Conteneurs & Logs
+      - name: 6. Diagnostic de Santé des Conteneurs & Logs
         run: |
           echo "=== ETAT DES CONTENEURS ==="
           docker compose ps
@@ -92,7 +93,7 @@ jobs:
           echo "=== LOGS POSTGRESQL ==="
           docker logs minisoc-postgres 2>&1 | tail -n 50 || true
 
-      - name: 6. TEST SIEM & DATA LAKE (OpenSearch & Wazuh)
+      - name: 7. TEST SIEM & DATA LAKE (OpenSearch & Wazuh)
         run: |
           echo "=== Verification OpenSearch Cluster ==="
           docker exec minisoc-opensearch curl -s http://localhost:9200/_cluster/health || echo "OpenSearch non encore prêt"
@@ -100,28 +101,28 @@ jobs:
           echo "=== Verification Wazuh Manager API ==="
           docker exec minisoc-wazuh curl -k -u wazuh-wui:wazuh_api_password_2026 https://localhost:55000/manager/status || echo "Wazuh API inaccessible"
 
-      - name: 7. TEST NIDS (Suricata & Zeek)
+      - name: 8. TEST NIDS (Suricata & Zeek)
         run: |
           echo "=== Injection de Trafic SQLi (Suricata) ==="
           curl -s "http://localhost/api/test?q=UNION+SELECT+1,2,3" || true
           sleep 5
           docker exec minisoc-suricata cat /var/log/suricata/eve.json 2>/dev/null | grep "SQL Injection" || echo "Alerte Suricata non trouvée"
 
-      - name: 8. TEST RUNTIME SECURITY (Falco)
+      - name: 9. TEST RUNTIME SECURITY (Falco)
         run: |
           echo "=== Simulation d'accès sensible (/etc/shadow) ==="
           docker exec minisoc-api /bin/sh -c "cat /etc/shadow" || true
           sleep 5
           docker logs minisoc-falco 2>&1 | grep -i "Notice" || echo "Alerte Falco non détectée"
 
-      - name: 9. TEST ML ANOMALY ENGINE (FastAPI)
+      - name: 10. TEST ML ANOMALY ENGINE (FastAPI)
         run: |
           echo "=== Risk Scoring ML Test ==="
           curl -s -X POST "http://localhost:8000/score" \
                 -H "Content-Type: application/json" \
                 -d '{"alert_level": 10, "rule_id": "100001", "src_ip": "192.168.1.100"}' || echo "FastAPI ML non disponible"
 
-      - name: 10. TEST CASE MANAGEMENT & THREAT INTEL (TheHive & Cortex)
+      - name: 11. TEST CASE MANAGEMENT & THREAT INTEL (TheHive & Cortex)
         run: |
           echo "=== Verification Status TheHive 5 ==="
           curl -s http://localhost:9000/api/v1/status || true
@@ -129,7 +130,7 @@ jobs:
           echo "=== Verification Status Cortex ==="
           curl -s http://localhost:9001/api/status || true
 
-      - name: 11. TEST OBSERVABILITÉ (Prometheus & Grafana)
+      - name: 12. TEST OBSERVABILITÉ (Prometheus & Grafana)
         run: |
           echo "=== Prometheus Health Check ==="
           curl -s http://localhost:9090/-/healthy || true
@@ -137,7 +138,7 @@ jobs:
           echo "=== Grafana Health Check ==="
           curl -s http://localhost:3000/api/health || true
 
-      - name: 12. TEST API GATEWAY & E2E ENDPOINTS (Auth & Incidents)
+      - name: 13. TEST API GATEWAY & E2E ENDPOINTS (Auth & Incidents)
         run: |
           echo "=== Login API via Nginx Gateway ==="
           TOKEN=$(curl -k -s -X POST https://localhost/api/auth/login \
@@ -149,7 +150,7 @@ jobs:
             -H "Content-Type: application/json" \
             -d '{"title": "Test Incident Branche Feature", "severity": "high", "description": "Validation pipeline"}' || echo "API Gateway indisponible"
 
-      - name: 13. Audit de Sécurité (Trivy SAST)
+      - name: 14. Audit de Sécurité (Trivy SAST)
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
@@ -158,6 +159,6 @@ jobs:
           severity: 'CRITICAL,HIGH'
           exit-code: '0'
 
-      - name: 14. Nettoyage de l'Environnement
+      - name: 15. Nettoyage de l'Environnement
         if: always()
         run: docker compose down -v

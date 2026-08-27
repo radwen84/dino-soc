@@ -1,5 +1,5 @@
 # ============================================================
-# Mini-SOC Platform - Docker Compose 
+# Mini-SOC Platform - Docker Compose (CI/CD & Prod Ready)
 # ============================================================
 
 networks:
@@ -51,7 +51,6 @@ services:
         limits:
           memory: 256M
           cpus: "0.5"
-    
     tmpfs:
       - /var/cache/nginx
       - /var/run
@@ -90,6 +89,9 @@ services:
       - redis_password
     environment:
       - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL:-postgresql://minisoc_app:minisoc_db_password_2026@postgres:5432/minisoc?schema=public}
+      - JWT_SECRET=${JWT_SECRET:-minisoc_jwt_secret_key_2026_super_secret_32chars}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-minisoc_jwt_refresh_secret_key_2026_super_secret_32chars}
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_NAME=minisoc
@@ -98,7 +100,7 @@ services:
       - OPENSEARCH_PORT=9200
       - OPENSEARCH_PROTOCOL=http
       - OPENSEARCH_URL=http://opensearch:9200
-      - API_CORS_ORIGINS=${API_CORS_ORIGINS}
+      - API_CORS_ORIGINS=${API_CORS_ORIGINS:-*}
       - WAZUH_HOST=${WAZUH_HOST:-wazuh-manager}
       - WAZUH_API_PORT=${WAZUH_API_PORT:-55000}
       - WAZUH_API_USER=${WAZUH_API_USER:-wazuh-wui}
@@ -109,7 +111,6 @@ services:
       - JWT_SECRET_FILE=/run/secrets/jwt_secret
       - JWT_REFRESH_SECRET_FILE=/run/secrets/jwt_refresh_secret
       - REDIS_PASSWORD_FILE=/run/secrets/redis_password
-      # Threat Intelligence
       - MISP_URL=http://misp:80
       - MISP_API_KEY=${MISP_API_KEY:-}
       - ABUSEIPDB_API_KEY=${ABUSEIPDB_API_KEY:-}
@@ -119,9 +120,7 @@ services:
       - TAXII_COLLECTION_ID=${TAXII_COLLECTION_ID:-}
       - TAXII_USERNAME=${TAXII_USERNAME:-}
       - TAXII_PASSWORD=${TAXII_PASSWORD:-}
-      # ML Engine
       - ML_ENGINE_URL=http://ml-engine:8000
-      # TheHive & Cortex
       - THEHIVE_URL=http://thehive:9000
       - THEHIVE_API_KEY=${THEHIVE_API_KEY:-}
       - THEHIVE_ORGANIZATION=${THEHIVE_ORGANIZATION:-Mini-SOC}
@@ -323,7 +322,7 @@ services:
       - NET_ADMIN
       - NET_RAW
       - SYS_NICE
-    command: -i ${SURICATA_INTERFACE:-enp0s3} -c /etc/suricata/suricata.yaml
+    command: -i ${CAPTURE_INTERFACE:-eth0} -c /etc/suricata/suricata.yaml
     volumes:
       - suricata_logs:/var/log/suricata
     deploy:
@@ -332,13 +331,16 @@ services:
           memory: 1G
           cpus: "2.0"
 
+  # ============================================
+  # ZEEK - Network Security Monitoring
+  # ============================================
   zeek:
     build:
       context: ./security/zeek
       dockerfile: Dockerfile
     container_name: minisoc-zeek
     restart: unless-stopped
-    command: -i enp0s3 local
+    command: -i ${CAPTURE_INTERFACE:-eth0} local
     network_mode: host
     cap_add:
       - NET_RAW
@@ -346,6 +348,9 @@ services:
     volumes:
       - zeek_logs:/var/log/zeek
 
+  # ============================================
+  # FALCO - Cloud-Native Runtime Security
+  # ============================================
   falco:
     build:
       context: ./security/falco
@@ -534,7 +539,6 @@ services:
       - ./infrastructure/vault/tls:/vault/tls:ro
       - ./infrastructure/vault/policies:/vault/policies:ro
     entrypoint: ["vault", "server", "-config=/vault/config/vault.hcl"]
-    command: server -config=/vault/config/vault.hcl
     deploy:
       resources:
         limits:
@@ -555,6 +559,8 @@ services:
     restart: unless-stopped
     networks:
       - backend
+    secrets:
+      - db_password
     environment:
       - N8N_BASIC_AUTH_ACTIVE=true
       - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER:-admin}
@@ -566,6 +572,7 @@ services:
       - DB_POSTGRESDB_PORT=5432
       - DB_POSTGRESDB_DATABASE=n8n
       - DB_POSTGRESDB_USER=minisoc_app
+      - DB_POSTGRESDB_PASSWORD_FILE=/run/secrets/db_password
     volumes:
       - n8n_data:/home/node/.n8n
       - ./infrastructure/n8n/workflows:/home/node/workflows:ro
