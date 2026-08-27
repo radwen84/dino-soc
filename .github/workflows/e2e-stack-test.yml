@@ -70,8 +70,8 @@ jobs:
 
       - name: 5. Démarrage Séquentiel BDD, Migrations & Stack Docker
         run: |
-          # 1. Démarrer uniquement la base de données PostgreSQL
-          docker compose --env-file .env up -d postgres
+          # 1. Démarrer PostgreSQL et le service backend API
+          docker compose --env-file .env up -d postgres minisoc-api
           
           # 2. Attente active de la disponibilité de PostgreSQL
           echo "Attente de PostgreSQL (Timeout: 60s)..."
@@ -85,13 +85,11 @@ jobs:
           # 3. Initialisation de la BDD pour n8n
           docker exec minisoc-postgres psql -U minisoc_app -d minisoc -c "CREATE DATABASE n8n;" || true
 
-          # 4. Migration Prisma exécutée directement sur le runner GitHub
-          echo "Exécution préliminaire des migrations Prisma..."
-          cd apps/backend
-          DATABASE_URL="postgresql://minisoc_app:minisoc_db_password_2026@localhost:5432/minisoc?schema=public" npx prisma db push --accept-data-loss
-          cd ../..
+          # 4. Migration Prisma exécutée dans le réseau Docker interne (minisoc-api)
+          echo "Exécution des migrations Prisma..."
+          docker exec -e DATABASE_URL="postgresql://minisoc_app:minisoc_db_password_2026@postgres:5432/minisoc?schema=public" minisoc-api npx prisma db push --accept-data-loss
 
-          # 5. Démarrage global de l'ensemble des services
+          # 5. Démarrage global de l'ensemble des services de la stack
           echo "Lancement global des conteneurs..."
           docker compose --env-file .env up -d --build
           
