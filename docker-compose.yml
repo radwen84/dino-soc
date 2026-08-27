@@ -322,6 +322,9 @@ services:
       - NET_ADMIN
       - NET_RAW
       - SYS_NICE
+    environment:
+      - ORACLE_PORTS=1521
+      - HTTP_PORTS=80
     command: -i ${CAPTURE_INTERFACE:-eth0} -c /etc/suricata/suricata.yaml
     volumes:
       - suricata_logs:/var/log/suricata

@@ -38,7 +38,7 @@ jobs:
           echo "minisoc_redis_password_2026" > secrets/redis_password.txt
           echo "minisoc_misp_password_2026" > secrets/misp_password.txt
           
-          # Génération du .env (Inclusion explicite de toutes les variables nécessaires)
+          # Génération du .env complet avec les variables NIDS Suricata
           cat <<EOF > .env
           POSTGRES_USER=minisoc_app
           POSTGRES_PASSWORD=minisoc_db_password_2026
@@ -50,6 +50,8 @@ jobs:
           JWT_SECRET=minisoc_jwt_secret_key_2026_super_secret_32chars
           JWT_REFRESH_SECRET=minisoc_jwt_refresh_secret_key_2026_super_secret_32chars
           API_CORS_ORIGINS=*
+          ORACLE_PORTS=1521
+          HTTP_PORTS=80
           EOF
 
           chmod +x ./scripts/generate-certs.sh || true
@@ -80,10 +82,10 @@ jobs:
             TIMEOUT=$((TIMEOUT-1))
           done
 
-          # 3. Création de la BDD pour n8n si elle n'existe pas (Résout l'erreur FATAL n8n)
+          # 3. Création de la BDD pour n8n
           docker exec minisoc-postgres psql -U minisoc_app -d minisoc -c "CREATE DATABASE n8n;" || true
 
-          # 4. Exécution explicite des migrations Prisma (Résout l'erreur wazuh_alert_id)
+          # 4. Exécution explicite des migrations Prisma
           echo "Exécution de prisma db push sur le conteneur API..."
           docker exec -e DATABASE_URL="postgresql://minisoc_app:minisoc_db_password_2026@postgres:5432/minisoc?schema=public" minisoc-api npx prisma db push --accept-data-loss
           
@@ -115,7 +117,7 @@ jobs:
           echo "=== Injection de Trafic SQLi (Suricata) ==="
           curl -s "http://localhost/api/test?q=UNION+SELECT+1,2,3" || true
           sleep 5
-          docker exec minisoc-suricata cat /var/log/suricata/eve.json 2>/dev/null | grep "SQL Injection" || true
+          docker exec minisoc-suricata cat /var/log/suricata/eve.json 2>/dev/null | grep -i "SQL Injection" || echo "Alerte SQLi non enregistrée"
 
       - name: 9. TEST RUNTIME SECURITY (Falco)
         run: |
