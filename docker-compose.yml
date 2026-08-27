@@ -189,7 +189,6 @@ services:
     image: opensearchproject/opensearch:2.14.0
     container_name: minisoc-opensearch
     restart: unless-stopped
-    user: "1000:1000"
     networks:
       - siem
       - backend
@@ -197,10 +196,9 @@ services:
       - cluster.name=minisoc-cluster
       - node.name=opensearch-node1
       - discovery.type=single-node
-      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m -Dopensearch.security.disabled=true
       - DISABLE_INSTALL_DEMO_CONFIG=true
       - DISABLE_SECURITY_PLUGIN=true
-      - plugins.security.disabled=true
       - bootstrap.memory_lock=false
     ulimits:
       memlock:
