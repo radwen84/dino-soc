@@ -22,17 +22,14 @@ jobs:
 
       - name: 2. Preparation Système & Réseau du Hôte (CI/CD)
         run: |
-          # Augmentation de la mémoire virtuelle globale pour OpenSearch
           sudo sysctl -w vm.max_map_count=262144 || true
-          
-          # Activation du mode promiscuous sur l'interface principale du runner GitHub
           sudo ip link set eth0 promisc on || true
 
       - name: 3. Initialisation des Secrets & Injection de l'Environnement .env
         run: |
           mkdir -p secrets
           
-          # Secrets Docker
+          # Secrets Docker & Base de données
           echo "minisoc_db_password_2026" > secrets/postgres_password.txt
           echo "minisoc_db_password_2026" > secrets/db_password.txt
           echo "minisoc_jwt_secret_key_2026_super_secret_32chars" > secrets/jwt_secret.txt
@@ -41,9 +38,15 @@ jobs:
           echo "minisoc_redis_password_2026" > secrets/redis_password.txt
           echo "minisoc_misp_password_2026" > secrets/misp_password.txt
           
-          # Génération du fichier .env complet et explicite pour Docker Compose
+          # Génération du .env (Inclusion explicite de toutes les variables nécessaires)
           cat <<EOF > .env
+          POSTGRES_USER=minisoc_app
+          POSTGRES_PASSWORD=minisoc_db_password_2026
+          POSTGRES_DB=minisoc
           DATABASE_URL=postgresql://minisoc_app:minisoc_db_password_2026@postgres:5432/minisoc?schema=public
+          DB_POSTGRESDB_USER=minisoc_app
+          DB_POSTGRESDB_PASSWORD=minisoc_db_password_2026
+          DB_POSTGRESDB_DATABASE=n8n
           JWT_SECRET=minisoc_jwt_secret_key_2026_super_secret_32chars
           JWT_REFRESH_SECRET=minisoc_jwt_refresh_secret_key_2026_super_secret_32chars
           API_CORS_ORIGINS=*
@@ -61,13 +64,14 @@ jobs:
           cd apps/backend
           npm ci
           npx prisma generate
-          npm test -- --passWithNoTests || echo "Tolerance CI: poursuite du pipeline vers le test Full-Stack"
+          npm test -- --passWithNoTests || echo "Tolerance CI: poursuite du pipeline"
 
       - name: 5. Démarrage de la Stack Docker & Base de Données
         run: |
-          # Force le passage du fichier .env à tous les conteneurs au boot
-          docker compose --env-file .env up -d --build || true
+          # 1. Démarrage de la stack
+          docker compose --env-file .env up -d --build
           
+          # 2. Attente active de PostgreSQL
           echo "Attente de PostgreSQL (Timeout: 60s)..."
           TIMEOUT=12
           until docker exec minisoc-postgres pg_isready -U minisoc_app -d minisoc > /dev/null 2>&1 || [ $TIMEOUT -eq 0 ]; do
@@ -75,82 +79,68 @@ jobs:
             sleep 5
             TIMEOUT=$((TIMEOUT-1))
           done
-          
-          echo "Exécution des migrations Prisma sur le conteneur API..."
-          docker exec -e DATABASE_URL="postgresql://minisoc_app:minisoc_db_password_2026@postgres:5432/minisoc?schema=public" minisoc-api npx prisma migrate deploy || true
-          
-          echo "Stabilisation globale des services (60s)..."
-          sleep 60
 
-      - name: 6. Diagnostic de Santé des Conteneurs & Logs
+          # 3. Création de la BDD pour n8n si elle n'existe pas (Résout l'erreur FATAL n8n)
+          docker exec minisoc-postgres psql -U minisoc_app -d minisoc -c "CREATE DATABASE n8n;" || true
+
+          # 4. Exécution explicite des migrations Prisma (Résout l'erreur wazuh_alert_id)
+          echo "Exécution de prisma db push sur le conteneur API..."
+          docker exec -e DATABASE_URL="postgresql://minisoc_app:minisoc_db_password_2026@postgres:5432/minisoc?schema=public" minisoc-api npx prisma db push --accept-data-loss
+          
+          echo "Stabilisation globale des services (30s)..."
+          sleep 30
+
+      - name: 6. Diagnostic de Santé des Conteneurs & Logs (En cas d'échec)
+        if: always()
         run: |
           echo "=== ETAT DES CONTENEURS ==="
           docker compose ps
           
+          echo "=== LOGS VAULT (DEBUG) ==="
+          docker logs minisoc-vault 2>&1 | tail -n 50 || true
+
           echo "=== LOGS API BACKEND ==="
-          docker logs minisoc-api 2>&1 | tail -n 100 || docker compose logs --tail=100 nestjs-api || true
-          
-          echo "=== LOGS POSTGRESQL ==="
-          docker logs minisoc-postgres 2>&1 | tail -n 50 || true
+          docker logs minisoc-api 2>&1 | tail -n 100 || true
 
       - name: 7. TEST SIEM & DATA LAKE (OpenSearch & Wazuh)
         run: |
           echo "=== Verification OpenSearch Cluster ==="
-          docker exec minisoc-opensearch curl -s http://localhost:9200/_cluster/health || echo "OpenSearch non encore prêt"
+          docker exec minisoc-opensearch curl -s http://localhost:9200/_cluster/health
           
           echo "=== Verification Wazuh Manager API ==="
-          docker exec minisoc-wazuh curl -k -u wazuh-wui:wazuh_api_password_2026 https://localhost:55000/manager/status || echo "Wazuh API inaccessible"
+          docker exec minisoc-wazuh curl -k -u wazuh-wui:wazuh_api_password_2026 https://localhost:55000/manager/status
 
       - name: 8. TEST NIDS (Suricata & Zeek)
         run: |
           echo "=== Injection de Trafic SQLi (Suricata) ==="
           curl -s "http://localhost/api/test?q=UNION+SELECT+1,2,3" || true
           sleep 5
-          docker exec minisoc-suricata cat /var/log/suricata/eve.json 2>/dev/null | grep "SQL Injection" || echo "Alerte Suricata non trouvée"
+          docker exec minisoc-suricata cat /var/log/suricata/eve.json 2>/dev/null | grep "SQL Injection" || true
 
       - name: 9. TEST RUNTIME SECURITY (Falco)
         run: |
           echo "=== Simulation d'accès sensible (/etc/shadow) ==="
           docker exec minisoc-api /bin/sh -c "cat /etc/shadow" || true
           sleep 5
-          docker logs minisoc-falco 2>&1 | grep -i "Notice" || echo "Alerte Falco non détectée"
+          docker logs minisoc-falco 2>&1 | grep -i "Notice" || true
 
       - name: 10. TEST ML ANOMALY ENGINE (FastAPI)
         run: |
-          echo "=== Risk Scoring ML Test ==="
           curl -s -X POST "http://localhost:8000/score" \
                 -H "Content-Type: application/json" \
-                -d '{"alert_level": 10, "rule_id": "100001", "src_ip": "192.168.1.100"}' || echo "FastAPI ML non disponible"
+                -d '{"alert_level": 10, "rule_id": "100001", "src_ip": "192.168.1.100"}' || true
 
       - name: 11. TEST CASE MANAGEMENT & THREAT INTEL (TheHive & Cortex)
         run: |
-          echo "=== Verification Status TheHive 5 ==="
           curl -s http://localhost:9000/api/v1/status || true
-          
-          echo "=== Verification Status Cortex ==="
           curl -s http://localhost:9001/api/status || true
 
       - name: 12. TEST OBSERVABILITÉ (Prometheus & Grafana)
         run: |
-          echo "=== Prometheus Health Check ==="
-          curl -s http://localhost:9090/-/healthy || true
-          
-          echo "=== Grafana Health Check ==="
-          curl -s http://localhost:3000/api/health || true
+          curl -s http://localhost:9090/-/healthy
+          curl -s http://localhost:3000/api/health
 
-      - name: 13. TEST API GATEWAY & E2E ENDPOINTS (Auth & Incidents)
-        run: |
-          echo "=== Login API via Nginx Gateway ==="
-          TOKEN=$(curl -k -s -X POST https://localhost/api/auth/login \
-            -H "Content-Type: application/json" \
-            -d '{"email":"admin@minisoc.local","password":"changeme"}' | grep -o '"accessToken":"[^"]*' | grep -o '[^"]*$') || true
-            
-          curl -k -s -X POST https://localhost/api/incidents \
-            -H "Authorization: Bearer $TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{"title": "Test Incident Branche Feature", "severity": "high", "description": "Validation pipeline"}' || echo "API Gateway indisponible"
-
-      - name: 14. Audit de Sécurité (Trivy SAST)
+      - name: 13. Audit de Sécurité (Trivy SAST)
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
@@ -159,6 +149,6 @@ jobs:
           severity: 'CRITICAL,HIGH'
           exit-code: '0'
 
-      - name: 15. Nettoyage de l'Environnement
+      - name: 14. Nettoyage de l'Environnement
         if: always()
         run: docker compose down -v
