@@ -127,45 +127,97 @@ jobs:
           done
 
           if [ $TIMEOUT -eq 0 ]; then
-            echo "::warning::OpenSearch est lent à répondre, tentative de vérification directe..."
+            echo "::warning::OpenSearch est lent à répondre, vérification directe..."
             docker logs minisoc-opensearch --tail 50 || true
           fi
 
-          echo "=== Verification OpenSearch Cluster ==="
-          curl -s http://localhost:9200/_cluster/health || echo "OpenSearch indisponible"
+          echo "=== Indexation d'une alerte réelle dans OpenSearch ==="
+          curl -s -X POST "http://localhost:9200/minisoc-alerts/_doc" \
+               -H "Content-Type: application/json" \
+               -d '{
+                 "@timestamp": "'$(date -u +"%Y-%m-%dT%H:%M:%SZ")'",
+                 "event_type": "security_alert",
+                 "severity": "CRITICAL",
+                 "source": "Github_Actions_Real_Test",
+                 "message": "E2E Real Attack Simulation Ingested"
+               }'
+
+          sleep 2
+          echo "=== Verification Ingestion OpenSearch ==="
+          SEARCH_RES=$(curl -s "http://localhost:9200/minisoc-alerts/_search?q=source:Github_Actions_Real_Test")
+          echo "$SEARCH_RES" | grep -q "E2E Real Attack Simulation Ingested" && echo "✅ OpenSearch Data Lake OK" || { echo "❌ Échec Ingestion OpenSearch"; exit 1; }
           
           echo -e "\n=== Verification Wazuh Manager API ==="
-          docker exec minisoc-wazuh curl -k -u wazuh-wui:wazuh_api_password_2026 https://localhost:55000/manager/status || true
+          docker exec minisoc-wazuh curl -k -u wazuh-wui:wazuh_api_password_2026 https://localhost:55000/manager/status | grep -q '"state":"run"' && echo "✅ Wazuh Manager OK" || echo "⚠️ Warning: Wazuh non disponible"
 
-      - name: 8. TEST NIDS (Suricata & Zeek)
+      - name: 8. TEST RÉEL NIDS (Attaque SQLi & Path Traversal sur Suricata)
         run: |
-          echo "=== Injection de Trafic SQLi (Suricata) ==="
-          curl -s "http://localhost/api/test?q=UNION+SELECT+1,2,3" || true
+          echo "=== Injection de payload SQL Injection réelle ==="
+          curl -s "http://localhost/api/test?q=UNION+SELECT+1,2,3,4,5,6--+" || true
+          curl -s "http://localhost/api/users?id=1%27%20OR%20%271%27=%271" || true
+
+          echo "=== Injection de payload Path Traversal ==="
+          curl -s "http://localhost/../../../../etc/passwd" || true
+
           sleep 5
-          docker exec minisoc-suricata cat /var/log/suricata/eve.json 2>/dev/null | grep -i "SQL Injection" || echo "Alerte SQLi non enregistrée"
+          echo "=== Inspection du journal d'événements eve.json ==="
+          LOGS=$(docker exec minisoc-suricata cat /var/log/suricata/eve.json 2>/dev/null || true)
+          
+          if echo "$LOGS" | grep -iE "SQL|Injection|Traversal|ET WEB"; then
+            echo "✅ Détection NIDS réussie dans Suricata !"
+          else
+            echo "❌ ERREUR: Suricata n'a généré aucune alerte pour l'attaque injectée."
+            exit 1
+          fi
 
-      - name: 9. TEST RUNTIME SECURITY (Falco)
+      - name: 9. TEST RÉEL RUNTIME SECURITY (Interception d'accès système par Falco)
         run: |
-          echo "=== Simulation d'accès sensible (/etc/shadow) ==="
+          echo "=== Lecture suspecte de /etc/shadow dans le conteneur API ==="
           docker exec minisoc-api /bin/sh -c "cat /etc/shadow" || true
-          sleep 5
-          docker logs minisoc-falco 2>&1 | grep -i "Notice" || true
 
-      - name: 10. TEST ML ANOMALY ENGINE (FastAPI)
+          echo "=== Exécution de shell interactif ==="
+          docker exec minisoc-api /bin/sh -c "whoami && id" || true
+
+          sleep 5
+          echo "=== Inspection des logs de la sonde Falco ==="
+          FALCO_LOGS=$(docker logs minisoc-falco 2>&1 || true)
+          
+          if echo "$FALCO_LOGS" | grep -iE "Notice|Warning|Critical|shadow|shell"; then
+            echo "✅ Détection Runtime Security réussie par Falco !"
+          else
+            echo "⚠️ Attention : Falco n'a pas levé d'alerte dans les logs (Vérifier les règles eBPF)."
+          fi
+
+      - name: 10. TEST RÉEL ML ANOMALY ENGINE (Inférence FastAPI)
         run: |
-          curl -s -X POST "http://localhost:8000/score" \
+          echo "=== Envoi d'un événement d'attaque à l'Engine ML ==="
+          RESPONSE=$(curl -s -X POST "http://localhost:8000/score" \
                 -H "Content-Type: application/json" \
-                -d '{"alert_level": 10, "rule_id": "100001", "src_ip": "192.168.1.100"}' || true
+                -d '{
+                  "alert_level": 14,
+                  "rule_id": "100002",
+                  "src_ip": "10.0.0.50",
+                  "dst_ip": "192.168.1.1",
+                  "description": "Suspicious Privilege Escalation Attack"
+                }')
+
+          echo "Réponse API ML: $RESPONSE"
+          if echo "$RESPONSE" | grep -iE "score|anomaly|prediction|status"; then
+            echo "✅ Modèle ML opérationnel !"
+          else
+            echo "❌ ERREUR: Le moteur ML FastAPI a renvoyé une réponse invalide."
+            exit 1
+          fi
 
       - name: 11. TEST CASE MANAGEMENT & THREAT INTEL (TheHive & Cortex)
         run: |
-          curl -s http://localhost:9000/api/v1/status || true
-          curl -s http://localhost:9001/api/status || true
+          curl -s -f http://localhost:9000/api/v1/status && echo "✅ TheHive OK" || echo "⚠️ TheHive non prêt"
+          curl -s -f http://localhost:9001/api/status && echo "✅ Cortex OK" || echo "⚠️ Cortex non prêt"
 
       - name: 12. TEST OBSERVABILITÉ (Prometheus & Grafana)
         run: |
-          curl -s http://localhost:9090/-/healthy || true
-          curl -s http://localhost:3000/api/health || true
+          curl -s -f http://localhost:9090/-/healthy && echo "✅ Prometheus OK" || echo "⚠️ Prometheus non prêt"
+          curl -s -f http://localhost:3000/api/health && echo "✅ Grafana OK" || echo "⚠️ Grafana non prêt"
 
       - name: 13. Audit de Sécurité (Trivy SAST)
         uses: aquasecurity/trivy-action@master
