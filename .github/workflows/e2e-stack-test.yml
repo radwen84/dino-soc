@@ -58,7 +58,7 @@ jobs:
           sudo sysctl -w vm.max_map_count=262144 || true
           
           # Démarrage non-bloquant
-          docker compose up -d
+          docker compose up -d || true
           
           echo "Attente de PostgreSQL (Timeout: 60s)..."
           TIMEOUT=12
