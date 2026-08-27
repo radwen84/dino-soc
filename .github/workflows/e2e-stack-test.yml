@@ -85,12 +85,12 @@ jobs:
           # 3. Initialisation de la BDD pour n8n
           docker exec minisoc-postgres psql -U minisoc_app -d minisoc -c "CREATE DATABASE n8n;" || true
 
-          # 4. Migration Prisma exécutée AVANT le boot de l'API (Résout le crash du container API)
+          # 4. Migration Prisma via le Node/Prisma local au projet (évite la v7 incompatible)
           echo "Exécution préliminaire des migrations Prisma..."
           docker run --rm --network host \
             -v $(pwd)/apps/backend:/app -w /app \
             -e DATABASE_URL="postgresql://minisoc_app:minisoc_db_password_2026@localhost:5432/minisoc?schema=public" \
-            node:20 npx prisma db push --accept-data-loss
+            node:22-alpine sh -c "npm ci && npx prisma db push --accept-data-loss"
 
           # 5. Démarrage global de l'ensemble des services
           echo "Lancement global des conteneurs..."
