@@ -5,7 +5,7 @@ COPY rules/custom-minisoc.rules /etc/suricata/rules/custom-minisoc.rules
 
 # Download ET Open ruleset
 RUN suricata-update enable-source et/open && \
-    suricata-update
+    (suricata-update || true)
 
 VOLUME ["/var/log/suricata"]
 
