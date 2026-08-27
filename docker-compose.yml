@@ -269,7 +269,7 @@ services:
   # ============================================
   ml-engine:
     build:
-      context: ./apps/ml-engine
+      context: ./services/ml-engine
       dockerfile: Dockerfile
     container_name: minisoc-ml-engine
     restart: unless-stopped
