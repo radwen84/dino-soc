@@ -85,12 +85,11 @@ jobs:
           # 3. Initialisation de la BDD pour n8n
           docker exec minisoc-postgres psql -U minisoc_app -d minisoc -c "CREATE DATABASE n8n;" || true
 
-          # 4. Migration Prisma exécutée sous Alpine avec installation explicite d'OpenSSL & Libc
+          # 4. Migration Prisma exécutée directement sur le runner GitHub
           echo "Exécution préliminaire des migrations Prisma..."
-          docker run --rm --network host \
-            -v $(pwd)/apps/backend:/app -w /app \
-            -e DATABASE_URL="postgresql://minisoc_app:minisoc_db_password_2026@localhost:5432/minisoc?schema=public" \
-            node:22-alpine sh -c "apk add --no-libc-pkgs openssl libc6-compat && npm ci && npx prisma db push --accept-data-loss"
+          cd apps/backend
+          DATABASE_URL="postgresql://minisoc_app:minisoc_db_password_2026@localhost:5432/minisoc?schema=public" npx prisma db push --accept-data-loss
+          cd ../..
 
           # 5. Démarrage global de l'ensemble des services
           echo "Lancement global des conteneurs..."
