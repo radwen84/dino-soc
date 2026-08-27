@@ -23,12 +23,17 @@ jobs:
       - name: 2. Initialisation des Secrets & Variables d'Environnement
         run: |
           mkdir -p secrets
+          
+          # Génération des secrets avec toutes les variantes de nommage attendues par Docker Compose
+          echo "minisoc_db_password_2026" > secrets/db_password.txt
           echo "minisoc_db_password_2026" > secrets/postgres_password.txt
           echo "minisoc_redis_password_2026" > secrets/redis_password.txt
           echo "minisoc_jwt_secret_key_2026" > secrets/jwt_secret.txt
           echo "minisoc_jwt_refresh_secret_key_2026" > secrets/jwt_refresh_secret.txt
           echo "wazuh_api_password_2026" > secrets/wazuh_api_password.txt
+          echo "minisoc_misp_password_2026" > secrets/misp_password.txt
           
+          # Création et alimentation du fichier .env pour le runner GitHub Actions
           cp .env.example .env || true
           echo "DATABASE_URL=postgresql://minisoc:minisoc_db_password_2026@localhost:5432/minisoc?schema=public" >> .env
           echo "JWT_SECRET=minisoc_jwt_secret_key_2026_super_secret_for_ci_testing_32chars" >> .env
@@ -45,14 +50,15 @@ jobs:
           cd apps/backend
           npm ci
           npx prisma generate
-          npm test -- --passWithNoTests || echo "Poursuite du pipeline vers le test Full Stack Docker"
+          npm test -- --passWithNoTests || echo "Tolérance appliquée : Poursuite du pipeline vers le test Full Stack Docker"
 
       - name: 4. Démarrage de la Stack Docker (18 Services)
         run: |
-          # Augmentation du vm.max_map_count pour OpenSearch
+          # Optimisation Kernel pour OpenSearch & Elasticsearch
           sudo sysctl -w vm.max_map_count=262144 || true
+          
           docker compose up -d --build
-          echo "Attente du lancement complet des 18 conteneurs (90s)..."
+          echo "Attente du démarrage complet des 18 conteneurs (90s)..."
           sleep 90
 
       - name: 5. Diagnostic de Santé des Conteneurs
