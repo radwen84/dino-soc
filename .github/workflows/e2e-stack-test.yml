@@ -25,19 +25,22 @@ jobs:
           mkdir -p secrets
           
           # Secrets Docker
+          echo "minisoc_db_password_2026" > secrets/postgres_password.txt
           echo "minisoc_db_password_2026" > secrets/db_password.txt
-          echo "minisoc_jwt_secret_key_2026" > secrets/jwt_secret.txt
-          echo "minisoc_jwt_refresh_secret_key_2026" > secrets/jwt_refresh_secret.txt
+          echo "minisoc_jwt_secret_key_2026_super_secret_32chars" > secrets/jwt_secret.txt
+          echo "minisoc_jwt_refresh_secret_key_2026_super_secret_32chars" > secrets/jwt_refresh_secret.txt
           echo "wazuh_api_password_2026" > secrets/wazuh_api_password.txt
           echo "minisoc_redis_password_2026" > secrets/redis_password.txt
           echo "minisoc_misp_password_2026" > secrets/misp_password.txt
           
-          # Fichier .env local
+          # Fichier .env local pour Docker Compose
           cp .env.example .env || true
-          echo "DATABASE_URL=postgresql://minisoc_app:minisoc_db_password_2026@localhost:5432/minisoc?schema=public" >> .env
-          echo "JWT_SECRET=minisoc_jwt_secret_key_2026_super_secret_for_ci_testing_32chars" >> .env
-          echo "JWT_REFRESH_SECRET=minisoc_jwt_refresh_secret_key_2026_super_secret_ci_32chars" >> .env
-          echo "API_CORS_ORIGINS=*" >> .env
+          {
+            echo "DATABASE_URL=postgresql://minisoc_app:minisoc_db_password_2026@postgres:5432/minisoc?schema=public"
+            echo "JWT_SECRET=minisoc_jwt_secret_key_2026_super_secret_32chars"
+            echo "JWT_REFRESH_SECRET=minisoc_jwt_refresh_secret_key_2026_super_secret_32chars"
+            echo "API_CORS_ORIGINS=*"
+          } >> .env
           
           chmod +x ./scripts/generate-certs.sh || true
           ./scripts/generate-certs.sh || true
@@ -45,8 +48,8 @@ jobs:
       - name: 3. Compilation Backend & Validation des Tests Unitaires
         env:
           DATABASE_URL: "postgresql://minisoc_app:minisoc_db_password_2026@localhost:5432/minisoc?schema=public"
-          JWT_SECRET: "minisoc_jwt_secret_key_2026_super_secret_for_ci_testing_32chars"
-          JWT_REFRESH_SECRET: "minisoc_jwt_refresh_secret_key_2026_super_secret_ci_32chars"
+          JWT_SECRET: "minisoc_jwt_secret_key_2026_super_secret_32chars"
+          JWT_REFRESH_SECRET: "minisoc_jwt_refresh_secret_key_2026_super_secret_32chars"
         run: |
           cd apps/backend
           npm ci
@@ -54,11 +57,15 @@ jobs:
           npm test -- --passWithNoTests || echo "Tolerance CI: poursuite du pipeline vers le test Full-Stack"
 
       - name: 4. Démarrage de la Stack Docker & Base de Données
+        env:
+          DATABASE_URL: "postgresql://minisoc_app:minisoc_db_password_2026@postgres:5432/minisoc?schema=public"
+          JWT_SECRET: "minisoc_jwt_secret_key_2026_super_secret_32chars"
+          JWT_REFRESH_SECRET: "minisoc_jwt_refresh_secret_key_2026_super_secret_32chars"
         run: |
           sudo sysctl -w vm.max_map_count=262144 || true
           
-          # Démarrage non-bloquant
-          docker compose up -d || true
+          # Démarrage de la stack avec variables injectées au runtime Docker
+          docker compose up -d --build || true
           
           echo "Attente de PostgreSQL (Timeout: 60s)..."
           TIMEOUT=12
@@ -71,8 +78,8 @@ jobs:
           echo "Exécution des migrations Prisma sur le conteneur API..."
           docker exec minisoc-api npx prisma migrate deploy || true
           
-          echo "Stabilisation globale des services (30s)..."
-          sleep 30
+          echo "Stabilisation globale des services (60s)..."
+          sleep 60
 
       - name: 5. Diagnostic de Santé des Conteneurs & Logs
         run: |
@@ -88,17 +95,17 @@ jobs:
       - name: 6. TEST SIEM & DATA LAKE (OpenSearch & Wazuh)
         run: |
           echo "=== Verification OpenSearch Cluster ==="
-          docker exec minisoc-opensearch curl -s http://localhost:9200/_cluster/health || echo "OpenSearch non encore pret"
+          docker exec minisoc-opensearch curl -s http://localhost:9200/_cluster/health || echo "OpenSearch non encore prêt"
           
           echo "=== Verification Wazuh Manager API ==="
-          curl -k -u wazuh-wui:wazuh_api_password_2026 https://localhost:55000/manager/status || echo "Wazuh API inaccessible"
+          docker exec minisoc-wazuh curl -k -u wazuh-wui:wazuh_api_password_2026 https://localhost:55000/manager/status || echo "Wazuh API inaccessible"
 
       - name: 7. TEST NIDS (Suricata & Zeek)
         run: |
           echo "=== Injection de Trafic SQLi (Suricata) ==="
           curl -s "http://localhost/api/test?q=UNION+SELECT+1,2,3" || true
           sleep 5
-          docker exec minisoc-suricata cat /var/log/suricata/eve.json | grep "SQL Injection" || echo "Alerte Suricata non trouvée"
+          docker exec minisoc-suricata cat /var/log/suricata/eve.json 2>/dev/null | grep "SQL Injection" || echo "Alerte Suricata non trouvée"
 
       - name: 8. TEST RUNTIME SECURITY (Falco)
         run: |
@@ -111,8 +118,8 @@ jobs:
         run: |
           echo "=== Risk Scoring ML Test ==="
           curl -s -X POST "http://localhost:8000/score" \
-               -H "Content-Type: application/json" \
-               -d '{"alert_level": 10, "rule_id": "100001", "src_ip": "192.168.1.100"}' || echo "FastAPI ML non disponible"
+                -H "Content-Type: application/json" \
+                -d '{"alert_level": 10, "rule_id": "100001", "src_ip": "192.168.1.100"}' || echo "FastAPI ML non disponible"
 
       - name: 10. TEST CASE MANAGEMENT & THREAT INTEL (TheHive & Cortex)
         run: |
