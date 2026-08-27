@@ -70,8 +70,8 @@ jobs:
 
       - name: 5. Démarrage Séquentiel BDD, Migrations & Stack Docker
         run: |
-          # 1. Démarrer PostgreSQL et le service backend API
-          docker compose --env-file .env up -d postgres minisoc-api
+          # 1. Démarrer PostgreSQL (les ports du compose seront exposés si configurés)
+          docker compose --env-file .env up -d --build postgres
           
           # 2. Attente active de la disponibilité de PostgreSQL
           echo "Attente de PostgreSQL (Timeout: 60s)..."
@@ -85,11 +85,16 @@ jobs:
           # 3. Initialisation de la BDD pour n8n
           docker exec minisoc-postgres psql -U minisoc_app -d minisoc -c "CREATE DATABASE n8n;" || true
 
-          # 4. Migration Prisma exécutée dans le réseau Docker interne (minisoc-api)
+          # 4. Migration Prisma exécutée via docker exec directement dans le conteneur postgres
+          # astuce: on exécute un conteneur Node temporaire rattaché au réseau docker pour appliquer la migration
           echo "Exécution des migrations Prisma..."
-          docker exec -e DATABASE_URL="postgresql://minisoc_app:minisoc_db_password_2026@postgres:5432/minisoc?schema=public" minisoc-api npx prisma db push --accept-data-loss
+          NETWORK_NAME=$(docker inspect minisoc-postgres --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{end}}')
+          docker run --rm --network $NETWORK_NAME \
+            -v $(pwd)/apps/backend:/app -w /app \
+            -e DATABASE_URL="postgresql://minisoc_app:minisoc_db_password_2026@postgres:5432/minisoc?schema=public" \
+            node:18-alpine npx prisma db push --accept-data-loss
 
-          # 5. Démarrage global de l'ensemble des services de la stack
+          # 5. Démarrage global de l'ensemble des services
           echo "Lancement global des conteneurs..."
           docker compose --env-file .env up -d --build
           
