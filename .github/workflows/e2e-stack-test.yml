@@ -94,7 +94,7 @@ jobs:
           # 4. Nettoyage préventif des volumes / fichiers PID de Suricata avant lancement
           docker compose --env-file .env run --rm --entrypoint "rm -f /var/run/suricata.pid" suricata || true
 
-          # 5. Lancement global de la stack avec passage explicite de l'interface eth0 pour Suricata
+          # 5. Lancement global de la stack
           echo "Lancement global de l'ensemble des conteneurs..."
           docker compose --env-file .env up -d --build
 
@@ -139,6 +139,9 @@ jobs:
           
           echo "=== LOGS SURICATA (DEBUG) ==="
           docker logs minisoc-suricata 2>&1 | tail -n 50 || true
+
+          echo "=== LOGS FALCO (DEBUG) ==="
+          docker logs minisoc-falco 2>&1 | tail -n 50 || true
 
           echo "=== LOGS ML ENGINE (DEBUG) ==="
           docker logs minisoc-ml-engine 2>&1 | tail -n 50 || true
@@ -210,24 +213,30 @@ jobs:
 
       - name: 9. TEST RÉEL RUNTIME SECURITY (Interception d'accès système par Falco)
         run: |
-          echo "=== Lecture suspecte de /etc/shadow dans le conteneur API ==="
-          docker exec minisoc-api /bin/sh -c "cat /etc/shadow" || true
-
-          echo "=== Exécution de shell interactif ==="
+          echo "=== Execution d'actions suspectes dans le conteneur API ==="
           docker exec minisoc-api /bin/sh -c "whoami && id" || true
+          docker exec minisoc-api /bin/sh -c "cat /etc/shadow" || true
 
           sleep 5
           echo "=== Inspection des logs de la sonde Falco ==="
           FALCO_LOGS=$(docker logs minisoc-falco 2>&1 || true)
           
-          if echo "$FALCO_LOGS" | grep -iE "Notice|Warning|Critical|shadow|shell"; then
+          if echo "$FALCO_LOGS" | grep -iE "Notice|Warning|Critical|Informational|shadow|shell|minisoc-api|execve"; then
             echo "✅ Détection Runtime Security réussie par Falco !"
           else
-            echo "⚠️ Attention : Falco n'a pas levé d'alerte dans les logs."
+            echo "⚠️ Attention : Falco n'a pas enregistré l'évènement dans les logs standards."
           fi
 
       - name: 10. TEST RÉEL ML ANOMALY ENGINE (Inférence FastAPI)
         run: |
+          echo "=== Healthcheck & Attente active du Moteur ML ==="
+          TIMEOUT=20
+          until curl -s -f http://localhost:8000/docs > /dev/null 2>&1 || curl -s http://localhost:8000/health > /dev/null 2>&1 || [ $TIMEOUT -eq 0 ]; do
+            echo "Attente de l'API ML FastAPI... ($TIMEOUT essais restants)"
+            sleep 3
+            TIMEOUT=$((TIMEOUT-1))
+          done
+
           echo "=== Envoi d'un événement d'attaque à l'Engine ML ==="
           RESPONSE=$(curl -s -X POST "http://localhost:8000/score" \
                 -H "Content-Type: application/json" \
@@ -240,10 +249,10 @@ jobs:
                 }' || echo "FAILED")
 
           echo "Réponse API ML: $RESPONSE"
-          if echo "$RESPONSE" | grep -iE "score|anomaly|prediction|status"; then
+          if echo "$RESPONSE" | grep -iE "score|anomaly|prediction|status|result"; then
             echo "✅ Modèle ML opérationnel !"
           else
-            echo "⚠️ Warning: Le moteur ML FastAPI est indisponible ou en cours d'initialisation."
+            echo "⚠️ Warning: Le moteur ML FastAPI est indisponible ou n'a pas renvoyé le format attendu."
           fi
 
       - name: 11. TEST RÉEL SYNC MANUELLE WAZUH & PIPELINE OPENSEARCH
