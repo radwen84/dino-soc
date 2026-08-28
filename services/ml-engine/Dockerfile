@@ -10,7 +10,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-RUN adduser --disabled-password --gecos '' mluser
+# Création du dossier models et attribution des permissions utilisateur
+RUN mkdir -p /app/models && \
+    adduser --disabled-password --gecos '' mluser && \
+    chown -R mluser:mluser /app
+
 USER mluser
 
 EXPOSE 8000
