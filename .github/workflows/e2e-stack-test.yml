@@ -263,7 +263,7 @@ jobs:
           echo -e "\n---> [7/16] GET /api/alerts"
           curl -sLk "https://localhost/api/alerts" -H "Authorization: Bearer $TOKEN"
 
-          # 8. POST /api/ioc (Format conforme aux schémas Prisma/DTO)
+          # 8. POST /api/ioc
           echo -e "\n---> [8/16] POST /api/ioc"
           CREATE_IOC=$(curl -sLk -X POST "https://localhost/api/ioc" \
             -H "Authorization: Bearer $TOKEN" \
@@ -275,7 +275,7 @@ jobs:
           echo -e "\n---> [9/16] GET /api/ioc"
           curl -sLk "https://localhost/api/ioc" -H "Authorization: Bearer $TOKEN"
 
-          # 10. GET /api/threat-intel/lookup/:value (Lookup IP)
+          # 10. GET /api/threat-intel/lookup/:value
           echo -e "\n---> [10/16] GET /api/threat-intel/lookup/:value (Lookup Threat Intel)"
           LOOKUP_RES=$(curl -sLk "https://localhost/api/threat-intel/lookup/185.220.101.5" -H "Authorization: Bearer $TOKEN")
           echo "Réponse Lookup Threat Intel (185.220.101.5): $LOOKUP_RES"
@@ -292,27 +292,67 @@ jobs:
           echo -e "\n---> [12/16] GET /api/assets"
           curl -sLk "https://localhost/api/assets" -H "Authorization: Bearer $TOKEN"
 
-          # 13. POST /api/soar/playbooks (Route corrigée: /api/soar/playbooks)
+          # 13. POST /api/soar/playbooks (Fix: Payload conforme CreatePlaybookDto)
           echo -e "\n---> [13/16] POST /api/soar/playbooks"
           CREATE_PLAYBOOK=$(curl -sLk -X POST "https://localhost/api/soar/playbooks" \
             -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
-            -d '{"name":"Auto Isolation Playbook","trigger":"CRITICAL_ALERT","action":"isolate_host"}' || true)
+            -d '{
+              "name": "Auto Host Isolation Playbook",
+              "description": "Automatically isolate compromised endpoint on critical alert",
+              "triggerConditions": {
+                "triggerType": "alert",
+                "rules": [
+                  {
+                    "field": "severity",
+                    "operator": "eq",
+                    "value": "CRITICAL"
+                  }
+                ]
+              },
+              "actions": [
+                {
+                  "id": "act-01",
+                  "name": "Isolate Endpoint",
+                  "type": "isolate_host",
+                  "riskLevel": "high",
+                  "params": {
+                    "ip": "{{alert.source_ip}}"
+                  }
+                }
+              ],
+              "isActive": true,
+              "tags": ["incident-response", "auto-containment"]
+            }')
           echo "Réponse Création Playbook: $CREATE_PLAYBOOK"
 
-          # 14. POST /api/soar/playbooks/:id/execute (Route corrigée)
-          echo -e "\n---> [14/16] POST /api/soar/playbooks/test-playbook-01/execute"
-          EXEC_PLAYBOOK=$(curl -sLk -X POST "https://localhost/api/soar/playbooks/test-playbook-01/execute" \
+          # Extraction dynamique de l'UUID créé ou repli vers un UUID standard valide
+          PLAYBOOK_ID=$(echo "$CREATE_PLAYBOOK" | jq -r '.id // empty')
+          if [ -z "$PLAYBOOK_ID" ] || [ "$PLAYBOOK_ID" == "null" ]; then
+            PLAYBOOK_ID="123e4567-e89b-12d3-a456-426614174000"
+          fi
+
+          # 14. POST /api/soar/playbooks/:id/execute (Fix: UUID v4 valide + Payload conforme ExecutePlaybookDto)
+          echo -e "\n---> [14/16] POST /api/soar/playbooks/$PLAYBOOK_ID/execute"
+          EXEC_PLAYBOOK=$(curl -sLk -X POST "https://localhost/api/soar/playbooks/$PLAYBOOK_ID/execute" \
             -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
-            -d '{"target_ip":"192.168.1.50"}' || true)
+            -d '{
+              "dryRun": true,
+              "testData": {
+                "alert": {
+                  "severity": "CRITICAL",
+                  "source_ip": "10.0.0.50"
+                }
+              }
+            }')
           echo "Réponse Exécution Playbook: $EXEC_PLAYBOOK"
 
-          # 15. GET /api/reports/generate?type=kpi_metrics (Route et Query Params corrigés)
+          # 15. GET /api/reports/generate?type=kpi_metrics
           echo -e "\n---> [15/16] GET /api/reports/generate?type=kpi_metrics"
           curl -sLk "https://localhost/api/reports/generate?type=kpi_metrics" -H "Authorization: Bearer $TOKEN" || true
 
-          # 16. GET /metrics (Metrics Prometheus interrogeables sur Port 4000)
+          # 16. GET /metrics (Prometheus Metrics via API Direct)
           echo -e "\n---> [16/16] GET /metrics (Prometheus Metrics via API Direct)"
           METRICS_RES=$(docker exec minisoc-api curl -s http://localhost:4000/api/metrics || docker exec minisoc-api curl -s http://localhost:4000/metrics || echo "Metrics non exposées")
           echo "$METRICS_RES" | head -n 10
