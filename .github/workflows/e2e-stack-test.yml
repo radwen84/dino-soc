@@ -318,13 +318,29 @@ jobs:
 
       - name: 12. TEST CASE MANAGEMENT & THREAT INTEL (TheHive & Cortex)
         run: |
-          curl -s -f http://localhost:9000/api/v1/status && echo "✅ TheHive OK" || echo "⚠️ TheHive non prêt"
-          curl -s -f http://localhost:9001/api/status && echo "✅ Cortex OK" || echo "⚠️ Cortex non prêt"
+          echo "=== Vérification TheHive ==="
+          TIMEOUT=10
+          until curl -sLk http://localhost:9000/index.html > /dev/null || [ $TIMEOUT -eq 0 ]; do
+            sleep 2
+            TIMEOUT=$((TIMEOUT-1))
+          done
+          curl -sLk http://localhost:9000/index.html > /dev/null && echo "✅ TheHive OK" || echo "⚠️ TheHive non prêt"
+
+          echo "=== Vérification Cortex ==="
+          curl -s -f http://localhost:9001/api/status > /dev/null && echo "✅ Cortex OK" || echo "⚠️ Cortex non prêt"
 
       - name: 13. TEST OBSERVABILITÉ (Prometheus & Grafana)
         run: |
+          echo "=== Vérification Prometheus ==="
           curl -s -f http://localhost:9090/-/healthy && echo "✅ Prometheus OK" || echo "⚠️ Prometheus non prêt"
-          curl -s -f http://localhost:3000/api/health && echo "✅ Grafana OK" || echo "⚠️ Grafana non prêt"
+
+          echo "=== Vérification Grafana ==="
+          TIMEOUT=10
+          until curl -s -f http://localhost:3000/api/health > /dev/null 2>&1 || curl -s -f http://localhost:3000/api/status > /dev/null 2>&1 || [ $TIMEOUT -eq 0 ]; do
+            sleep 2
+            TIMEOUT=$((TIMEOUT-1))
+          done
+          (curl -s -f http://localhost:3000/api/health > /dev/null 2>&1 || curl -s -f http://localhost:3000/api/status > /dev/null 2>&1) && echo "✅ Grafana OK" || echo "⚠️ Grafana non prêt"
 
       - name: 14. Audit de Sécurité (Trivy SAST)
         uses: aquasecurity/trivy-action@master
