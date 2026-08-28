@@ -64,8 +64,8 @@ jobs:
           JWT_REFRESH_SECRET: "minisoc_jwt_refresh_secret_key_2026_super_secret_32chars"
         run: |
           cd apps/backend
-          npm ci
-          npx prisma generate
+          npm install
+          npx prisma generate --schema=./prisma/schema.prisma || npx prisma generate
           npm test -- --passWithNoTests || echo "Tolérance CI: poursuite du pipeline"
 
       - name: 5. Démarrage Séquentiel BDD, Migrations, Seed & Stack Docker
