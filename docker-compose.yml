@@ -69,7 +69,7 @@ services:
     container_name: minisoc-api
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "4000:4000"
     networks:
       - backend
       - frontend
@@ -80,6 +80,7 @@ services:
       - jwt_refresh_secret
       - redis_password
     environment:
+      - API_PORT=4000
       - NODE_ENV=production
       - DATABASE_URL=${DATABASE_URL:-postgresql://minisoc_app:minisoc_db_password_2026@postgres:5432/minisoc?schema=public}
       - JWT_SECRET=${JWT_SECRET:-minisoc_jwt_secret_key_2026_super_secret_32chars}
@@ -101,6 +102,12 @@ services:
       - ML_ENGINE_URL=http://ml-engine:8000
       - THEHIVE_URL=http://thehive:9000
       - CORTEX_URL=http://cortex:9001
+      # --- THREAT INTELLIGENCE KEYS ---
+      - ABUSEIPDB_API_KEY=${ABUSEIPDB_API_KEY}
+      - OTX_API_KEY=${OTX_API_KEY}
+      - ALIENVAULT_OTX_API_KEY=${OTX_API_KEY}
+      - VIRUSTOTAL_API_KEY=${VIRUSTOTAL_API_KEY}
+      - SHODAN_API_KEY=${SHODAN_API_KEY}
     tmpfs:
       - /tmp
     depends_on:

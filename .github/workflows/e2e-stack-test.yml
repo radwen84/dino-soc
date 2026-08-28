@@ -20,7 +20,7 @@ jobs:
       - name: 1. Checkout du Code Source
         uses: actions/checkout@v4
 
-      - name: 2. Préparation Système & Réseau du Hôte (CI/CD)
+      - name: 2. Préparation Système & Réseau de l'Hôte (CI/CD)
         run: |
           sudo sysctl -w vm.max_map_count=262144 || true
           sudo ip link set eth0 promisc on || true
@@ -57,6 +57,7 @@ jobs:
           API_CORS_ORIGINS=*
           ORACLE_PORTS=1521
           HTTP_PORTS=80
+          API_PORT=4000
           ABUSEIPDB_API_KEY=${ABUSEIPDB_API_KEY}
           VIRUSTOTAL_API_KEY=${VIRUSTOTAL_API_KEY}
           OTX_API_KEY=${OTX_API_KEY}
@@ -73,6 +74,7 @@ jobs:
           JWT_SECRET: "minisoc_jwt_secret_key_2026_super_secret_32chars"
           JWT_REFRESH_SECRET: "minisoc_jwt_refresh_secret_key_2026_super_secret_32chars"
           NODE_ENV: "development"
+          API_PORT: "4000"
         run: |
           cd apps/backend
           npm install --legacy-peer-deps --include=dev
@@ -290,7 +292,7 @@ jobs:
           echo -e "\n---> [12/16] GET /api/assets"
           curl -sLk "https://localhost/api/assets" -H "Authorization: Bearer $TOKEN"
 
-          # 13. POST /api/soar/playbooks
+          # 13. POST /api/soar/playbooks (Route corrigée: /api/soar/playbooks)
           echo -e "\n---> [13/16] POST /api/soar/playbooks"
           CREATE_PLAYBOOK=$(curl -sLk -X POST "https://localhost/api/soar/playbooks" \
             -H "Authorization: Bearer $TOKEN" \
@@ -298,7 +300,7 @@ jobs:
             -d '{"name":"Auto Isolation Playbook","trigger":"CRITICAL_ALERT","action":"isolate_host"}' || true)
           echo "Réponse Création Playbook: $CREATE_PLAYBOOK"
 
-          # 14. POST /api/soar/playbooks/:id/execute
+          # 14. POST /api/soar/playbooks/:id/execute (Route corrigée)
           echo -e "\n---> [14/16] POST /api/soar/playbooks/test-playbook-01/execute"
           EXEC_PLAYBOOK=$(curl -sLk -X POST "https://localhost/api/soar/playbooks/test-playbook-01/execute" \
             -H "Authorization: Bearer $TOKEN" \
@@ -306,16 +308,16 @@ jobs:
             -d '{"target_ip":"192.168.1.50"}' || true)
           echo "Réponse Exécution Playbook: $EXEC_PLAYBOOK"
 
-          # 15. GET /api/reports/kpi
-          echo -e "\n---> [15/16] GET /api/reports/kpi"
-          curl -sLk "https://localhost/api/reports/kpi" -H "Authorization: Bearer $TOKEN" || true
+          # 15. GET /api/reports/generate?type=kpi_metrics (Route et Query Params corrigés)
+          echo -e "\n---> [15/16] GET /api/reports/generate?type=kpi_metrics"
+          curl -sLk "https://localhost/api/reports/generate?type=kpi_metrics" -H "Authorization: Bearer $TOKEN" || true
 
-          # 16. GET /metrics (Requête directe conteneur Backend)
+          # 16. GET /metrics (Metrics Prometheus interrogeables sur Port 4000)
           echo -e "\n---> [16/16] GET /metrics (Prometheus Metrics via API Direct)"
-          METRICS_RES=$(docker exec minisoc-api curl -s http://localhost:3000/metrics || docker exec minisoc-api curl -s http://localhost:3000/api/metrics || echo "Metrics non exposées sur port 3000")
+          METRICS_RES=$(docker exec minisoc-api curl -s http://localhost:4000/api/metrics || docker exec minisoc-api curl -s http://localhost:4000/metrics || echo "Metrics non exposées")
           echo "$METRICS_RES" | head -n 10
           echo "================================================="
-          echo "  ✅ EXÉCUTION DU SUITE DE TESTS EFFECTUÉE"
+          echo "  ✅ EXÉCUTION DE LA SUITE DE TESTS EFFECTUÉE"
           echo "================================================="
 
       - name: 12. TEST CASE MANAGEMENT & THREAT INTEL (TheHive & Cortex)
