@@ -91,14 +91,12 @@ jobs:
           DATABASE_URL="postgresql://minisoc_app:minisoc_db_password_2026@127.0.0.1:5432/minisoc?schema=public" npx prisma db push --accept-data-loss
           cd ../..
 
-          # 4. Démarrage global de la stack
+          # 4. Nettoyage préventif des volumes / fichiers PID de Suricata avant lancement
+          docker compose --env-file .env run --rm --entrypoint "rm -f /var/run/suricata.pid" suricata || true
+
+          # 5. Lancement global de la stack avec passage explicite de l'interface eth0 pour Suricata
           echo "Lancement global de l'ensemble des conteneurs..."
           docker compose --env-file .env up -d --build
-          
-          # 5. Fix Nettoyage PID & Forcer Interface Suricata (eth0)
-          echo "Fixation Suricata (Nettoyage Stale PID et Interface eth0)..."
-          docker exec minisoc-suricata rm -f /var/run/suricata.pid || true
-          docker compose --env-file .env restart suricata || true
 
           echo "Stabilisation globale des services (30s)..."
           sleep 30
@@ -182,8 +180,8 @@ jobs:
         run: |
           echo "=== Diagnostic Statut Suricata ==="
           if ! docker ps | grep -q "minisoc-suricata"; then
-            echo "⚠️ Tentative de relance de Suricata..."
-            docker exec minisoc-suricata rm -f /var/run/suricata.pid || true
+            echo "⚠️ Tentative de relance propre de Suricata..."
+            docker compose run --rm --entrypoint "rm -f /var/run/suricata.pid" suricata || true
             docker compose restart suricata || true
             sleep 5
           fi

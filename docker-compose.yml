@@ -228,6 +228,10 @@ services:
     container_name: minisoc-suricata
     restart: unless-stopped
     network_mode: host
+    entrypoint: >
+      /bin/sh -c "
+      rm -f /var/run/suricata.pid &&
+      suricata -c /etc/suricata/suricata.yaml -i eth0 "
     cap_add:
       - NET_ADMIN
       - NET_RAW
