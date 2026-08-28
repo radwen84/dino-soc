@@ -68,7 +68,7 @@ jobs:
           npx prisma generate
           npm test -- --passWithNoTests || echo "Tolérance CI: poursuite du pipeline"
 
-      - name: 5. Démarrage Séquentiel BDD, Migrations & Stack Docker
+      - name: 5. Démarrage Séquentiel BDD, Migrations, Seed & Stack Docker
         run: |
           # 1. Démarrer PostgreSQL & OpenSearch en premier
           docker compose --env-file .env up -d postgres opensearch
@@ -85,10 +85,11 @@ jobs:
           # 2. Initialisation de la BDD pour n8n
           docker exec minisoc-postgres psql -U minisoc_app -d minisoc -c "CREATE DATABASE n8n;" || true
 
-          # 3. Migration Prisma
-          echo "Exécution des migrations Prisma..."
+          # 3. Migration Prisma & Seeding des utilisateurs et données initiales
+          echo "Exécution des migrations et du Seed Prisma..."
           cd apps/backend
           DATABASE_URL="postgresql://minisoc_app:minisoc_db_password_2026@127.0.0.1:5432/minisoc?schema=public" npx prisma db push --accept-data-loss
+          DATABASE_URL="postgresql://minisoc_app:minisoc_db_password_2026@127.0.0.1:5432/minisoc?schema=public" npx prisma db seed
           cd ../..
 
           # 4. Nettoyage préventif des volumes / fichiers PID de Suricata avant lancement
@@ -257,16 +258,29 @@ jobs:
 
       - name: 11. TEST RÉEL SYNC MANUELLE WAZUH & PIPELINE OPENSEARCH
         run: |
-          echo "=== 1. Obtenir un token admin ==="
-          LOGIN_RES=$(curl -sLk -X POST "https://localhost/api/auth/login" \
-            -H "Content-Type: application/json" \
-            -d '{"email":"admin@minisoc.local","password":"Admin@MiniSOC2026!"}')
+          echo "=== 1. Obtenir un token admin (avec boucles de retries) ==="
+          TOKEN=""
+          TIMEOUT=10
 
-          TOKEN=$(echo "$LOGIN_RES" | jq -r '.accessToken // .access_token // .token')
+          until [ -n "$TOKEN" ] && [ "$TOKEN" != "null" ] || [ $TIMEOUT -eq 0 ]; do
+            LOGIN_RES=$(curl -sLk -X POST "https://localhost/api/auth/login" \
+              -H "Content-Type: application/json" \
+              -d '{"email":"admin@minisoc.local","password":"Admin@MiniSOC2026!"}' || true)
+
+            TOKEN=$(echo "$LOGIN_RES" | jq -r '.accessToken // .access_token // .token // empty')
+
+            if [ -z "$TOKEN" ]; then
+              echo "En attente de l'API / Récurrence du login... ($TIMEOUT essais restants)"
+              sleep 3
+              TIMEOUT=$((TIMEOUT-1))
+            fi
+          done
 
           if [ -z "$TOKEN" ] || [ "$TOKEN" == "null" ]; then
             echo "❌ ERREUR: Impossible de récupérer le token JWT Admin."
-            echo "Réponse API Login: $LOGIN_RES"
+            echo "Dernière réponse API Login: $LOGIN_RES"
+            echo "=== Logs API Backend pour diagnostic ==="
+            docker logs minisoc-api --tail 50 || true
             exit 1
           fi
           echo "✅ Token JWT Admin récupéré avec succès !"

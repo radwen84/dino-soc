@@ -6,11 +6,11 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Seeding database...');
 
-  // Create admin user
+  // 1. Création / Mise à jour Administrateur
   const adminPassword = await bcrypt.hash('Admin@MiniSOC2026!', 12);
   const admin = await prisma.user.upsert({
     where: { email: 'admin@minisoc.local' },
-    update: {},
+    update: { passwordHash: adminPassword },
     create: {
       email: 'admin@minisoc.local',
       name: 'SOC Administrator',
@@ -19,13 +19,13 @@ async function main() {
       isActive: true,
     },
   });
-  console.log(`  ✓ Admin user created: ${admin.email}`);
+  console.log(`  ✓ Admin user ready: ${admin.email}`);
 
-  // Create analyst L1
+  // 2. Analyste L1
   const l1Password = await bcrypt.hash('Analyst1@SOC2026!', 12);
   const analyst1 = await prisma.user.upsert({
     where: { email: 'analyst.l1@minisoc.local' },
-    update: {},
+    update: { passwordHash: l1Password },
     create: {
       email: 'analyst.l1@minisoc.local',
       name: 'Analyst Level 1',
@@ -34,13 +34,13 @@ async function main() {
       isActive: true,
     },
   });
-  console.log(`  ✓ Analyst L1 created: ${analyst1.email}`);
+  console.log(`  ✓ Analyst L1 ready: ${analyst1.email}`);
 
-  // Create analyst L2
+  // 3. Analyste L2
   const l2Password = await bcrypt.hash('Analyst2@SOC2026!', 12);
   const analyst2 = await prisma.user.upsert({
     where: { email: 'analyst.l2@minisoc.local' },
-    update: {},
+    update: { passwordHash: l2Password },
     create: {
       email: 'analyst.l2@minisoc.local',
       name: 'Analyst Level 2',
@@ -49,39 +49,38 @@ async function main() {
       isActive: true,
     },
   });
-  console.log(`  ✓ Analyst L2 created: ${analyst2.email}`);
+  console.log(`  ✓ Analyst L2 ready: ${analyst2.email}`);
 
-  // Create sample assets — use createMany with skipDuplicates for idempotency
-  // Since Asset has no natural unique key other than id, we check by hostname+ipAddress
+  // 4. Seeding des Assets (Utilisation de hostname comme clé unique)
   const assets = [
-    { hostname: 'web-server-01', ipAddress: '10.0.2.10', os: 'Ubuntu', osVersion: '22.04', criticality: 'high' as const, department: 'Production' },
-    { hostname: 'db-server-01', ipAddress: '10.0.2.11', os: 'Ubuntu', osVersion: '22.04', criticality: 'critical' as const, department: 'Production' },
-    { hostname: 'app-server-01', ipAddress: '10.0.2.12', os: 'Ubuntu', osVersion: '22.04', criticality: 'high' as const, department: 'Production' },
-    { hostname: 'dev-workstation-01', ipAddress: '10.0.3.10', os: 'Windows', osVersion: '11', criticality: 'medium' as const, department: 'Development' },
-    { hostname: 'soc-analyst-01', ipAddress: '10.0.4.10', os: 'Ubuntu', osVersion: '22.04', criticality: 'medium' as const, department: 'Security' },
+    { hostname: 'web-server-01', ipAddress: '10.0.2.10', os: 'Ubuntu', osVersion: '22.04', criticality: 'high', department: 'Production' },
+    { hostname: 'db-server-01', ipAddress: '10.0.2.11', os: 'Ubuntu', osVersion: '22.04', criticality: 'critical', department: 'Production' },
+    { hostname: 'app-server-01', ipAddress: '10.0.2.12', os: 'Ubuntu', osVersion: '22.04', criticality: 'high', department: 'Production' },
+    { hostname: 'dev-workstation-01', ipAddress: '10.0.3.10', os: 'Windows', osVersion: '11', criticality: 'medium', department: 'Development' },
+    { hostname: 'soc-analyst-01', ipAddress: '10.0.4.10', os: 'Ubuntu', osVersion: '22.04', criticality: 'medium', department: 'Security' },
   ];
 
   for (const asset of assets) {
-    // Check if exists by hostname to avoid duplicates
-    const existing = await prisma.asset.findFirst({ where: { hostname: asset.hostname } });
-    if (!existing) {
-      await prisma.asset.create({ data: asset });
-    }
+    await prisma.asset.upsert({
+      where: { hostname: asset.hostname },
+      update: asset,
+      create: asset,
+    });
   }
-  console.log(`  ✓ ${assets.length} assets ensured`);
+  console.log(`  ✓ ${assets.length} assets ready`);
 
-  // Create sample IOCs — upsert by unique (type, value)
+  // 5. Seeding des IOCs
   const iocs = [
-    { type: 'ip' as const, value: '203.0.113.42', description: 'Known C2 server', source: 'misp', confidence: 90, severity: 'high' as const },
-    { type: 'domain' as const, value: 'malware-c2.evil.tk', description: 'Malware distribution domain', source: 'virustotal', confidence: 95, severity: 'critical' as const },
-    { type: 'hash_sha256' as const, value: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', description: 'Ransomware sample', source: 'manual', confidence: 100, severity: 'critical' as const },
-    { type: 'ip' as const, value: '198.51.100.23', description: 'Port scanner', source: 'abuseipdb', confidence: 75, severity: 'medium' as const },
+    { type: 'ip', value: '203.0.113.42', description: 'Known C2 server', source: 'misp', confidence: 90, severity: 'high' },
+    { type: 'domain', value: 'malware-c2.evil.tk', description: 'Malware distribution domain', source: 'virustotal', confidence: 95, severity: 'critical' },
+    { type: 'hash_sha256', value: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', description: 'Ransomware sample', source: 'manual', confidence: 100, severity: 'critical' },
+    { type: 'ip', value: '198.51.100.23', description: 'Port scanner', source: 'abuseipdb', confidence: 75, severity: 'medium' },
   ];
 
   for (const ioc of iocs) {
     await prisma.iOC.upsert({
-      where: { type_value: { type: ioc.type, value: ioc.value } },
-      update: {},
+      where: { value: ioc.value },
+      update: ioc,
       create: {
         ...ioc,
         createdById: admin.id,
@@ -90,9 +89,9 @@ async function main() {
       },
     });
   }
-  console.log(`  ✓ ${iocs.length} IOCs ensured`);
+  console.log(`  ✓ ${iocs.length} IOCs ready`);
 
-  // Create sample incident — check if one already exists with same title
+  // 6. Exemple d'incident
   const existingIncident = await prisma.incident.findFirst({
     where: { title: 'SSH Brute Force Attack on web-server-01' },
   });
@@ -101,8 +100,7 @@ async function main() {
     await prisma.incident.create({
       data: {
         title: 'SSH Brute Force Attack on web-server-01',
-        description:
-          'Multiple failed SSH login attempts detected from external IP 203.0.113.42. Over 500 attempts in 10 minutes. Active Response triggered: IP blocked.',
+        description: 'Multiple failed SSH login attempts detected from external IP 203.0.113.42. Over 500 attempts in 10 minutes. Active Response triggered: IP blocked.',
         severity: 'high',
         status: 'contained',
         category: 'brute_force',
@@ -121,14 +119,10 @@ async function main() {
         tags: ['ssh', 'brute-force', 'external', 'blocked'],
       },
     });
+    console.log('  ✓ Sample incident created');
   }
-  console.log('  ✓ Sample incident ensured');
 
-  console.log('\n✅ Seeding completed!');
-  console.log('\nDefault credentials:');
-  console.log('  Admin: admin@minisoc.local / Admin@MiniSOC2026!');
-  console.log('  L1:    analyst.l1@minisoc.local / Analyst1@SOC2026!');
-  console.log('  L2:    analyst.l2@minisoc.local / Analyst2@SOC2026!');
+  console.log('\n✅ Seeding completed successfully!');
 }
 
 main()
