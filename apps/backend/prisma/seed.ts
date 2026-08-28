@@ -1,13 +1,4 @@
-import {
-  PrismaClient,
-  Role,
-  AssetCriticality,
-  IOCType,
-  IOCSeverity,
-  IncidentSeverity,
-  IncidentStatus,
-  IncidentCategory,
-} from '@prisma/client';
+import { PrismaClient, IncidentSeverity, AssetCriticality, IOCType, IncidentStatus } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -15,79 +6,56 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Seeding database...');
 
-  // 1. Administrateur
-  const adminPassword = await bcrypt.hash('Admin@MiniSOC2026!', 10);
+  // 1. Mot de passe par défaut
+  const defaultPasswordHash = await bcrypt.hash('Admin@MiniSOC2026!', 10);
+
+  // 2. Utilisateurs (Adaptés au modèle User avec `name` et `roles`)
   const admin = await prisma.user.upsert({
     where: { email: 'admin@minisoc.local' },
-    update: {
-      passwordHash: adminPassword,
-      role: Role.ADMIN,
-      firstName: 'SOC',
-      lastName: 'Administrator',
-      isActive: true,
-    },
+    update: { passwordHash: defaultPasswordHash, isActive: true },
     create: {
       email: 'admin@minisoc.local',
-      passwordHash: adminPassword,
-      role: Role.ADMIN,
-      firstName: 'SOC',
-      lastName: 'Administrator',
+      name: 'SOC Administrator',
+      passwordHash: defaultPasswordHash,
+      roles: ['admin'],
       isActive: true,
     },
   });
   console.log(`  ✓ Admin user ready: ${admin.email}`);
 
-  // 2. Analyste L1
-  const l1Password = await bcrypt.hash('Analyst1@SOC2026!', 10);
   const analyst1 = await prisma.user.upsert({
     where: { email: 'analyst.l1@minisoc.local' },
-    update: {
-      passwordHash: l1Password,
-      role: Role.ANALYST,
-      firstName: 'Analyst',
-      lastName: 'Level 1',
-      isActive: true,
-    },
+    update: { passwordHash: defaultPasswordHash, isActive: true },
     create: {
       email: 'analyst.l1@minisoc.local',
-      passwordHash: l1Password,
-      role: Role.ANALYST,
-      firstName: 'Analyst',
-      lastName: 'Level 1',
+      name: 'Analyst Level 1',
+      passwordHash: defaultPasswordHash,
+      roles: ['analyst_l1'],
       isActive: true,
     },
   });
   console.log(`  ✓ Analyst L1 ready: ${analyst1.email}`);
 
-  // 3. Analyste L2
-  const l2Password = await bcrypt.hash('Analyst2@SOC2026!', 10);
   const analyst2 = await prisma.user.upsert({
     where: { email: 'analyst.l2@minisoc.local' },
-    update: {
-      passwordHash: l2Password,
-      role: Role.ANALYST,
-      firstName: 'Analyst',
-      lastName: 'Level 2',
-      isActive: true,
-    },
+    update: { passwordHash: defaultPasswordHash, isActive: true },
     create: {
       email: 'analyst.l2@minisoc.local',
-      passwordHash: l2Password,
-      role: Role.ANALYST,
-      firstName: 'Analyst',
-      lastName: 'Level 2',
+      name: 'Analyst Level 2',
+      passwordHash: defaultPasswordHash,
+      roles: ['analyst_l2'],
       isActive: true,
     },
   });
   console.log(`  ✓ Analyst L2 ready: ${analyst2.email}`);
 
-  // 4. Seeding des Assets
+  // 3. Assets (Correction de la recherche sans utiliser `id: undefined`)
   const assetsData = [
-    { hostname: 'web-server-01', ipAddress: '10.0.2.10', os: 'Ubuntu', osVersion: '22.04', criticality: AssetCriticality.HIGH, department: 'Production' },
-    { hostname: 'db-server-01', ipAddress: '10.0.2.11', os: 'Ubuntu', osVersion: '22.04', criticality: AssetCriticality.CRITICAL, department: 'Production' },
-    { hostname: 'app-server-01', ipAddress: '10.0.2.12', os: 'Ubuntu', osVersion: '22.04', criticality: AssetCriticality.HIGH, department: 'Production' },
-    { hostname: 'dev-workstation-01', ipAddress: '10.0.3.10', os: 'Windows', osVersion: '11', criticality: AssetCriticality.MEDIUM, department: 'Development' },
-    { hostname: 'soc-analyst-01', ipAddress: '10.0.4.10', os: 'Ubuntu', osVersion: '22.04', criticality: AssetCriticality.MEDIUM, department: 'Security' },
+    { hostname: 'web-server-01', ipAddress: '10.0.2.10', os: 'Ubuntu', osVersion: '22.04', criticality: AssetCriticality.high, department: 'Production' },
+    { hostname: 'db-server-01', ipAddress: '10.0.2.11', os: 'Ubuntu', osVersion: '22.04', criticality: AssetCriticality.critical, department: 'Production' },
+    { hostname: 'app-server-01', ipAddress: '10.0.2.12', os: 'Ubuntu', osVersion: '22.04', criticality: AssetCriticality.high, department: 'Production' },
+    { hostname: 'dev-workstation-01', ipAddress: '10.0.3.10', os: 'Windows', osVersion: '11', criticality: AssetCriticality.medium, department: 'Development' },
+    { hostname: 'soc-analyst-01', ipAddress: '10.0.4.10', os: 'Ubuntu', osVersion: '22.04', criticality: AssetCriticality.medium, department: 'Security' },
   ];
 
   for (const asset of assetsData) {
@@ -108,38 +76,36 @@ async function main() {
   }
   console.log(`  ✓ ${assetsData.length} assets ready`);
 
-  // 5. Seeding des IOCs
+  // 4. IOCs (Utilisation des Enums Prisma)
   const iocsData = [
-    { type: IOCType.IP, value: '203.0.113.42', description: 'Known C2 server', source: 'misp', confidence: 90, severity: IOCSeverity.HIGH },
-    { type: IOCType.DOMAIN, value: 'malware-c2.evil.tk', description: 'Malware distribution domain', source: 'virustotal', confidence: 95, severity: IOCSeverity.CRITICAL },
-    { type: IOCType.HASH_SHA256, value: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', description: 'Ransomware sample', source: 'manual', confidence: 100, severity: IOCSeverity.CRITICAL },
-    { type: IOCType.IP, value: '198.51.100.23', description: 'Port scanner', source: 'abuseipdb', confidence: 75, severity: IOCSeverity.MEDIUM },
+    { type: IOCType.ip, value: '203.0.113.42', description: 'Known C2 server', source: 'misp', confidence: 90, severity: IncidentSeverity.high },
+    { type: IOCType.domain, value: 'malware-c2.evil.tk', description: 'Malware distribution domain', source: 'virustotal', confidence: 95, severity: IncidentSeverity.critical },
+    { type: IOCType.hash_sha256, value: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', description: 'Ransomware sample', source: 'manual', confidence: 100, severity: IncidentSeverity.critical },
+    { type: IOCType.ip, value: '198.51.100.23', description: 'Port scanner', source: 'abuseipdb', confidence: 75, severity: IncidentSeverity.medium },
   ];
 
   for (const ioc of iocsData) {
-    const existingIOC = await prisma.iOC.findFirst({
-      where: { value: ioc.value },
+    const existingIoc = await prisma.iOC.findUnique({
+      where: {
+        type_value: {
+          type: ioc.type,
+          value: ioc.value,
+        },
+      },
     });
 
-    if (existingIOC) {
-      await prisma.iOC.update({
-        where: { id: existingIOC.id },
-        data: ioc,
-      });
-    } else {
+    if (!existingIoc) {
       await prisma.iOC.create({
         data: {
           ...ioc,
-          createdBy: {
-            connect: { id: admin.id },
-          },
+          createdById: admin.id,
         },
       });
     }
   }
   console.log(`  ✓ ${iocsData.length} IOCs ready`);
 
-  // 6. Exemple d'incident
+  // 5. Incident de démonstration
   const existingIncident = await prisma.incident.findFirst({
     where: { title: 'SSH Brute Force Attack on web-server-01' },
   });
@@ -148,20 +114,16 @@ async function main() {
     await prisma.incident.create({
       data: {
         title: 'SSH Brute Force Attack on web-server-01',
-        description: 'Multiple failed SSH login attempts detected from external IP 203.0.113.42. Over 500 attempts in 10 minutes. Active Response triggered: IP blocked.',
-        severity: IncidentSeverity.HIGH,
-        status: IncidentStatus.CONTAINED,
-        category: IncidentCategory.UNAUTHORIZED_ACCESS,
+        description: 'Multiple failed SSH login attempts detected from external IP 203.0.113.42.',
+        severity: IncidentSeverity.high,
+        status: IncidentStatus.contained,
+        category: 'brute_force',
         mitreTactics: ['TA0001'],
         mitreTechniques: ['T1110.001'],
         source: 'wazuh',
         riskScore: 72,
-        assignedTo: {
-          connect: { id: analyst2.id },
-        },
-        createdBy: {
-          connect: { id: admin.id },
-        },
+        assignedToId: analyst2.id,
+        createdById: admin.id,
         detectedAt: new Date(Date.now() - 3600000),
         acknowledgedAt: new Date(Date.now() - 3500000),
         containedAt: new Date(Date.now() - 3400000),
