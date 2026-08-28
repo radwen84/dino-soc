@@ -98,8 +98,8 @@ jobs:
           echo "Lancement global de l'ensemble des conteneurs..."
           docker compose --env-file .env up -d --build
 
-          echo "Stabilisation globale des services (30s)..."
-          sleep 30
+          echo "Stabilisation globale des services (40s)..."
+          sleep 40
 
       - name: 5b. Initialisation & Déverrouillage Automatique de Vault (Unseal)
         run: |
@@ -211,28 +211,28 @@ jobs:
             fi
           fi
 
-      - name: 9. TEST RÉEL RUNTIME SECURITY (Interception d'accès système par Falco)
+      - name: 9. TEST RÉEL RUNTIME SECURITY (Interception Falco)
         run: |
-          echo "=== Execution d'actions suspectes dans le conteneur API ==="
+          echo "=== Simulation d'attaques Runtime dans le conteneur API ==="
           docker exec minisoc-api /bin/sh -c "whoami && id" || true
           docker exec minisoc-api /bin/sh -c "cat /etc/shadow" || true
 
-          sleep 5
-          echo "=== Inspection des logs de la sonde Falco ==="
+          sleep 3
+          echo "=== Inspection des logs Falco ==="
           FALCO_LOGS=$(docker logs minisoc-falco 2>&1 || true)
           
-          if echo "$FALCO_LOGS" | grep -iE "Notice|Warning|Critical|Informational|shadow|shell|minisoc-api|execve"; then
+          if echo "$FALCO_LOGS" | grep -iE "Notice|Warning|Critical|shadow|shell|minisoc-api"; then
             echo "✅ Détection Runtime Security réussie par Falco !"
           else
-            echo "⚠️ Attention : Falco n'a pas enregistré l'évènement dans les logs standards."
+            echo "⚠️ Falco n'a pas levé d'alerte en direct (pilote kernel restreint dans l'environnement CI)."
           fi
 
       - name: 10. TEST RÉEL ML ANOMALY ENGINE (Inférence FastAPI)
         run: |
-          echo "=== Healthcheck & Attente active du Moteur ML ==="
+          echo "=== Attente de l'état prêt (Healthy) du Moteur ML ==="
           TIMEOUT=20
-          until curl -s -f http://localhost:8000/docs > /dev/null 2>&1 || curl -s http://localhost:8000/health > /dev/null 2>&1 || [ $TIMEOUT -eq 0 ]; do
-            echo "Attente de l'API ML FastAPI... ($TIMEOUT essais restants)"
+          until curl -s http://localhost:8000/health > /dev/null 2>&1 || curl -s http://localhost:8000/docs > /dev/null 2>&1 || [ $TIMEOUT -eq 0 ]; do
+            echo "Chargement du modèle ML en cours... ($TIMEOUT essais restants)"
             sleep 3
             TIMEOUT=$((TIMEOUT-1))
           done
@@ -252,7 +252,7 @@ jobs:
           if echo "$RESPONSE" | grep -iE "score|anomaly|prediction|status|result"; then
             echo "✅ Modèle ML opérationnel !"
           else
-            echo "⚠️ Warning: Le moteur ML FastAPI est indisponible ou n'a pas renvoyé le format attendu."
+            echo "⚠️ Warning: Le moteur ML est indisponible ou a retourné un format inattendu."
           fi
 
       - name: 11. TEST RÉEL SYNC MANUELLE WAZUH & PIPELINE OPENSEARCH

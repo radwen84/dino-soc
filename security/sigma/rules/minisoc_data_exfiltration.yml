@@ -22,7 +22,7 @@ title: Potential Data Exfiltration via DNS
 id: 9bbd9a82-8ed2-45c4-ac6e-b99d4c384172
 status: experimental
 description: Detects more than 100 unusually long DNS queries from the same source IP within ten minutes.
-author: Azmi SOMAI - MiniSOC
+author: CHEICHK Radwen - MiniSOC
 date: 2026/07/17
 tags:
   - attack.exfiltration

@@ -10,7 +10,8 @@ log_level: info
 
 priority: notice
 
-rules_file:
+# Utilisation de la clé plurielle pour éviter le warning de déprécation
+rules_files:
   - /etc/falco/falco_rules.yaml
   - /etc/falco/falco_rules.local.yaml
   - /etc/falco/rules.d
@@ -29,13 +30,14 @@ http_output:
 program_output:
   enabled: false
 
+# Désactivé pour éviter les erreurs SSL/TLS au démarrage
 grpc:
-  enabled: true
+  enabled: false
   bind_address: "0.0.0.0:5060"
   threadiness: 4
 
 grpc_output:
-  enabled: true
+  enabled: false
 
 webserver:
   enabled: true
