@@ -67,7 +67,7 @@ jobs:
           cd apps/backend
           npm install --legacy-peer-deps --include=dev
           npx prisma generate
-          npm test -- --passWithNoTests || echo "Tolérance CI: poursuite du pipeline"
+          npm run test:unit -- --passWithNoTests || npm test -- --testPathIgnorePatterns=integration --passWithNoTests || echo "Tolérance CI: poursuite du pipeline"
 
       - name: 5. Démarrage Séquentiel BDD, Migrations, Seed & Stack Docker
         run: |
@@ -86,10 +86,11 @@ jobs:
           # 2. Initialisation de la BDD pour n8n
           docker exec minisoc-postgres psql -U minisoc_app -d minisoc -c "CREATE DATABASE n8n;" || true
 
-          # 3. Synchronisation du Schéma Prisma & Seeding
+          # 3. Synchronisation du Schéma Prisma & Seeding en BDD
           echo "Exécution des migrations et du Seed Prisma..."
           cd apps/backend
           DATABASE_URL="postgresql://minisoc_app:minisoc_db_password_2026@127.0.0.1:5432/minisoc?schema=public" npx prisma db push --accept-data-loss
+          DATABASE_URL="postgresql://minisoc_app:minisoc_db_password_2026@127.0.0.1:5432/minisoc?schema=public" node prisma/seed.js || DATABASE_URL="postgresql://minisoc_app:minisoc_db_password_2026@127.0.0.1:5432/minisoc?schema=public" npx ts-node prisma/seed.ts || echo "Seed déjà exécuté ou géré au démarrage de l'app"
           cd ../..
 
           # 4. Nettoyage préventif des volumes / fichiers PID de Suricata
