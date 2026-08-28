@@ -62,9 +62,10 @@ jobs:
           DATABASE_URL: "postgresql://minisoc_app:minisoc_db_password_2026@localhost:5432/minisoc?schema=public"
           JWT_SECRET: "minisoc_jwt_secret_key_2026_super_secret_32chars"
           JWT_REFRESH_SECRET: "minisoc_jwt_refresh_secret_key_2026_super_secret_32chars"
+          NODE_ENV: "development"
         run: |
           cd apps/backend
-          npm install
+          npm install --legacy-peer-deps --include=dev
           npx prisma generate --schema=./prisma/schema.prisma || npx prisma generate
           npm test -- --passWithNoTests || echo "Tolérance CI: poursuite du pipeline"
 
