@@ -275,13 +275,17 @@ services:
     container_name: minisoc-falco
     restart: unless-stopped
     privileged: true
+    environment:
+      - FALCO_DRIVER_CHOICE=modern_ebpf
     volumes:
+      - /var/run/docker.sock:/host/var/run/docker.sock:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /dev:/host/dev:ro
       - /proc:/host/proc:ro
       - /boot:/host/boot:ro
       - /lib/modules:/host/lib/modules:ro
       - /sys:/host/sys:ro
+      - /etc:/host/etc:ro
       - falco_logs:/var/log/falco
 
   # ============================================

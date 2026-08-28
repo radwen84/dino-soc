@@ -23,6 +23,7 @@ jobs:
       - name: 2. Préparation Système & Réseau de l'Hôte (CI/CD)
         run: |
           sudo sysctl -w vm.max_map_count=262144 || true
+          sudo sysctl -w kernel.unprivileged_bpf_disabled=0 || true
           sudo ip link set eth0 promisc on || true
           sudo mkdir -p /var/lib/docker/volumes/
           sudo chmod -R 777 /var/lib/docker/volumes/ || true
@@ -292,7 +293,7 @@ jobs:
           echo -e "\n---> [12/16] GET /api/assets"
           curl -sLk "https://localhost/api/assets" -H "Authorization: Bearer $TOKEN"
 
-          # 13. POST /api/soar/playbooks (Fix: Payload conforme CreatePlaybookDto)
+          # 13. POST /api/soar/playbooks
           echo -e "\n---> [13/16] POST /api/soar/playbooks"
           CREATE_PLAYBOOK=$(curl -sLk -X POST "https://localhost/api/soar/playbooks" \
             -H "Authorization: Bearer $TOKEN" \
@@ -326,13 +327,12 @@ jobs:
             }')
           echo "Réponse Création Playbook: $CREATE_PLAYBOOK"
 
-          # Extraction dynamique de l'UUID créé ou repli vers un UUID standard valide
           PLAYBOOK_ID=$(echo "$CREATE_PLAYBOOK" | jq -r '.id // empty')
           if [ -z "$PLAYBOOK_ID" ] || [ "$PLAYBOOK_ID" == "null" ]; then
             PLAYBOOK_ID="123e4567-e89b-12d3-a456-426614174000"
           fi
 
-          # 14. POST /api/soar/playbooks/:id/execute (Fix: UUID v4 valide + Payload conforme ExecutePlaybookDto)
+          # 14. POST /api/soar/playbooks/:id/execute
           echo -e "\n---> [14/16] POST /api/soar/playbooks/$PLAYBOOK_ID/execute"
           EXEC_PLAYBOOK=$(curl -sLk -X POST "https://localhost/api/soar/playbooks/$PLAYBOOK_ID/execute" \
             -H "Authorization: Bearer $TOKEN" \
@@ -368,7 +368,7 @@ jobs:
       - name: 13. TEST OBSERVABILITÉ (Prometheus & Grafana)
         run: |
           curl -s -f http://localhost:9090/-/healthy && echo "✅ Prometheus OK" || echo "⚠️ Prometheus non prêt"
-          (curl -s -f http://localhost:3000/api/health > /dev/null 2>&1 || curl -s -f http://localhost:3000/api/status > /dev/null 2>&1) && echo "✅ Grafana OK" || echo "⚠️ Grafana non prêt"
+          (curl -s -f http://localhost:3001/api/health > /dev/null 2>&1 || curl -s -f http://localhost:3000/api/health > /dev/null 2>&1) && echo "✅ Grafana OK" || echo "⚠️ Grafana non prêt"
 
       - name: 14. Audit de Sécurité (Trivy SAST)
         uses: aquasecurity/trivy-action@master
