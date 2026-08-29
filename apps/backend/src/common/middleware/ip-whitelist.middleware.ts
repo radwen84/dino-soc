@@ -7,16 +7,35 @@ export class IpWhitelistMiddleware implements NestMiddleware {
   private readonly allowedIps: string[];
 
   constructor(private readonly configService: ConfigService) {
-    this.allowedIps = (this.configService.get<string>('ADMIN_IP_WHITELIST') || '127.0.0.1,::1')
-      .split(',')
-      .map((ip) => ip.trim());
+    const rawList =
+      this.configService.get<string>('METRICS_ALLOWED_IPS') ||
+      this.configService.get<string>('ADMIN_IP_WHITELIST') ||
+      '127.0.0.1,::1,::ffff:127.0.0.1';
+
+    this.allowedIps = rawList.split(',').map((ip) => ip.trim());
   }
 
   use(req: Request, _res: Response, next: NextFunction) {
-    const clientIp = req.ip || req.socket.remoteAddress || '';
+    if (this.allowedIps.includes('*')) {
+      return next();
+    }
 
-    if (!this.allowedIps.includes(clientIp) && !this.allowedIps.includes('*')) {
-      throw new ForbiddenException('Access denied: IP not whitelisted');
+    const forwarded = req.headers['x-forwarded-for'];
+    const rawIp = typeof forwarded === 'string'
+      ? forwarded.split(',')[0].trim()
+      : req.ip || req.socket.remoteAddress || '';
+
+    const normalizedIp = rawIp.replace(/^::ffff:/, '');
+
+    const isAllowed = this.allowedIps.some(
+      (ip) =>
+        ip === rawIp ||
+        ip === normalizedIp ||
+        (ip === '::1' && (normalizedIp === '127.0.0.1' || rawIp === '::1')),
+    );
+
+    if (!isAllowed) {
+      throw new ForbiddenException(`Access denied: IP ${rawIp} not whitelisted`);
     }
 
     next();

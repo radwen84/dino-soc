@@ -22,8 +22,10 @@ async function bootstrap() {
         : ['error', 'warn', 'log', 'debug', 'verbose'],
   });
 
-  // Global prefix
-  app.setGlobalPrefix('api');
+  // Global prefix avec exclusion de /metrics pour Prometheus
+  app.setGlobalPrefix('api', {
+    exclude: ['metrics', 'health'],
+  });
 
   // Security
   app.enableCors(getCorsConfig());
@@ -52,6 +54,7 @@ async function bootstrap() {
       .addTag('Alerts', 'Security alerts')
       .addTag('IOC', 'Indicators of Compromise')
       .addTag('Assets', 'Asset inventory')
+      .addTag('Playbooks', 'SOAR Automation Playbooks')
       .addTag('Threat Intelligence', 'Threat intel feeds & lookups')
       .addTag('Reports', 'SOC reports & KPIs')
       .build();
