@@ -209,9 +209,9 @@ jobs:
           echo "  DÉBUT DES TESTS DES ENDPOINTS API MINI-SOC"
           echo "================================================="
 
-          # 1. GET /api/health
-          echo -e "\n---> [1/16] GET /api/health"
-          HEALTH=$(curl -sLk "https://localhost/api/health" || echo "FAILED")
+          # 1. GET Health (Exclu du préfixe /api dans main.ts)
+          echo -e "\n---> [1/16] GET /health"
+          HEALTH=$(curl -sLk "https://localhost/health" || curl -sLk "https://localhost/api/health")
           echo "Réponse: $HEALTH"
 
           # 2. POST /api/auth/login
@@ -300,9 +300,9 @@ jobs:
           echo -e "\n---> [12/16] GET /api/assets"
           curl -sLk "https://localhost/api/assets" -H "Authorization: Bearer $TOKEN"
 
-          # 13. POST /api/playbook
-          echo -e "\n---> [13/16] POST /api/playbook"
-          CREATE_PLAYBOOK=$(curl -fsLk -X POST "https://localhost/api/playbook" \
+          # 13. POST /api/playbooks (Prise en compte du contrôleur SoarController)
+          echo -e "\n---> [13/16] POST /api/playbooks"
+          CREATE_PLAYBOOK=$(curl -sLk -X POST "https://localhost/api/playbooks" \
             -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
             -d '{
@@ -321,7 +321,7 @@ jobs:
               }],
               "isActive": true,
               "tags": ["incident-response", "auto-containment"]
-            }' || curl -sLk -X POST "https://localhost/api/playbooks" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"name":"Auto Host Isolation Playbook","description":"Automatically isolate compromised endpoint"}')
+            }')
           echo "Réponse Création Playbook: $CREATE_PLAYBOOK"
 
           PLAYBOOK_ID=$(echo "$CREATE_PLAYBOOK" | jq -r '.id // empty')
@@ -329,9 +329,9 @@ jobs:
             PLAYBOOK_ID="123e4567-e89b-12d3-a456-426614174000"
           fi
 
-          # 14. POST /api/playbook/:id/execute
-          echo -e "\n---> [14/16] POST /api/playbook/$PLAYBOOK_ID/execute"
-          EXEC_PLAYBOOK=$(curl -fsLk -X POST "https://localhost/api/playbook/$PLAYBOOK_ID/execute" \
+          # 14. POST /api/playbooks/:id/execute
+          echo -e "\n---> [14/16] POST /api/playbooks/$PLAYBOOK_ID/execute"
+          EXEC_PLAYBOOK=$(curl -sLk -X POST "https://localhost/api/playbooks/$PLAYBOOK_ID/execute" \
             -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
             -d '{
@@ -342,16 +342,16 @@ jobs:
                   "source_ip": "10.0.0.50"
                 }
               }
-            }' || curl -sLk -X POST "https://localhost/api/playbooks/$PLAYBOOK_ID/execute" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"dryRun":true}')
+            }')
           echo "Réponse Exécution Playbook: $EXEC_PLAYBOOK"
 
           # 15. GET /api/reports/generate?type=kpi_metrics
           echo -e "\n---> [15/16] GET /api/reports/generate?type=kpi_metrics"
           curl -sLk "https://localhost/api/reports/generate?type=kpi_metrics" -H "Authorization: Bearer $TOKEN" || true
 
-          # 16. GET /metrics (Prometheus Metrics)
+          # 16. GET /metrics (Prometheus Metrics via API Direct)
           echo -e "\n---> [16/16] GET /metrics (Prometheus Metrics via API Direct)"
-          METRICS_RES=$(docker exec minisoc-api curl -s http://127.0.0.1:4000/metrics || docker exec minisoc-api curl -s http://127.0.0.1:4000/api/metrics || echo "Metrics non exposées")
+          METRICS_RES=$(docker exec minisoc-api curl -s http://127.0.0.1:4000/metrics || curl -sLk "https://localhost/metrics")
           echo "$METRICS_RES" | head -n 10
           echo "================================================="
           echo "  ✅ EXÉCUTION DE LA SUITE DE TESTS EFFECTUÉE"
