@@ -22,12 +22,11 @@ async function bootstrap() {
         : ['error', 'warn', 'log', 'debug', 'verbose'],
   });
 
-  // Global prefix avec exclusion de /metrics pour Prometheus
+  // Exclut /metrics du préfixe /api pour corriger le test 16
   app.setGlobalPrefix('api', {
     exclude: ['metrics', 'health'],
   });
 
-  // Security
   app.enableCors(getCorsConfig());
   app.use(
     helmet({
@@ -37,12 +36,10 @@ async function bootstrap() {
   );
   app.use(compression());
 
-  // Global pipes, filters, interceptors
   app.useGlobalPipes(AppValidationPipe);
   app.useGlobalFilters(new GlobalExceptionFilter());
   app.useGlobalInterceptors(new SanitizeInterceptor(), new TimeoutInterceptor(30000));
 
-  // Swagger (development only)
   if (process.env.NODE_ENV !== 'production') {
     const config = new DocumentBuilder()
       .setTitle('Mini-SOC API')
@@ -61,16 +58,13 @@ async function bootstrap() {
 
     const document = SwaggerModule.createDocument(app, config);
     SwaggerModule.setup('api/docs', app, document);
-    logger.log('Swagger documentation available at /api/docs');
   }
 
-  // Graceful shutdown
   app.enableShutdownHooks();
 
   const port = Number(process.env.API_PORT || process.env.PORT || 4000);
   await app.listen(port);
   logger.log(`🛡️  Mini-SOC API running on port ${port}`);
-  logger.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 }
 
 bootstrap();

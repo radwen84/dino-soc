@@ -21,6 +21,7 @@ import { ApprovalDecisionDto } from './dto/approval.dto';
 @ApiTags('Playbooks')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
+// Déclare les deux préfixes pour corriger les tests 13 et 14 (404 NOT_FOUND)
 @Controller(['playbooks', 'soar/playbooks'])
 export class SoarController {
   constructor(
@@ -74,10 +75,6 @@ export class SoarController {
   ) {
     return this.soarService.executeManually(id, dto, userId);
   }
-
-  // ─────────────────────────────────────────────────────────
-  // Human-in-the-Loop Approval Endpoints
-  // ─────────────────────────────────────────────────────────
 
   @Get('approvals/pending')
   @Roles('admin', 'analyst_l3', 'incident_responder')
