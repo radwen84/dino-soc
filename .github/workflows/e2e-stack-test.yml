@@ -209,9 +209,9 @@ jobs:
           echo "  DÉBUT DES TESTS DES ENDPOINTS API MINI-SOC"
           echo "================================================="
 
-          # 1. GET Health (Supporte la route globale /health et la route préfixée /api/health)
+          # 1. GET Health
           echo -e "\n---> [1/16] GET Health"
-          HEALTH=$(curl -sLk "https://localhost/health" || curl -sLk "https://localhost/api/health")
+          HEALTH=$(curl -sLk "https://localhost/health" || curl -sLk "https://localhost/api/health" || docker exec minisoc-api curl -s http://localhost:4000/health)
           echo "Réponse: $HEALTH"
 
           # 2. POST /api/auth/login
@@ -269,12 +269,19 @@ jobs:
           echo -e "\n---> [7/16] GET /api/alerts"
           curl -sLk "https://localhost/api/alerts" -H "Authorization: Bearer $TOKEN"
 
-          # 8. POST /api/ioc
+          # 8. POST /api/ioc (Correction du typage confidence Integer pour OpenSearch)
           echo -e "\n---> [8/16] POST /api/ioc"
           CREATE_IOC=$(curl -sLk -X POST "https://localhost/api/ioc" \
             -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
-            -d '{"type":"ip","value":"185.220.101.5","description":"Tor exit node used in attack","confidence":90,"severity":"high","status":"active"}' || true)
+            -d '{
+              "type": "ip",
+              "value": "185.220.101.5",
+              "description": "Tor exit node used in attack",
+              "confidence": 90,
+              "severity": "high",
+              "status": "active"
+            }' || true)
           echo "Réponse Création IOC: $CREATE_IOC"
 
           # 9. GET /api/ioc
@@ -286,25 +293,30 @@ jobs:
           LOOKUP_RES=$(curl -sLk "https://localhost/api/threat-intel/lookup/185.220.101.5" -H "Authorization: Bearer $TOKEN")
           echo "Réponse Lookup Threat Intel: $LOOKUP_RES"
 
-          # 11. POST /api/threat-intel/taxii/ingest
+          # 11. POST /api/threat-intel/taxii/ingest (Payload TAXII complet)
           echo -e "\n---> [11/16] POST /api/threat-intel/taxii/ingest"
           TAXII_RES=$(curl -sLk -X POST "https://localhost/api/threat-intel/taxii/ingest" \
             -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
-            -d '{"feed_url":"https://cti-taxii.mitre.org/stix/collections/95ecc380-afe9-11e4-9b6c-751b66dd161e/"}' || true)
+            -d '{
+              "apiRoot": "https://cti-taxii.mitre.org/stix",
+              "collectionId": "95ecc380-afe9-11e4-9b6c-751b66dd161e",
+              "pollUrl": "https://cti-taxii.mitre.org/stix/collections/95ecc380-afe9-11e4-9b6c-751b66dd161e/",
+              "feedUrl": "https://cti-taxii.mitre.org/stix/collections/95ecc380-afe9-11e4-9b6c-751b66dd161e/"
+            }' || true)
           echo "Réponse Ingestion TAXII: $TAXII_RES"
 
           # 12. GET /api/assets
           echo -e "\n---> [12/16] GET /api/assets"
           curl -sLk "https://localhost/api/assets" -H "Authorization: Bearer $TOKEN"
 
-          # 13. POST Playbook Creation
+          # 13. POST Playbook Creation (Payload aligné avec le modèle Prisma Playbook)
           echo -e "\n---> [13/16] POST Playbook Creation"
           PLAYBOOK_PAYLOAD='{
             "name": "Auto Host Isolation Playbook",
             "description": "Automatically isolate compromised endpoint on critical alert",
             "triggerConditions": {
-              "triggerType": "alert",
+              "type": "alert",
               "rules": [
                 {
                   "field": "severity",
@@ -322,8 +334,7 @@ jobs:
                 "params": { "ip": "10.0.0.50" }
               }
             ],
-            "isActive": true,
-            "tags": ["auto-containment"]
+            "isActive": true
           }'
 
           CREATE_PLAYBOOK_RESP=$(curl -sLk -X POST "https://localhost/api/playbooks" \
