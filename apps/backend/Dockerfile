@@ -1,4 +1,4 @@
-# Stage 1
+# Stage 1: Build
 FROM node:24-alpine AS builder
 WORKDIR /app
 
@@ -7,7 +7,8 @@ RUN apk add --no-cache openssl libc6-compat
 COPY apps/backend/package.json apps/backend/package-lock.json ./
 COPY apps/backend/prisma ./prisma/
 
-RUN npm ci
+# Remplacement de npm ci par npm install tolérant
+RUN npm install --legacy-peer-deps && npm cache clean --force
 
 COPY apps/backend/ .
 
@@ -16,7 +17,7 @@ RUN npm run build
 RUN ls -la dist && test -f dist/main.js
 
 
-# Stage 2
+# Stage 2: Production Dependencies
 FROM node:24-alpine AS prod-deps
 WORKDIR /app
 
@@ -25,10 +26,11 @@ RUN apk add --no-cache openssl libc6-compat
 COPY apps/backend/package.json apps/backend/package-lock.json ./
 COPY apps/backend/prisma ./prisma/
 
-RUN npm ci --only=production && npx prisma generate
+# Installation des dépendances de production uniquement
+RUN npm install --omit=dev --legacy-peer-deps && npx prisma generate && npm cache clean --force
 
 
-# Stage 3
+# Stage 3: Runner Final
 FROM node:24-alpine AS production
 
 RUN apk add --no-cache openssl libc6-compat dumb-init curl && \
