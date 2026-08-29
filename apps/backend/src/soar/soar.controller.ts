@@ -21,7 +21,6 @@ import { ApprovalDecisionDto } from './dto/approval.dto';
 @ApiTags('Playbooks')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
-// Déclare les deux préfixes pour corriger les tests 13 et 14 (404 NOT_FOUND)
 @Controller(['playbooks', 'soar/playbooks'])
 export class SoarController {
   constructor(
@@ -30,61 +29,29 @@ export class SoarController {
   ) {}
 
   @Get()
-  @Roles('admin', 'analyst_l2', 'analyst_l3')
+  @Roles('admin', 'analyst_l2', 'analyst_l3', 'ADMIN')
   @ApiOperation({ summary: 'List all playbooks' })
   getPlaybooks() {
     return this.soarService.getPlaybooks();
   }
 
   @Get('defaults')
-  @Roles('admin')
+  @Roles('admin', 'ADMIN')
   @ApiOperation({ summary: 'Get default playbook templates' })
   getDefaults() {
     return this.soarService.getDefaultPlaybooks();
   }
 
-  @Get(':id')
-  @Roles('admin', 'analyst_l2', 'analyst_l3')
-  getPlaybook(@Param('id', ParseUUIDPipe) id: string) {
-    return this.soarService.getPlaybook(id);
-  }
-
-  @Post()
-  @Roles('admin', 'analyst_l3')
-  @ApiOperation({ summary: 'Create a new playbook' })
-  @ApiResponse({ status: 201, description: 'Playbook created successfully' })
-  create(@Body() dto: CreatePlaybookDto, @CurrentUser('id') userId: string) {
-    return this.soarService.createPlaybook(dto, userId);
-  }
-
-  @Patch(':id/toggle')
-  @Roles('admin', 'analyst_l3')
-  @ApiOperation({ summary: 'Enable/disable a playbook' })
-  toggle(@Param('id', ParseUUIDPipe) id: string, @CurrentUser('id') userId: string) {
-    return this.soarService.togglePlaybook(id, userId);
-  }
-
-  @Post(':id/execute')
-  @Roles('admin', 'analyst_l3')
-  @ApiOperation({ summary: 'Manually execute a playbook (supports dry-run)' })
-  @ApiResponse({ status: 200, description: 'Playbook execution result' })
-  execute(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: ExecutePlaybookDto,
-    @CurrentUser('id') userId: string,
-  ) {
-    return this.soarService.executeManually(id, dto, userId);
-  }
-
+  // --- ROUTES STATIQUES D'APPROBATION PLACÉES AVANT :id ---
   @Get('approvals/pending')
-  @Roles('admin', 'analyst_l3', 'incident_responder')
+  @Roles('admin', 'analyst_l3', 'incident_responder', 'ADMIN')
   @ApiOperation({ summary: 'List pending approval requests' })
   getPendingApprovals() {
     return this.playbookEngine.getPendingApprovals();
   }
 
   @Post('approvals/:id/decide')
-  @Roles('admin', 'analyst_l3', 'incident_responder')
+  @Roles('admin', 'analyst_l3', 'incident_responder', 'ADMIN')
   @ApiOperation({ summary: 'Approve or reject a pending SOAR action' })
   @ApiResponse({ status: 200, description: 'Decision recorded' })
   processApproval(
@@ -93,5 +60,39 @@ export class SoarController {
     @CurrentUser('id') userId: string,
   ) {
     return this.playbookEngine.processApproval(approvalId, dto.decision, userId, dto.reason);
+  }
+
+  // --- ROUTE DYNAMIQUE :id (DOIT ÊTRE APRÈS LES ROUTES STATIQUES) ---
+  @Get(':id')
+  @Roles('admin', 'analyst_l2', 'analyst_l3', 'ADMIN')
+  getPlaybook(@Param('id', ParseUUIDPipe) id: string) {
+    return this.soarService.getPlaybook(id);
+  }
+
+  @Post()
+  @Roles('admin', 'analyst_l3', 'ADMIN')
+  @ApiOperation({ summary: 'Create a new playbook' })
+  @ApiResponse({ status: 201, description: 'Playbook created successfully' })
+  create(@Body() dto: CreatePlaybookDto, @CurrentUser('id') userId: string) {
+    return this.soarService.createPlaybook(dto, userId);
+  }
+
+  @Patch(':id/toggle')
+  @Roles('admin', 'analyst_l3', 'ADMIN')
+  @ApiOperation({ summary: 'Enable/disable a playbook' })
+  toggle(@Param('id', ParseUUIDPipe) id: string, @CurrentUser('id') userId: string) {
+    return this.soarService.togglePlaybook(id, userId);
+  }
+
+  @Post(':id/execute')
+  @Roles('admin', 'analyst_l3', 'ADMIN')
+  @ApiOperation({ summary: 'Manually execute a playbook (supports dry-run)' })
+  @ApiResponse({ status: 200, description: 'Playbook execution result' })
+  execute(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ExecutePlaybookDto,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.soarService.executeManually(id, dto, userId);
   }
 }

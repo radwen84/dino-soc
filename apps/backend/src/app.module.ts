@@ -18,11 +18,13 @@ import { IocModule } from './ioc/ioc.module';
 import { AssetsModule } from './assets/assets.module';
 import { ThreatIntelModule } from './threat-intel/threat-intel.module';
 import { ReportsModule } from './reports/reports.module';
+import { SoarModule } from './soar/soar.module'; // <-- AJOUTÉ (ou './playbooks/playbooks.module')
 
-// Infrastructure modules
+// Infrastructure & Observability modules
 import { OpenSearchModule } from './opensearch/opensearch.module';
 import { WazuhModule } from './wazuh/wazuh.module';
 import { WebsocketModule } from './websocket/websocket.module';
+import { MetricsModule } from './metrics/metrics.module'; // <-- AJOUTÉ (si présent pour /metrics)
 
 import configuration from './config/configuration';
 import { validate } from './config/env.validation';
@@ -70,11 +72,13 @@ import { validate } from './config/env.validation';
     AssetsModule,
     ThreatIntelModule,
     ReportsModule,
+    SoarModule, // <-- AJOUTÉ DANS LES IMPORTS
 
     // Infrastructure
     OpenSearchModule,
     WazuhModule,
     WebsocketModule,
+    MetricsModule, // <-- AJOUTÉ DANS LES IMPORTS (si le fichier existe)
   ],
 })
 export class AppModule {}

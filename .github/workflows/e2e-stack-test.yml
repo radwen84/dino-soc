@@ -209,7 +209,7 @@ jobs:
           echo "  DÉBUT DES TESTS DES ENDPOINTS API MINI-SOC"
           echo "================================================="
 
-          # 1. GET Health
+          # 1. GET Health (Supporte la route globale /health et la route préfixée /api/health)
           echo -e "\n---> [1/16] GET Health"
           HEALTH=$(curl -sLk "https://localhost/health" || curl -sLk "https://localhost/api/health")
           echo "Réponse: $HEALTH"
@@ -282,9 +282,9 @@ jobs:
           curl -sLk "https://localhost/api/ioc" -H "Authorization: Bearer $TOKEN"
 
           # 10. GET /api/threat-intel/lookup/:value
-          echo -e "\n---> [10/16] GET /api/threat-intel/lookup/:value (Lookup Threat Intel)"
+          echo -e "\n---> [10/16] GET /api/threat-intel/lookup/:value"
           LOOKUP_RES=$(curl -sLk "https://localhost/api/threat-intel/lookup/185.220.101.5" -H "Authorization: Bearer $TOKEN")
-          echo "Réponse Lookup Threat Intel (185.220.101.5): $LOOKUP_RES"
+          echo "Réponse Lookup Threat Intel: $LOOKUP_RES"
 
           # 11. POST /api/threat-intel/taxii/ingest
           echo -e "\n---> [11/16] POST /api/threat-intel/taxii/ingest"
@@ -298,7 +298,7 @@ jobs:
           echo -e "\n---> [12/16] GET /api/assets"
           curl -sLk "https://localhost/api/assets" -H "Authorization: Bearer $TOKEN"
 
-          # 13. POST Playbook
+          # 13. POST Playbook Creation (Fallback route auto)
           echo -e "\n---> [13/16] POST Playbook Creation"
           PLAYBOOK_PAYLOAD='{
             "name": "Auto Host Isolation Playbook",
@@ -318,13 +318,13 @@ jobs:
             "tags": ["incident-response", "auto-containment"]
           }'
 
-          CREATE_PLAYBOOK=$(curl -sLk -X POST "https://localhost/api/soar/playbooks" \
+          CREATE_PLAYBOOK=$(curl -sLk -X POST "https://localhost/api/playbooks" \
             -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
             -d "$PLAYBOOK_PAYLOAD")
 
           if echo "$CREATE_PLAYBOOK" | grep -q "404"; then
-            CREATE_PLAYBOOK=$(curl -sLk -X POST "https://localhost/api/playbooks" \
+            CREATE_PLAYBOOK=$(curl -sLk -X POST "https://localhost/api/soar/playbooks" \
               -H "Authorization: Bearer $TOKEN" \
               -H "Content-Type: application/json" \
               -d "$PLAYBOOK_PAYLOAD")
@@ -336,7 +336,6 @@ jobs:
             PLAYBOOK_ID="123e4567-e89b-12d3-a456-426614174000"
           fi
 
-          # Assertion Playbook Creation
           if echo "$CREATE_PLAYBOOK" | grep -qE '("id"|"playbookId"|"name")'; then
             echo "✅ Playbook créé/validé."
           else
@@ -355,20 +354,19 @@ jobs:
             }
           }'
 
-          EXEC_PLAYBOOK=$(curl -sLk -X POST "https://localhost/api/soar/playbooks/$PLAYBOOK_ID/execute" \
+          EXEC_PLAYBOOK=$(curl -sLk -X POST "https://localhost/api/playbooks/$PLAYBOOK_ID/execute" \
             -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
             -d "$EXEC_PAYLOAD")
 
           if echo "$EXEC_PLAYBOOK" | grep -q "404"; then
-            EXEC_PLAYBOOK=$(curl -sLk -X POST "https://localhost/api/playbooks/$PLAYBOOK_ID/execute" \
+            EXEC_PLAYBOOK=$(curl -sLk -X POST "https://localhost/api/soar/playbooks/$PLAYBOOK_ID/execute" \
               -H "Authorization: Bearer $TOKEN" \
               -H "Content-Type: application/json" \
               -d "$EXEC_PAYLOAD")
           fi
           echo "Réponse Exécution Playbook: $EXEC_PLAYBOOK"
 
-          # Assertion Playbook Execution
           if echo "$EXEC_PLAYBOOK" | grep -qE '("executed"|"success"|"status"|"result"|"actions"|"message")'; then
             echo "✅ Simulation d'exécution Playbook validée."
           else

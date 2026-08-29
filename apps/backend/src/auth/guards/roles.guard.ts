@@ -13,7 +13,7 @@ export class RolesGuard implements CanActivate {
       context.getClass(),
     ]);
 
-    // If no roles defined, allow access
+    // Si aucun rôle n'est spécifié sur la route/contrôleur, autoriser l'accès
     if (!requiredRoles || requiredRoles.length === 0) {
       return true;
     }
@@ -21,11 +21,15 @@ export class RolesGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const user = request.user as JwtPayload;
 
-    if (!user || !user.roles) {
+    if (!user || !user.roles || !Array.isArray(user.roles)) {
       throw new ForbiddenException('Access denied: no roles assigned');
     }
 
-    const hasRole = user.roles.some((role) => requiredRoles.includes(role));
+    // Normalisation en minuscules pour éliminer la sensibilité à la casse ('admin' vs 'ADMIN')
+    const normalizedRequiredRoles = requiredRoles.map((r) => r.toLowerCase());
+    const userRoles = user.roles.map((r) => r.toLowerCase());
+
+    const hasRole = userRoles.some((role) => normalizedRequiredRoles.includes(role));
 
     if (!hasRole) {
       throw new ForbiddenException(`Access denied: requires one of [${requiredRoles.join(', ')}]`);
