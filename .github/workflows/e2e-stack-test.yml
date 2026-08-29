@@ -298,79 +298,68 @@ jobs:
           echo -e "\n---> [12/16] GET /api/assets"
           curl -sLk "https://localhost/api/assets" -H "Authorization: Bearer $TOKEN"
 
-          # 13. POST Playbook Creation (Fallback route auto)
+          # 13. POST Playbook Creation
           echo -e "\n---> [13/16] POST Playbook Creation"
           PLAYBOOK_PAYLOAD='{
             "name": "Auto Host Isolation Playbook",
             "description": "Automatically isolate compromised endpoint on critical alert",
-            "triggerType": "alert",
             "triggerConditions": {
-              "rules": [{"field": "severity", "operator": "eq", "value": "CRITICAL"}]
+              "triggerType": "alert",
+              "rules": [
+                {
+                  "field": "severity",
+                  "operator": "eq",
+                  "value": "critical"
+                }
+              ]
             },
-            "actions": [{
-              "id": "act-01",
-              "name": "Isolate Endpoint",
-              "type": "isolate_host",
-              "riskLevel": "high",
-              "params": {"ip": "10.0.0.50"}
-            }],
+            "actions": [
+              {
+                "id": "act-01",
+                "name": "Isolate Host",
+                "type": "isolate_host",
+                "riskLevel": "high",
+                "params": { "ip": "10.0.0.50" }
+              }
+            ],
             "isActive": true,
-            "tags": ["incident-response", "auto-containment"]
+            "tags": ["auto-containment"]
           }'
 
-          CREATE_PLAYBOOK=$(curl -sLk -X POST "https://localhost/api/playbooks" \
+          CREATE_PLAYBOOK_RESP=$(curl -sLk -X POST "https://localhost/api/playbooks" \
             -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
             -d "$PLAYBOOK_PAYLOAD")
 
-          if echo "$CREATE_PLAYBOOK" | grep -q "404"; then
-            CREATE_PLAYBOOK=$(curl -sLk -X POST "https://localhost/api/soar/playbooks" \
-              -H "Authorization: Bearer $TOKEN" \
-              -H "Content-Type: application/json" \
-              -d "$PLAYBOOK_PAYLOAD")
-          fi
-          echo "Réponse Création Playbook: $CREATE_PLAYBOOK"
+          echo "Réponse Création Playbook: $CREATE_PLAYBOOK_RESP"
 
-          PLAYBOOK_ID=$(echo "$CREATE_PLAYBOOK" | jq -r '.id // .playbookId // empty')
-          if [ -z "$PLAYBOOK_ID" ] || [ "$PLAYBOOK_ID" == "null" ]; then
-            PLAYBOOK_ID="123e4567-e89b-12d3-a456-426614174000"
-          fi
+          PLAYBOOK_ID=$(echo "$CREATE_PLAYBOOK_RESP" | jq -r '.id // empty')
 
-          if echo "$CREATE_PLAYBOOK" | grep -qE '("id"|"playbookId"|"name")'; then
-            echo "✅ Playbook créé/validé."
+          if [ -n "$PLAYBOOK_ID" ] && [ "$PLAYBOOK_ID" != "null" ]; then
+            echo "✅ Playbook créé avec l'ID: $PLAYBOOK_ID"
           else
             echo "⚠️ Avertissement sur la réponse de création Playbook."
           fi
 
           # 14. POST Execute Playbook
           echo -e "\n---> [14/16] POST Execute Playbook ($PLAYBOOK_ID)"
-          EXEC_PAYLOAD='{
-            "dryRun": true,
-            "triggerData": {
-              "alert": {
-                "severity": "CRITICAL",
-                "source_ip": "10.0.0.50"
+          if [ -n "$PLAYBOOK_ID" ] && [ "$PLAYBOOK_ID" != "null" ]; then
+            EXEC_PAYLOAD='{
+              "dryRun": true,
+              "testData": {
+                "alertId": "3cc5e02f-8976-4f49-969f-77c5e98de969",
+                "severity": "critical"
               }
-            }
-          }'
+            }'
 
-          EXEC_PLAYBOOK=$(curl -sLk -X POST "https://localhost/api/playbooks/$PLAYBOOK_ID/execute" \
-            -H "Authorization: Bearer $TOKEN" \
-            -H "Content-Type: application/json" \
-            -d "$EXEC_PAYLOAD")
-
-          if echo "$EXEC_PLAYBOOK" | grep -q "404"; then
-            EXEC_PLAYBOOK=$(curl -sLk -X POST "https://localhost/api/soar/playbooks/$PLAYBOOK_ID/execute" \
+            EXEC_PLAYBOOK_RESP=$(curl -sLk -X POST "https://localhost/api/playbooks/$PLAYBOOK_ID/execute" \
               -H "Authorization: Bearer $TOKEN" \
               -H "Content-Type: application/json" \
               -d "$EXEC_PAYLOAD")
-          fi
-          echo "Réponse Exécution Playbook: $EXEC_PLAYBOOK"
 
-          if echo "$EXEC_PLAYBOOK" | grep -qE '("executed"|"success"|"status"|"result"|"actions"|"message")'; then
-            echo "✅ Simulation d'exécution Playbook validée."
+            echo "Réponse Exécution Playbook: $EXEC_PLAYBOOK_RESP"
           else
-            echo "⚠️ Avertissement sur l'exécution Playbook."
+            echo "⚠️ Création de playbook non validée, exécution annulée."
           fi
 
           # 15. GET /api/reports/generate?type=kpi_metrics
