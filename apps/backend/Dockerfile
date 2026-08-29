@@ -7,7 +7,6 @@ RUN apk add --no-cache openssl libc6-compat
 COPY apps/backend/package.json apps/backend/package-lock.json ./
 COPY apps/backend/prisma ./prisma/
 
-# Remplacement de npm ci par npm install tolérant
 RUN npm install --legacy-peer-deps && npm cache clean --force
 
 COPY apps/backend/ .
@@ -24,10 +23,13 @@ WORKDIR /app
 RUN apk add --no-cache openssl libc6-compat
 
 COPY apps/backend/package.json apps/backend/package-lock.json ./
-COPY apps/backend/prisma ./prisma/
 
 # Installation des dépendances de production uniquement
-RUN npm install --omit=dev --legacy-peer-deps && npx prisma generate && npm cache clean --force
+RUN npm install --omit=dev --legacy-peer-deps && npm cache clean --force
+
+# On récupère le Prisma Client généré lors du Stage 1
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
 
 
 # Stage 3: Runner Final
