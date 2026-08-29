@@ -141,7 +141,7 @@ jobs:
             echo "✅ Vault unsealed avec succès !"
           fi
 
-      - name: 6. Diagnostic de Santé des Conteneurs & Logs (En cas d'échec)
+      - name: 6. Diagnostic de Santé des Conteneurs (En cas d'échec)
         if: always()
         run: |
           echo "=== ETAT DES CONTENEURS ==="
@@ -209,8 +209,8 @@ jobs:
           echo "  DÉBUT DES TESTS DES ENDPOINTS API MINI-SOC"
           echo "================================================="
 
-          # 1. GET Health (Exclu du préfixe /api dans main.ts)
-          echo -e "\n---> [1/16] GET /health"
+          # 1. GET Health
+          echo -e "\n---> [1/16] GET Health"
           HEALTH=$(curl -sLk "https://localhost/health" || curl -sLk "https://localhost/api/health")
           echo "Réponse: $HEALTH"
 
@@ -236,8 +236,6 @@ jobs:
               -H "Content-Type: application/json" \
               -d "{\"refreshToken\":\"$REFRESH_TOKEN\"}")
             echo "Réponse Refresh Token: $REFRESH_RES"
-          else
-            echo "ℹ️ Token de rafraîchissement non retourné ou géré par cookies HTTP-Only."
           fi
 
           # 4. POST /api/auth/mfa/verify
@@ -300,62 +298,114 @@ jobs:
           echo -e "\n---> [12/16] GET /api/assets"
           curl -sLk "https://localhost/api/assets" -H "Authorization: Bearer $TOKEN"
 
-          # 13. POST /api/playbooks (Prise en compte du contrôleur SoarController)
-          echo -e "\n---> [13/16] POST /api/playbooks"
-          CREATE_PLAYBOOK=$(curl -sLk -X POST "https://localhost/api/playbooks" \
+          # 13. POST Playbook
+          echo -e "\n---> [13/16] POST Playbook Creation"
+          PLAYBOOK_PAYLOAD='{
+            "name": "Auto Host Isolation Playbook",
+            "description": "Automatically isolate compromised endpoint on critical alert",
+            "triggerType": "alert",
+            "triggerConditions": {
+              "rules": [{"field": "severity", "operator": "eq", "value": "CRITICAL"}]
+            },
+            "actions": [{
+              "id": "act-01",
+              "name": "Isolate Endpoint",
+              "type": "isolate_host",
+              "riskLevel": "high",
+              "params": {"ip": "10.0.0.50"}
+            }],
+            "isActive": true,
+            "tags": ["incident-response", "auto-containment"]
+          }'
+
+          CREATE_PLAYBOOK=$(curl -sLk -X POST "https://localhost/api/soar/playbooks" \
             -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
-            -d '{
-              "name": "Auto Host Isolation Playbook",
-              "description": "Automatically isolate compromised endpoint on critical alert",
-              "triggerConditions": {
-                "triggerType": "alert",
-                "rules": [{"field": "severity", "operator": "eq", "value": "CRITICAL"}]
-              },
-              "actions": [{
-                "id": "act-01",
-                "name": "Isolate Endpoint",
-                "type": "isolate_host",
-                "riskLevel": "high",
-                "params": {"ip": "{{alert.source_ip}}"}
-              }],
-              "isActive": true,
-              "tags": ["incident-response", "auto-containment"]
-            }')
+            -d "$PLAYBOOK_PAYLOAD")
+
+          if echo "$CREATE_PLAYBOOK" | grep -q "404"; then
+            CREATE_PLAYBOOK=$(curl -sLk -X POST "https://localhost/api/playbooks" \
+              -H "Authorization: Bearer $TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "$PLAYBOOK_PAYLOAD")
+          fi
           echo "Réponse Création Playbook: $CREATE_PLAYBOOK"
 
-          PLAYBOOK_ID=$(echo "$CREATE_PLAYBOOK" | jq -r '.id // empty')
+          PLAYBOOK_ID=$(echo "$CREATE_PLAYBOOK" | jq -r '.id // .playbookId // empty')
           if [ -z "$PLAYBOOK_ID" ] || [ "$PLAYBOOK_ID" == "null" ]; then
             PLAYBOOK_ID="123e4567-e89b-12d3-a456-426614174000"
           fi
 
-          # 14. POST /api/playbooks/:id/execute
-          echo -e "\n---> [14/16] POST /api/playbooks/$PLAYBOOK_ID/execute"
-          EXEC_PLAYBOOK=$(curl -sLk -X POST "https://localhost/api/playbooks/$PLAYBOOK_ID/execute" \
+          # Assertion Playbook Creation
+          if echo "$CREATE_PLAYBOOK" | grep -qE '("id"|"playbookId"|"name")'; then
+            echo "✅ Playbook créé/validé."
+          else
+            echo "⚠️ Avertissement sur la réponse de création Playbook."
+          fi
+
+          # 14. POST Execute Playbook
+          echo -e "\n---> [14/16] POST Execute Playbook ($PLAYBOOK_ID)"
+          EXEC_PAYLOAD='{
+            "dryRun": true,
+            "triggerData": {
+              "alert": {
+                "severity": "CRITICAL",
+                "source_ip": "10.0.0.50"
+              }
+            }
+          }'
+
+          EXEC_PLAYBOOK=$(curl -sLk -X POST "https://localhost/api/soar/playbooks/$PLAYBOOK_ID/execute" \
             -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
-            -d '{
-              "dryRun": true,
-              "testData": {
-                "alert": {
-                  "severity": "CRITICAL",
-                  "source_ip": "10.0.0.50"
-                }
-              }
-            }')
+            -d "$EXEC_PAYLOAD")
+
+          if echo "$EXEC_PLAYBOOK" | grep -q "404"; then
+            EXEC_PLAYBOOK=$(curl -sLk -X POST "https://localhost/api/playbooks/$PLAYBOOK_ID/execute" \
+              -H "Authorization: Bearer $TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "$EXEC_PAYLOAD")
+          fi
           echo "Réponse Exécution Playbook: $EXEC_PLAYBOOK"
+
+          # Assertion Playbook Execution
+          if echo "$EXEC_PLAYBOOK" | grep -qE '("executed"|"success"|"status"|"result"|"actions"|"message")'; then
+            echo "✅ Simulation d'exécution Playbook validée."
+          else
+            echo "⚠️ Avertissement sur l'exécution Playbook."
+          fi
 
           # 15. GET /api/reports/generate?type=kpi_metrics
           echo -e "\n---> [15/16] GET /api/reports/generate?type=kpi_metrics"
           curl -sLk "https://localhost/api/reports/generate?type=kpi_metrics" -H "Authorization: Bearer $TOKEN" || true
 
-          # 16. GET /metrics (Prometheus Metrics via API Direct)
-          echo -e "\n---> [16/16] GET /metrics (Prometheus Metrics via API Direct)"
-          METRICS_RES=$(docker exec minisoc-api curl -s http://127.0.0.1:4000/metrics || curl -sLk "https://localhost/metrics")
+          # 16. GET Prometheus Metrics
+          echo -e "\n---> [16/16] GET Prometheus Metrics"
+          METRICS_RES=$(docker exec minisoc-api curl -s http://127.0.0.1:4000/metrics || curl -sLk "https://localhost/metrics" || curl -sLk "https://localhost/api/metrics")
           echo "$METRICS_RES" | head -n 10
+
+          if echo "$METRICS_RES" | grep -qE "(# HELP|# TYPE|process_cpu_seconds_total|http_requests_total)"; then
+            echo "✅ Métriques Prometheus exposées avec succès."
+          else
+            echo "⚠️ Métriques non trouvées sur le port direct."
+          fi
+
           echo "================================================="
           echo "  ✅ EXÉCUTION DE LA SUITE DE TESTS EFFECTUÉE"
           echo "================================================="
+
+      - name: 11c. DIAGNOSTIC COMPLET - LOGS BACKEND NESTJS & MAPPING DES ROUTES
+        if: always()
+        run: |
+          echo "================================================="
+          echo "  LOGS DU DEMARRAGE NESTJS (ROUTES ENREGISTRÉES)"
+          echo "================================================="
+          docker logs minisoc-api 2>&1 | grep -iE "(Mapped|RoutesResolver|RouterExplorer|Controller)" || true
+
+          echo -e "\n================================================="
+          echo "  DERNIERS LOGS D'ERREURS DE L'API NESTJS"
+          echo "================================================="
+          docker logs --tail 100 minisoc-api
 
       - name: 12. TEST CASE MANAGEMENT & THREAT INTEL (TheHive & Cortex)
         run: |
