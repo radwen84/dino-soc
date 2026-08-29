@@ -248,9 +248,9 @@ jobs:
           echo "  DÉBUT DES TESTS DES ENDPOINTS API MINI-SOC"
           echo "================================================="
 
-          # 1. GET Health
+          # 1. GET Health Check (Fallback multi-routes /api/health, /health et conteneur direct)
           echo -e "\n---> [1/16] GET Health"
-          HEALTH=$(curl -sLk "https://localhost/health" || curl -sLk "https://localhost/api/health" || docker exec minisoc-api curl -s http://localhost:4000/health)
+          HEALTH=$(curl -sLk "https://localhost/api/health" || curl -sLk "https://localhost/health" || docker exec minisoc-api curl -s http://localhost:4000/health)
           echo "Réponse: $HEALTH"
 
           # 2. POST /api/auth/login
@@ -416,13 +416,13 @@ jobs:
 
           # 16. GET Prometheus Metrics
           echo -e "\n---> [16/16] GET Prometheus Metrics"
-          METRICS_RES=$(docker exec minisoc-api curl -s http://127.0.0.1:4000/metrics || curl -sLk "https://localhost/metrics" || curl -sLk "https://localhost/api/metrics")
+          METRICS_RES=$(curl -sLk "https://localhost/metrics" || curl -sLk "https://localhost/api/metrics" || docker exec minisoc-api curl -s http://127.0.0.1:4000/metrics)
           echo "$METRICS_RES" | head -n 10
 
           if echo "$METRICS_RES" | grep -qE "(# HELP|# TYPE|process_cpu_seconds_total|http_requests_total)"; then
             echo "✅ Métriques Prometheus exposées avec succès."
           else
-            echo "⚠️ Métriques non trouvées sur le port direct."
+            echo "⚠️ Métriques non trouvées sur les endpoints testés."
           fi
 
           echo "================================================="
