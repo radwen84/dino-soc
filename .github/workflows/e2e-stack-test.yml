@@ -186,8 +186,16 @@ jobs:
       # ------------------------------------------------------------------
       - name: 8. TEST RÉEL NIDS (Attaque SQLi & Path Traversal sur Suricata)
         run: |
-          curl -sLk "https://localhost/api/alerts?id=1%27%20OR%20%271%27=%271" || true
-          curl -sLk "https://localhost/../../../../etc/passwd" || true
+          echo "=== Envoi de payloads d'attaque sur des routes publiques ==="
+          # Envoi d'une signature SQLi sur la route publique de login (POST)
+          curl -sLk -X POST "https://localhost/api/auth/login" \
+            -H "Content-Type: application/json" \
+            -d '{"email":"admin@minisoc.local'\'' OR '\''1'\''='\''1","password":"dummy"}' || true
+          
+          # Envoi d'un payload Path Traversal avec User-Agent spécifique
+          curl -sLk -A "Mozilla/5.0 (Evil Scanner)" "https://localhost/health?file=../../../../etc/passwd" || true
+          
+          echo "✅ Attaques NIDS envoyées pour analyse Suricata."
 
       # ------------------------------------------------------------------
       # 9. TEST RÉEL RUNTIME SECURITY (FALCO)
@@ -277,7 +285,7 @@ jobs:
             echo "Réponse Refresh Token: $REFRESH_RES"
           fi
 
-          # 4. POST /api/auth/mfa/verify (Champs tempToken & totpToken requis par VerifyMfaDto)
+          # 4. POST /api/auth/mfa/verify
           echo -e "\n---> [4/16] POST /api/auth/mfa/verify"
           MFA_RES=$(curl -sLk -X POST "https://localhost/api/auth/mfa/verify" \
             -H "Content-Type: application/json" \
@@ -350,7 +358,7 @@ jobs:
           echo -e "\n---> [12/16] GET /api/assets"
           curl -sLk "https://localhost/api/assets" -H "Authorization: Bearer $TOKEN"
 
-          # 13. POST Playbook Creation (Payload aligné avec les DTO NestJS)
+          # 13. POST Playbook Creation
           echo -e "\n---> [13/16] POST Playbook Creation"
           PLAYBOOK_PAYLOAD='{
             "name": "Auto Host Isolation Playbook",
