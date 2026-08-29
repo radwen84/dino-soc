@@ -9,18 +9,5 @@
     "test": "npm run test --workspaces",
     "test:frontend": "npm run test --workspace=apps/frontend",
     "test:backend": "npm run test --workspace=apps/backend"
-  },
-  "overrides": {
-    "@mapbox/node-pre-gyp": {
-      "tar": "$tar"
-    },
-    "@nestjs/common": {
-      "file-type": "$file-type"
-    },
-    "tar": "7.4.3",
-    "file-type": "19.6.0",
-    "js-yaml": "4.1.0",
-    "lodash": "4.17.21",
-    "qs": "6.13.0"
   }
 }
