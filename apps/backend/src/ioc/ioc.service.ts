@@ -265,7 +265,7 @@ export class IocService {
         expiresAt: ioc.expiresAt ? new Date(ioc.expiresAt).toISOString() : null,
       };
 
-      await this.opensearch.index('minisoc-iocs', ioc.id, document);
+      await this.opensearch.index('minisoc-iocs', ioc.id, JSON.stringify(document));
     } catch (error: any) {
       const message = error?.message || String(error);
       this.logger.warn(`Failed to index IOC in OpenSearch: ${message}`);
