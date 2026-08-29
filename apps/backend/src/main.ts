@@ -22,7 +22,7 @@ async function bootstrap() {
         : ['error', 'warn', 'log', 'debug', 'verbose'],
   });
 
-  // Exclut /metrics du préfixe /api pour corriger le test 16
+  // Exclut /metrics et /health du préfixe global /api
   app.setGlobalPrefix('api', {
     exclude: ['metrics', 'health'],
   });
