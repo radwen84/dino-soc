@@ -245,15 +245,22 @@ jobs:
           MFA_RES=$(curl -sLk -X POST "https://localhost/api/auth/mfa/verify" \
             -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
-            -d '{"code":"123456"}' || echo "MFA bypass/disabled")
+            -d '{"twoFactorAuthenticationCode":"123456"}' || echo "MFA bypass/disabled")
           echo "Réponse MFA Verify: $MFA_RES"
 
-          # 5. POST /api/incidents
+          # 5. POST /api/incidents (Corrigé avec 'severity': 'critical' et 'title' valide)
           echo -e "\n---> [5/16] POST /api/incidents"
           CREATE_INC=$(curl -sLk -X POST "https://localhost/api/incidents" \
             -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
-            -d '{"title":"Ransomware Activity Detected","severity":"CRITICAL","description":"Suspicious execution on server-01"}')
+            -d '{
+              "title": "Ransomware Activity Detected on Server-01",
+              "description": "Suspicious execution on server-01",
+              "severity": "critical",
+              "category": "ransomware",
+              "source": "wazuh",
+              "tags": ["ransomware", "critical"]
+            }')
           echo "Réponse Création Incident: $CREATE_INC"
 
           # 6. GET /api/incidents
@@ -293,9 +300,9 @@ jobs:
           echo -e "\n---> [12/16] GET /api/assets"
           curl -sLk "https://localhost/api/assets" -H "Authorization: Bearer $TOKEN"
 
-          # 13. POST /api/soar/playbooks
-          echo -e "\n---> [13/16] POST /api/soar/playbooks"
-          CREATE_PLAYBOOK=$(curl -sLk -X POST "https://localhost/api/soar/playbooks" \
+          # 13. POST /api/playbooks (Précédemment SOAR)
+          echo -e "\n---> [13/16] POST /api/playbooks"
+          CREATE_PLAYBOOK=$(curl -sLk -X POST "https://localhost/api/playbooks" \
             -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
             -d '{
@@ -324,7 +331,7 @@ jobs:
               ],
               "isActive": true,
               "tags": ["incident-response", "auto-containment"]
-            }')
+            }' || curl -sLk -X POST "https://localhost/api/soar/playbooks" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"name":"Auto Host Isolation Playbook","description":"Automatically isolate compromised endpoint","triggerConditions":{},"actions":[]}')
           echo "Réponse Création Playbook: $CREATE_PLAYBOOK"
 
           PLAYBOOK_ID=$(echo "$CREATE_PLAYBOOK" | jq -r '.id // empty')
@@ -332,9 +339,9 @@ jobs:
             PLAYBOOK_ID="123e4567-e89b-12d3-a456-426614174000"
           fi
 
-          # 14. POST /api/soar/playbooks/:id/execute
-          echo -e "\n---> [14/16] POST /api/soar/playbooks/$PLAYBOOK_ID/execute"
-          EXEC_PLAYBOOK=$(curl -sLk -X POST "https://localhost/api/soar/playbooks/$PLAYBOOK_ID/execute" \
+          # 14. POST /api/playbooks/:id/execute
+          echo -e "\n---> [14/16] POST /api/playbooks/$PLAYBOOK_ID/execute"
+          EXEC_PLAYBOOK=$(curl -sLk -X POST "https://localhost/api/playbooks/$PLAYBOOK_ID/execute" \
             -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
             -d '{
@@ -345,16 +352,16 @@ jobs:
                   "source_ip": "10.0.0.50"
                 }
               }
-            }')
+            }' || curl -sLk -X POST "https://localhost/api/soar/playbooks/$PLAYBOOK_ID/execute" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"dryRun":true}')
           echo "Réponse Exécution Playbook: $EXEC_PLAYBOOK"
 
           # 15. GET /api/reports/generate?type=kpi_metrics
           echo -e "\n---> [15/16] GET /api/reports/generate?type=kpi_metrics"
           curl -sLk "https://localhost/api/reports/generate?type=kpi_metrics" -H "Authorization: Bearer $TOKEN" || true
 
-          # 16. GET /metrics (Prometheus Metrics via API Direct)
+          # 16. GET /metrics (Prometheus Metrics via API Direct ou Route Principale)
           echo -e "\n---> [16/16] GET /metrics (Prometheus Metrics via API Direct)"
-          METRICS_RES=$(docker exec minisoc-api curl -s http://localhost:4000/api/metrics || docker exec minisoc-api curl -s http://localhost:4000/metrics || echo "Metrics non exposées")
+          METRICS_RES=$(docker exec minisoc-api curl -s http://localhost:4000/metrics || docker exec minisoc-api curl -s http://localhost:4000/api/metrics || echo "Metrics non exposées")
           echo "$METRICS_RES" | head -n 10
           echo "================================================="
           echo "  ✅ EXÉCUTION DE LA SUITE DE TESTS EFFECTUÉE"
