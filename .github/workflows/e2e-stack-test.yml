@@ -81,6 +81,7 @@ jobs:
           npm install --legacy-peer-deps --no-audit --no-fund || npm install --force --no-audit
           npx prisma generate
           npm run test:unit -- --passWithNoTests || npm test -- --testPathIgnorePatterns=integration --passWithNoTests || echo "Tolérance CI: poursuite du pipeline"
+
       - name: 5. Démarrage Séquentiel BDD, Migrations, Seed & Stack Docker
         env:
           ABUSEIPDB_API_KEY: ${{ secrets.ABUSEIPDB_API_KEY }}
@@ -247,7 +248,7 @@ jobs:
             -d '{"twoFactorAuthenticationCode":"123456"}' || echo "MFA bypass/disabled")
           echo "Réponse MFA Verify: $MFA_RES"
 
-          # 5. POST /api/incidents (Corrigé avec 'severity': 'critical' et 'title' valide)
+          # 5. POST /api/incidents
           echo -e "\n---> [5/16] POST /api/incidents"
           CREATE_INC=$(curl -sLk -X POST "https://localhost/api/incidents" \
             -H "Authorization: Bearer $TOKEN" \
@@ -299,9 +300,9 @@ jobs:
           echo -e "\n---> [12/16] GET /api/assets"
           curl -sLk "https://localhost/api/assets" -H "Authorization: Bearer $TOKEN"
 
-          # 13. POST /api/playbooks (Précédemment SOAR)
+          # 13. POST /api/playbooks (Utilisation de -f pour capturer la 404 et basculer sur /api/soar/playbooks)
           echo -e "\n---> [13/16] POST /api/playbooks"
-          CREATE_PLAYBOOK=$(curl -sLk -X POST "https://localhost/api/playbooks" \
+          CREATE_PLAYBOOK=$(curl -fsLk -X POST "https://localhost/api/playbooks" \
             -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
             -d '{
@@ -309,28 +310,21 @@ jobs:
               "description": "Automatically isolate compromised endpoint on critical alert",
               "triggerConditions": {
                 "triggerType": "alert",
-                "rules": [
-                  {
-                    "field": "severity",
-                    "operator": "eq",
-                    "value": "CRITICAL"
-                  }
-                ]
+                "rules": [{"field": "severity", "operator": "eq", "value": "CRITICAL"}]
               },
-              "actions": [
-                {
-                  "id": "act-01",
-                  "name": "Isolate Endpoint",
-                  "type": "isolate_host",
-                  "riskLevel": "high",
-                  "params": {
-                    "ip": "{{alert.source_ip}}"
-                  }
-                }
-              ],
+              "actions": [{
+                "id": "act-01",
+                "name": "Isolate Endpoint",
+                "type": "isolate_host",
+                "riskLevel": "high",
+                "params": {"ip": "{{alert.source_ip}}"}
+              }],
               "isActive": true,
               "tags": ["incident-response", "auto-containment"]
-            }' || curl -sLk -X POST "https://localhost/api/soar/playbooks" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"name":"Auto Host Isolation Playbook","description":"Automatically isolate compromised endpoint","triggerConditions":{},"actions":[]}')
+            }' || curl -sLk -X POST "https://localhost/api/soar/playbooks" \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"name":"Auto Host Isolation Playbook","description":"Automatically isolate compromised endpoint","triggerConditions":{},"actions":[]}')
           echo "Réponse Création Playbook: $CREATE_PLAYBOOK"
 
           PLAYBOOK_ID=$(echo "$CREATE_PLAYBOOK" | jq -r '.id // empty')
@@ -340,7 +334,7 @@ jobs:
 
           # 14. POST /api/playbooks/:id/execute
           echo -e "\n---> [14/16] POST /api/playbooks/$PLAYBOOK_ID/execute"
-          EXEC_PLAYBOOK=$(curl -sLk -X POST "https://localhost/api/playbooks/$PLAYBOOK_ID/execute" \
+          EXEC_PLAYBOOK=$(curl -fsLk -X POST "https://localhost/api/playbooks/$PLAYBOOK_ID/execute" \
             -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
             -d '{
@@ -351,16 +345,19 @@ jobs:
                   "source_ip": "10.0.0.50"
                 }
               }
-            }' || curl -sLk -X POST "https://localhost/api/soar/playbooks/$PLAYBOOK_ID/execute" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"dryRun":true}')
+            }' || curl -sLk -X POST "https://localhost/api/soar/playbooks/$PLAYBOOK_ID/execute" \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"dryRun":true}')
           echo "Réponse Exécution Playbook: $EXEC_PLAYBOOK"
 
           # 15. GET /api/reports/generate?type=kpi_metrics
           echo -e "\n---> [15/16] GET /api/reports/generate?type=kpi_metrics"
           curl -sLk "https://localhost/api/reports/generate?type=kpi_metrics" -H "Authorization: Bearer $TOKEN" || true
 
-          # 16. GET /metrics (Prometheus Metrics via API Direct ou Route Principale)
+          # 16. GET /metrics (Prometheus Metrics)
           echo -e "\n---> [16/16] GET /metrics (Prometheus Metrics via API Direct)"
-          METRICS_RES=$(docker exec minisoc-api curl -s http://localhost:4000/metrics || docker exec minisoc-api curl -s http://localhost:4000/api/metrics || echo "Metrics non exposées")
+          METRICS_RES=$(docker exec minisoc-api curl -fs http://localhost:4000/metrics || docker exec minisoc-api curl -s http://localhost:4000/api/metrics || echo "Metrics non exposées")
           echo "$METRICS_RES" | head -n 10
           echo "================================================="
           echo "  ✅ EXÉCUTION DE LA SUITE DE TESTS EFFECTUÉE"
