@@ -78,10 +78,9 @@ jobs:
           API_PORT: "4000"
         run: |
           cd apps/backend
-          npm install --legacy-peer-deps --include=dev
+          npm install --legacy-peer-deps --no-audit --no-fund || npm install --force --no-audit
           npx prisma generate
           npm run test:unit -- --passWithNoTests || npm test -- --testPathIgnorePatterns=integration --passWithNoTests || echo "Tolérance CI: poursuite du pipeline"
-
       - name: 5. Démarrage Séquentiel BDD, Migrations, Seed & Stack Docker
         env:
           ABUSEIPDB_API_KEY: ${{ secrets.ABUSEIPDB_API_KEY }}
