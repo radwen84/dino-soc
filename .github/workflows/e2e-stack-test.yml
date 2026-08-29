@@ -300,9 +300,9 @@ jobs:
           echo -e "\n---> [12/16] GET /api/assets"
           curl -sLk "https://localhost/api/assets" -H "Authorization: Bearer $TOKEN"
 
-          # 13. POST /api/playbooks (Utilisation de -f pour capturer la 404 et basculer sur /api/soar/playbooks)
-          echo -e "\n---> [13/16] POST /api/playbooks"
-          CREATE_PLAYBOOK=$(curl -fsLk -X POST "https://localhost/api/playbooks" \
+          # 13. POST /api/playbook
+          echo -e "\n---> [13/16] POST /api/playbook"
+          CREATE_PLAYBOOK=$(curl -fsLk -X POST "https://localhost/api/playbook" \
             -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
             -d '{
@@ -321,10 +321,7 @@ jobs:
               }],
               "isActive": true,
               "tags": ["incident-response", "auto-containment"]
-            }' || curl -sLk -X POST "https://localhost/api/soar/playbooks" \
-            -H "Authorization: Bearer $TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{"name":"Auto Host Isolation Playbook","description":"Automatically isolate compromised endpoint","triggerConditions":{},"actions":[]}')
+            }' || curl -sLk -X POST "https://localhost/api/playbooks" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"name":"Auto Host Isolation Playbook","description":"Automatically isolate compromised endpoint"}')
           echo "Réponse Création Playbook: $CREATE_PLAYBOOK"
 
           PLAYBOOK_ID=$(echo "$CREATE_PLAYBOOK" | jq -r '.id // empty')
@@ -332,9 +329,9 @@ jobs:
             PLAYBOOK_ID="123e4567-e89b-12d3-a456-426614174000"
           fi
 
-          # 14. POST /api/playbooks/:id/execute
-          echo -e "\n---> [14/16] POST /api/playbooks/$PLAYBOOK_ID/execute"
-          EXEC_PLAYBOOK=$(curl -fsLk -X POST "https://localhost/api/playbooks/$PLAYBOOK_ID/execute" \
+          # 14. POST /api/playbook/:id/execute
+          echo -e "\n---> [14/16] POST /api/playbook/$PLAYBOOK_ID/execute"
+          EXEC_PLAYBOOK=$(curl -fsLk -X POST "https://localhost/api/playbook/$PLAYBOOK_ID/execute" \
             -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
             -d '{
@@ -345,10 +342,7 @@ jobs:
                   "source_ip": "10.0.0.50"
                 }
               }
-            }' || curl -sLk -X POST "https://localhost/api/soar/playbooks/$PLAYBOOK_ID/execute" \
-            -H "Authorization: Bearer $TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{"dryRun":true}')
+            }' || curl -sLk -X POST "https://localhost/api/playbooks/$PLAYBOOK_ID/execute" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"dryRun":true}')
           echo "Réponse Exécution Playbook: $EXEC_PLAYBOOK"
 
           # 15. GET /api/reports/generate?type=kpi_metrics
@@ -357,7 +351,7 @@ jobs:
 
           # 16. GET /metrics (Prometheus Metrics)
           echo -e "\n---> [16/16] GET /metrics (Prometheus Metrics via API Direct)"
-          METRICS_RES=$(docker exec minisoc-api curl -fs http://localhost:4000/metrics || docker exec minisoc-api curl -s http://localhost:4000/api/metrics || echo "Metrics non exposées")
+          METRICS_RES=$(docker exec minisoc-api curl -s http://127.0.0.1:4000/metrics || docker exec minisoc-api curl -s http://127.0.0.1:4000/api/metrics || echo "Metrics non exposées")
           echo "$METRICS_RES" | head -n 10
           echo "================================================="
           echo "  ✅ EXÉCUTION DE LA SUITE DE TESTS EFFECTUÉE"
