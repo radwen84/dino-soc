@@ -8,6 +8,9 @@ import {
   IsNumber,
   Min,
   Max,
+  IsObject,
+  IsDefined,
+  IsNotEmpty,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -49,14 +52,17 @@ export enum ConditionOperator {
 export class PlaybookConditionDto {
   @ApiProperty({ description: 'Field path to evaluate (supports dot notation)' })
   @IsString()
-  field: string;
+  @IsNotEmpty()
+  field!: string;
 
   @ApiProperty({ enum: ConditionOperator })
   @IsEnum(ConditionOperator)
-  operator: ConditionOperator;
+  operator!: ConditionOperator;
 
+  // 💡 FIX 1: @IsDefined() indique à class-validator que cette propriété est reconnue
   @ApiProperty({ description: 'Value to compare against' })
-  value: any;
+  @IsDefined()
+  value!: any;
 }
 
 export class RetryPolicyDto {
@@ -81,18 +87,22 @@ export class RetryPolicyDto {
 export class PlaybookActionDto {
   @ApiProperty({ description: 'Unique action identifier within the playbook' })
   @IsString()
-  id: string;
+  @IsNotEmpty()
+  id!: string;
 
   @ApiProperty({ description: 'Human-readable action name' })
   @IsString()
-  name: string;
+  @IsNotEmpty()
+  name!: string;
 
   @ApiProperty({ enum: PlaybookActionType })
   @IsEnum(PlaybookActionType)
-  type: PlaybookActionType;
+  type!: PlaybookActionType;
 
+  // 💡 FIX 2: Ajout de @IsObject() pour autoriser la validation de dictionnaires Key/Value
   @ApiPropertyOptional({ description: 'Action parameters (supports {{variable}} interpolation)' })
   @IsOptional()
+  @IsObject()
   params?: Record<string, any>;
 
   @ApiPropertyOptional({ enum: PlaybookRiskLevel, default: PlaybookRiskLevel.LOW })
@@ -133,7 +143,8 @@ export class PlaybookActionDto {
 export class TriggerConditionsDto {
   @ApiProperty({ description: 'Event type that triggers this playbook', example: 'alert' })
   @IsString()
-  triggerType: string;
+  @IsNotEmpty()
+  triggerType!: string;
 
   @ApiPropertyOptional({ type: [PlaybookConditionDto] })
   @IsOptional()
@@ -146,7 +157,8 @@ export class TriggerConditionsDto {
 export class CreatePlaybookDto {
   @ApiProperty({ description: 'Playbook name', example: 'Block malicious IPs' })
   @IsString()
-  name: string;
+  @IsNotEmpty()
+  name!: string;
 
   @ApiPropertyOptional({ description: 'Playbook description' })
   @IsOptional()
@@ -156,13 +168,13 @@ export class CreatePlaybookDto {
   @ApiProperty({ type: TriggerConditionsDto })
   @ValidateNested()
   @Type(() => TriggerConditionsDto)
-  triggerConditions: TriggerConditionsDto;
+  triggerConditions!: TriggerConditionsDto;
 
   @ApiProperty({ type: [PlaybookActionDto] })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => PlaybookActionDto)
-  actions: PlaybookActionDto[];
+  actions!: PlaybookActionDto[];
 
   @ApiPropertyOptional({ default: true })
   @IsOptional()
@@ -178,7 +190,8 @@ export class CreatePlaybookDto {
 
 export class ExecutePlaybookDto {
   @ApiProperty({ description: 'Test data to trigger the playbook with' })
-  testData: Record<string, any>;
+  @IsObject()
+  testData!: Record<string, any>;
 
   @ApiPropertyOptional({ default: false, description: 'Dry-run mode (no real actions executed)' })
   @IsOptional()

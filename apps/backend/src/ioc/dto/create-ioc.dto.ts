@@ -9,6 +9,7 @@ import {
   IsDateString,
   IsNotEmpty,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IOCType, IOCStatus, IncidentSeverity } from '@prisma/client';
 
@@ -27,21 +28,23 @@ export class CreateIocDto {
   @IsString()
   description?: string;
 
-  @ApiPropertyOptional({ enum: IOCStatus, default: 'active' })
+  @ApiPropertyOptional({ enum: IOCStatus, default: IOCStatus.active })
   @IsOptional()
   @IsEnum(IOCStatus)
-  status?: IOCStatus;
+  status?: IOCStatus = IOCStatus.active;
 
+  // 💡 Correction majeure : @Type() force la conversion en nombre avant la validation IsInt
   @ApiProperty({ example: 75, description: 'Confidence score 0-100' })
+  @Type(() => Number)
   @IsInt()
   @Min(0)
   @Max(100)
   confidence!: number;
 
-  @ApiPropertyOptional({ enum: IncidentSeverity, default: 'medium' })
+  @ApiPropertyOptional({ enum: IncidentSeverity, default: IncidentSeverity.medium })
   @IsOptional()
   @IsEnum(IncidentSeverity)
-  severity?: IncidentSeverity;
+  severity?: IncidentSeverity = IncidentSeverity.medium;
 
   @ApiPropertyOptional({ example: 'AlienVault OTX' })
   @IsOptional()

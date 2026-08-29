@@ -5,10 +5,7 @@ import { firstValueFrom } from 'rxjs';
 import { CreateIocDto } from '../../ioc/dto/create-ioc.dto';
 import { IOCType } from '@prisma/client';
 
-// ─────────────────────────────────────────────────────────────
-// STIX 2.x Types
-// ─────────────────────────────────────────────────────────────
-
+// Interfaces... (inchangées)
 export interface StixBundle {
   type: 'bundle';
   id: string;
@@ -30,9 +27,7 @@ export interface StixObject {
   valid_until?: string;
   kill_chain_phases?: { kill_chain_name: string; phase_name: string }[];
   external_references?: { source_name: string; url?: string; external_id?: string }[];
-  // Indicator specific
   indicator_types?: string[];
-  // Observable specific
   value?: string;
 }
 
@@ -60,10 +55,6 @@ export enum TlpLevel {
   RED = 'TLP:RED',
 }
 
-// ─────────────────────────────────────────────────────────────
-// TAXII 2.1 Client
-// ─────────────────────────────────────────────────────────────
-
 @Injectable()
 export class StixTaxiiService {
   private readonly logger = new Logger(StixTaxiiService.name);
@@ -73,20 +64,26 @@ export class StixTaxiiService {
     private readonly configService: ConfigService,
   ) {}
 
-  // ─────────────────────────────────────────────────────────
-  // TAXII 2.1 Client Methods
-  // ─────────────────────────────────────────────────────────
-
   /**
-   * Discover TAXII API Root
+   * Nettoie et formate les URLs pour éviter les doubles slashes ou les valeurs 'undefined'
    */
+  private buildUrl(baseUrl: string, ...paths: string[]): string {
+    const cleanBase = (baseUrl || '').replace(/\/+$/, '');
+    const cleanPaths = paths
+      .filter(Boolean)
+      .map((p) => p.replace(/^\/+|\/+$/g, ''))
+      .join('/');
+    return cleanPaths ? `${cleanBase}/${cleanPaths}` : cleanBase;
+  }
+
   async discoverApiRoot(
     serverUrl: string,
     credentials?: { user: string; password: string },
   ): Promise<TaxiiApiRoot | null> {
     try {
+      const url = this.buildUrl(serverUrl, 'taxii2');
       const response = await firstValueFrom(
-        this.httpService.get(`${serverUrl}/taxii2/`, {
+        this.httpService.get(url, {
           headers: this.getTaxiiHeaders(),
           auth: credentials
             ? { username: credentials.user, password: credentials.password }
@@ -94,23 +91,21 @@ export class StixTaxiiService {
         }),
       );
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`TAXII discovery failed for ${serverUrl}: ${error.message}`);
       return null;
     }
   }
 
-  /**
-   * List collections from a TAXII server
-   */
   async listCollections(
     serverUrl: string,
-    apiRoot: string,
+    apiRoot: string = 'taxii2',
     credentials?: { user: string; password: string },
   ): Promise<TaxiiCollection[]> {
     try {
+      const url = this.buildUrl(serverUrl, apiRoot, 'collections');
       const response = await firstValueFrom(
-        this.httpService.get(`${serverUrl}/${apiRoot}/collections/`, {
+        this.httpService.get(url, {
           headers: this.getTaxiiHeaders(),
           auth: credentials
             ? { username: credentials.user, password: credentials.password }
@@ -118,18 +113,15 @@ export class StixTaxiiService {
         }),
       );
       return response.data.collections || [];
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`TAXII list collections failed: ${error.message}`);
       return [];
     }
   }
 
-  /**
-   * Poll objects from a TAXII collection
-   */
   async pollCollection(
     serverUrl: string,
-    apiRoot: string,
+    apiRoot: string = 'taxii2',
     collectionId: string,
     options?: {
       addedAfter?: string;
@@ -139,13 +131,14 @@ export class StixTaxiiService {
     },
   ): Promise<StixBundle | null> {
     try {
+      const url = this.buildUrl(serverUrl, apiRoot, 'collections', collectionId, 'objects');
       const params: Record<string, any> = {};
       if (options?.addedAfter) params.added_after = options.addedAfter;
       if (options?.limit) params.limit = options.limit;
       if (options?.type?.length) params.type = options.type.join(',');
 
       const response = await firstValueFrom(
-        this.httpService.get(`${serverUrl}/${apiRoot}/collections/${collectionId}/objects/`, {
+        this.httpService.get(url, {
           headers: this.getTaxiiHeaders(),
           params,
           auth: options?.credentials
@@ -155,19 +148,48 @@ export class StixTaxiiService {
       );
 
       return response.data as StixBundle;
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`TAXII poll failed for collection ${collectionId}: ${error.message}`);
       return null;
     }
   }
 
-  // ─────────────────────────────────────────────────────────
-  // STIX 2.x Parser
-  // ─────────────────────────────────────────────────────────
-
   /**
-   * Parse a STIX bundle into IOC DTOs
+   * Ingestion complète depuis un flux TAXII
    */
+  async ingestFromTaxiiFeed(feedConfig: {
+    serverUrl: string;
+    apiRoot?: string;
+    collectionId: string;
+    credentials?: { user: string; password: string };
+    addedAfter?: string;
+  }): Promise<CreateIocDto[]> {
+    const serverUrl = feedConfig.serverUrl || 'https://cti-taxii.mitre.org';
+    const apiRoot = feedConfig.apiRoot || 'taxii2';
+    const collectionId = feedConfig.collectionId || '';
+
+    // 💡 FIX LOG: Construction de l'URL sécurisée sans 'undefined'
+    const fullLogUrl = this.buildUrl(serverUrl, apiRoot, collectionId);
+    this.logger.log(`Ingesting from TAXII: ${fullLogUrl}`);
+
+    const bundle = await this.pollCollection(serverUrl, apiRoot, collectionId, {
+      addedAfter: feedConfig.addedAfter,
+      type: ['indicator'],
+      credentials: feedConfig.credentials,
+    });
+
+    if (!bundle || !bundle.objects?.length) {
+      this.logger.log('TAXII: No new indicators found');
+      return [];
+    }
+
+    const source = `TAXII:${serverUrl}/${collectionId}`;
+    const iocs = this.parseStixBundle(bundle, source);
+
+    this.logger.log(`TAXII: Parsed ${iocs.length} IOCs from ${bundle.objects.length} STIX objects`);
+    return iocs;
+  }
+
   parseStixBundle(bundle: StixBundle, source: string): CreateIocDto[] {
     const iocs: CreateIocDto[] = [];
 
@@ -181,10 +203,6 @@ export class StixTaxiiService {
     return this.deduplicateIocs(iocs);
   }
 
-  /**
-   * Parse a STIX indicator pattern to extract IOC values
-   * Supports patterns like: [ipv4-addr:value = '1.2.3.4']
-   */
   private parseStixIndicator(indicator: StixObject, source: string): CreateIocDto[] {
     if (!indicator.pattern || indicator.pattern_type !== 'stix') return [];
 
@@ -193,14 +211,12 @@ export class StixTaxiiService {
     const confidence = indicator.confidence || 60;
     const mitreTechniques = this.extractMitreTechniques(indicator);
 
-    // Parse STIX pattern expressions
     const patterns = this.extractPatternsFromStix(indicator.pattern);
 
     for (const { type, value } of patterns) {
       const iocType = this.mapStixTypeToIoc(type);
       if (!iocType) continue;
 
-      // Respect TLP:RED — do not ingest
       if (tlp === TlpLevel.RED) {
         this.logger.debug(`Skipping TLP:RED indicator: ${value}`);
         continue;
@@ -224,36 +240,47 @@ export class StixTaxiiService {
   }
 
   /**
-   * Extract patterns from STIX pattern expression
-   * Handles: [type:prop = 'value'] AND/OR [type:prop = 'value']
+   * Supporte la syntaxe standard et les hachages complexes de STIX 2.1
    */
   private extractPatternsFromStix(pattern: string): Array<{ type: string; value: string }> {
     const results: Array<{ type: string; value: string }> = [];
 
-    // Match patterns like [ipv4-addr:value = '1.2.3.4']
-    const regex = /\[([a-z0-9-]+):([a-z_.']+)\s*=\s*'([^']+)'\]/gi;
+    // Expression régulière adaptée aux motifs STIX simples et complexes (file:hashes...)
+    const regex = /\[([a-z0-9-]+):([a-z0-9._':-]+)\s*=\s*'([^']+)'\]/gi;
     let match: RegExpExecArray | null;
 
     while ((match = regex.exec(pattern)) !== null) {
       const objectType = match[1];
+      const propertyPath = match[2];
       const value = match[3];
 
-      results.push({ type: objectType, value });
+      // Gestion spécifique des hashes de fichier
+      if (objectType === 'file' && propertyPath.includes('hashes')) {
+        if (propertyPath.includes('SHA-256')) {
+          results.push({ type: 'file_sha256', value });
+        } else if (propertyPath.includes('MD5')) {
+          results.push({ type: 'file_md5', value });
+        } else if (propertyPath.includes('SHA-1')) {
+          results.push({ type: 'file_sha1', value });
+        }
+      } else {
+        results.push({ type: objectType, value });
+      }
     }
 
     return results;
   }
 
-  /**
-   * Map STIX observable types to IOC types
-   */
   private mapStixTypeToIoc(stixType: string): IOCType | null {
     const mapping: Record<string, IOCType> = {
       'ipv4-addr': 'ip',
       'ipv6-addr': 'ip',
       'domain-name': 'domain',
       url: 'url',
-      file: 'hash_sha256', // Usually file:hashes.'SHA-256'
+      file: 'hash_sha256',
+      file_sha256: 'hash_sha256',
+      file_md5: 'hash_md5',
+      file_sha1: 'hash_sha1',
       'email-addr': 'email',
       'network-traffic': 'ip',
       'user-agent': 'user_agent',
@@ -261,13 +288,6 @@ export class StixTaxiiService {
     return mapping[stixType] || null;
   }
 
-  // ─────────────────────────────────────────────────────────
-  // STIX 2.x Generator (for sharing IOCs)
-  // ─────────────────────────────────────────────────────────
-
-  /**
-   * Generate a STIX bundle from local IOCs
-   */
   generateStixBundle(
     iocs: Array<{
       type: IOCType;
@@ -282,7 +302,6 @@ export class StixTaxiiService {
     const objects: StixObject[] = [];
     const now = new Date().toISOString();
 
-    // Add identity object
     objects.push({
       type: 'identity',
       id: `identity--${this.generateUUID5(identity)}`,
@@ -292,7 +311,6 @@ export class StixTaxiiService {
       description: 'Mini-SOC Platform',
     });
 
-    // Convert IOCs to STIX indicators
     for (const ioc of iocs) {
       const pattern = this.iocToStixPattern(ioc.type, ioc.value);
       if (!pattern) continue;
@@ -324,9 +342,6 @@ export class StixTaxiiService {
     };
   }
 
-  /**
-   * Convert an IOC to a STIX pattern string
-   */
   private iocToStixPattern(type: IOCType, value: string): string | null {
     switch (type) {
       case 'ip':
@@ -349,51 +364,6 @@ export class StixTaxiiService {
         return null;
     }
   }
-
-  // ─────────────────────────────────────────────────────────
-  // Ingestion Pipeline (TAXII → STIX → IOC DB)
-  // ─────────────────────────────────────────────────────────
-
-  /**
-   * Full ingestion pipeline: poll TAXII, parse STIX, return IOCs
-   */
-  async ingestFromTaxiiFeed(feedConfig: {
-    serverUrl: string;
-    apiRoot: string;
-    collectionId: string;
-    credentials?: { user: string; password: string };
-    addedAfter?: string;
-  }): Promise<CreateIocDto[]> {
-    this.logger.log(
-      `Ingesting from TAXII: ${feedConfig.serverUrl}/${feedConfig.apiRoot}/${feedConfig.collectionId}`,
-    );
-
-    const bundle = await this.pollCollection(
-      feedConfig.serverUrl,
-      feedConfig.apiRoot,
-      feedConfig.collectionId,
-      {
-        addedAfter: feedConfig.addedAfter,
-        type: ['indicator'],
-        credentials: feedConfig.credentials,
-      },
-    );
-
-    if (!bundle || !bundle.objects?.length) {
-      this.logger.log('TAXII: No new indicators found');
-      return [];
-    }
-
-    const source = `TAXII:${feedConfig.serverUrl}/${feedConfig.collectionId}`;
-    const iocs = this.parseStixBundle(bundle, source);
-
-    this.logger.log(`TAXII: Parsed ${iocs.length} IOCs from ${bundle.objects.length} STIX objects`);
-    return iocs;
-  }
-
-  // ─────────────────────────────────────────────────────────
-  // Helpers
-  // ─────────────────────────────────────────────────────────
 
   private getTaxiiHeaders(): Record<string, string> {
     return {
@@ -448,7 +418,6 @@ export class StixTaxiiService {
   }
 
   private generateUUID5(name: string): string {
-    // Simplified deterministic UUID generation from name
     let hash = 0;
     for (let i = 0; i < name.length; i++) {
       const char = name.charCodeAt(i);
