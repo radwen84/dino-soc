@@ -277,12 +277,14 @@ jobs:
             echo "Réponse Refresh Token: $REFRESH_RES"
           fi
 
-          # 4. POST /api/auth/mfa/verify
+          # 4. POST /api/auth/mfa/verify (Champs tempToken & totpToken requis par VerifyMfaDto)
           echo -e "\n---> [4/16] POST /api/auth/mfa/verify"
           MFA_RES=$(curl -sLk -X POST "https://localhost/api/auth/mfa/verify" \
-            -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
-            -d '{"twoFactorAuthenticationCode":"123456"}' || echo "MFA bypass/disabled")
+            -d '{
+              "tempToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.dummy_temp_token",
+              "totpToken": "123456"
+            }' || echo "MFA bypass/disabled")
           echo "Réponse MFA Verify: $MFA_RES"
 
           # 5. POST /api/incidents
@@ -332,7 +334,7 @@ jobs:
           LOOKUP_RES=$(curl -sLk "https://localhost/api/threat-intel/lookup/185.220.101.5" -H "Authorization: Bearer $TOKEN")
           echo "Réponse Lookup Threat Intel: $LOOKUP_RES"
 
-          # 11. POST /api/threat-intel/taxii/ingest (Payload TAXII DTO aligné)
+          # 11. POST /api/threat-intel/taxii/ingest
           echo -e "\n---> [11/16] POST /api/threat-intel/taxii/ingest"
           TAXII_RES=$(curl -sLk -X POST "https://localhost/api/threat-intel/taxii/ingest" \
             -H "Authorization: Bearer $TOKEN" \
@@ -348,27 +350,21 @@ jobs:
           echo -e "\n---> [12/16] GET /api/assets"
           curl -sLk "https://localhost/api/assets" -H "Authorization: Bearer $TOKEN"
 
-          # 13. POST Playbook Creation
+          # 13. POST Playbook Creation (Payload aligné avec les DTO NestJS)
           echo -e "\n---> [13/16] POST Playbook Creation"
           PLAYBOOK_PAYLOAD='{
             "name": "Auto Host Isolation Playbook",
             "description": "Automatically isolate compromised endpoint on critical alert",
             "triggerConditions": {
               "type": "alert",
-              "rules": [
-                {
-                  "field": "severity",
-                  "operator": "eq",
-                  "value": "critical"
-                }
-              ]
+              "severity": "CRITICAL"
             },
             "actions": [
               {
                 "id": "act-01",
                 "name": "Isolate Host",
-                "type": "isolate_host",
-                "riskLevel": "high",
+                "type": "CONTAINMENT",
+                "riskLevel": "HIGH",
                 "params": { "ip": "10.0.0.50" }
               }
             ],
@@ -396,7 +392,7 @@ jobs:
               "dryRun": true,
               "testData": {
                 "alertId": "3cc5e02f-8976-4f49-969f-77c5e98de969",
-                "severity": "critical"
+                "severity": "CRITICAL"
               }
             }'
 
@@ -414,7 +410,7 @@ jobs:
           echo -e "\n---> [15/16] GET /api/reports/generate?type=kpi_metrics"
           curl -sLk "https://localhost/api/reports/generate?type=kpi_metrics" -H "Authorization: Bearer $TOKEN" || true
 
-          # 16. GET Prometheus Metrics (Vérifie /metrics hors du préfixe global API)
+          # 16. GET Prometheus Metrics
           echo -e "\n---> [16/16] GET Prometheus Metrics"
           METRICS_RES=$(curl -sLk "https://localhost/metrics" || docker exec minisoc-api curl -s http://127.0.0.1:4000/metrics)
           echo "$METRICS_RES" | head -n 10

@@ -1,5 +1,6 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, HttpStatus, Res } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { Response } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 
@@ -11,9 +12,9 @@ export class HealthController {
     private readonly redis: RedisService,
   ) {}
 
-  @Get()
+  @Get(['', '/api/health'])
   @ApiOperation({ summary: 'Health check endpoint' })
-  async check() {
+  async check(@Res() res: Response) {
     const checks: Record<string, string> = {};
 
     // Database check
@@ -33,24 +34,25 @@ export class HealthController {
     }
 
     const isHealthy = Object.values(checks).every((v) => v === 'healthy');
+    const statusCode = isHealthy ? HttpStatus.OK : HttpStatus.SERVICE_UNAVAILABLE;
 
-    return {
+    return res.status(statusCode).json({
       status: isHealthy ? 'healthy' : 'degraded',
       version: process.env.npm_package_version || '1.0.0',
       uptime: process.uptime(),
       timestamp: new Date().toISOString(),
       checks,
-    };
+    });
   }
 
   @Get('ready')
   @ApiOperation({ summary: 'Readiness check (for Kubernetes)' })
-  async ready() {
+  async ready(@Res() res: Response) {
     try {
       await this.prisma.$queryRaw`SELECT 1`;
-      return { status: 'ready' };
+      return res.status(HttpStatus.OK).json({ status: 'ready' });
     } catch {
-      return { status: 'not_ready' };
+      return res.status(HttpStatus.SERVICE_UNAVAILABLE).json({ status: 'not_ready' });
     }
   }
 

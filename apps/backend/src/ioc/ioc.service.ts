@@ -196,7 +196,7 @@ export class IocService {
           await this.create(iocDto, userId);
           results.created++;
         }
-      } catch (error) {
+      } catch (error: any) {
         results.errors.push(`${iocDto.type}:${iocDto.value} - ${error.message}`);
       }
     }
@@ -249,22 +249,25 @@ export class IocService {
 
   private async indexIocInOpenSearch(ioc: any) {
     try {
-      await this.opensearch.index(
-        'minisoc-iocs',
-        ioc.id,
-        JSON.stringify({
-          type: ioc.type,
-          value: ioc.value,
-          status: ioc.status,
-          confidence: ioc.confidence,
-          severity: ioc.severity,
-          source: ioc.source,
-          mitreTechniques: ioc.mitreTechniques,
-          createdAt: ioc.createdAt,
-        }),
-      );
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const document = {
+        id: ioc.id,
+        type: ioc.type,
+        value: ioc.value,
+        description: ioc.description || '',
+        status: ioc.status,
+        confidence: Number(ioc.confidence),
+        severity: ioc.severity,
+        source: ioc.source || 'manual',
+        sourceReference: ioc.sourceReference || null,
+        mitreTechniques: ioc.mitreTechniques || [],
+        tags: ioc.tags || [],
+        createdAt: ioc.createdAt ? new Date(ioc.createdAt).toISOString() : new Date().toISOString(),
+        expiresAt: ioc.expiresAt ? new Date(ioc.expiresAt).toISOString() : null,
+      };
+
+      await this.opensearch.index('minisoc-iocs', ioc.id, document);
+    } catch (error: any) {
+      const message = error?.message || String(error);
       this.logger.warn(`Failed to index IOC in OpenSearch: ${message}`);
     }
   }
