@@ -364,19 +364,26 @@ jobs:
             "name": "Auto Host Isolation Playbook",
             "description": "Automatically isolate compromised endpoint on critical alert",
             "triggerConditions": {
-              "type": "alert",
-              "severity": "CRITICAL"
+              "triggerType": "alert",
+              "rules": [
+                {
+                  "field": "severity",
+                  "operator": "eq",
+                  "value": "CRITICAL"
+                }
+              ]
             },
             "actions": [
               {
                 "id": "act-01",
                 "name": "Isolate Host",
                 "type": "CONTAINMENT",
-                "riskLevel": "HIGH",
+                "riskLevel": "high",
                 "params": { "ip": "10.0.0.50" }
               }
             ],
-            "isActive": true
+            "isActive": true,
+            "tags": ["isolation", "automated"]
           }'
 
           CREATE_PLAYBOOK_RESP=$(curl -sLk -X POST "https://localhost/api/playbooks" \
