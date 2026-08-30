@@ -129,24 +129,19 @@ jobs:
           SHODAN_API_KEY: ${{ secrets.SHODAN_API_KEY }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD || 'minisoc_db_password_2026' }}
         run: |
-          docker compose --env-file .env run --rm --entrypoint "rm -f /var/run/suricata.pid" suricata || true
+          echo "Nettoyage des fichiers PID résiduels de Suricata..."
+          docker run --rm -v dino-soc_suricata_logs:/var/run/suricata alpine rm -f /var/run/suricata/suricata.pid || true
 
           echo "Lancement global de l'ensemble des conteneurs..."
           docker compose --env-file .env up -d --build
 
-          echo "=== Attente active de la stabilité du conteneur minisoc-api (Timeout: 120s) ==="
+          echo "=== Attente active de la stabilité des conteneurs (Timeout: 120s) ==="
           TIMEOUT=24
-          until [ "$(docker inspect -f '{{.State.Running}}' minisoc-api 2>/dev/null)" = "true" ] && \
-                docker exec minisoc-api curl -s http://localhost:4000/health > /dev/null 2>&1 || [ $TIMEOUT -eq 0 ]; do
-            echo "En attente de la stabilité du conteneur minisoc-api... ($TIMEOUT essais restants)"
+          until [ "$(docker inspect -f '{{.State.Running}}' minisoc-api 2>/dev/null)" = "true" ] || [ $TIMEOUT -eq 0 ]; do
+            echo "En attente du conteneur minisoc-api... ($TIMEOUT essais restants)"
             sleep 5
             TIMEOUT=$((TIMEOUT-1))
           done
-
-          if [ $TIMEOUT -eq 0 ]; then
-            echo "⚠️ Le conteneur minisoc-api prend du temps à démarrer, vérification des logs..."
-            docker logs --tail 20 minisoc-api || true
-          fi
 
           echo "Exécution forcée de la synchronisation de la base Prisma..."
           docker exec -e DATABASE_URL="postgresql://minisoc_app:${POSTGRES_PASSWORD}@postgres:5432/minisoc?schema=public" minisoc-api npx prisma db push --accept-data-loss || true
