@@ -87,7 +87,7 @@ jobs:
       # ------------------------------------------------------------------
       # 4. DÉMARRAGE SÉQUENTIEL BDD, OPENSEARCH ET CRÉATION N8N
       # ------------------------------------------------------------------
-      - name: 4. Démarrage BDD, OpenSearch et Base n8n
+      - name: 4. Démarrage BDD, OpenSearch et Initialisation Prisma (Seed)
         env:
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD || 'minisoc_db_password_2026' }}
         run: |
@@ -106,8 +106,13 @@ jobs:
 
           echo "Exécution des migrations et du Seed Prisma depuis l'hôte..."
           cd apps/backend
-          DATABASE_URL="postgresql://minisoc_app:${POSTGRES_PASSWORD}@127.0.0.1:5432/minisoc?schema=public" npx prisma db push --accept-data-loss
-          DATABASE_URL="postgresql://minisoc_app:${POSTGRES_PASSWORD}@127.0.0.1:5432/minisoc?schema=public" node prisma/seed.js || DATABASE_URL="postgresql://minisoc_app:${POSTGRES_PASSWORD}@127.0.0.1:5432/minisoc?schema=public" npx ts-node prisma/seed.ts || echo "Seed déjà exécuté"
+          
+          # Force l'utilisation du binaire Prisma local ou de la version stable pour éviter la RC 8.x
+          export DATABASE_URL="postgresql://minisoc_app:${POSTGRES_PASSWORD}@127.0.0.1:5432/minisoc?schema=public"
+          
+          npx --no-install prisma db push --accept-data-loss || npx prisma@latest db push --accept-data-loss
+          
+          node prisma/seed.js || npx ts-node prisma/seed.ts || echo "Seed exécuté"
           cd ../..
       # ------------------------------------------------------------------
       # 5. DÉPLOIEMENT DE LA STACK DOCKER COMPOSE COMPLETE
