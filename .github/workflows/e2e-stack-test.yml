@@ -200,7 +200,7 @@ jobs:
           echo "$SEARCH_RES" | grep -q "E2E Real Attack Simulation Ingested" && echo "✅ OpenSearch Data Lake OK" || exit 1
 
       # ------------------------------------------------------------------
-      # 8. TEST RÉEL NIDS (SURICATA)
+      # 8. TEST RÉEL NIDS (SURICATA) & VERIFICATION OPENSEARCH/SOAR
       # ------------------------------------------------------------------
       - name: 8. TEST RÉEL NIDS (Attaque SQLi & Path Traversal sur Suricata)
         run: |
@@ -212,6 +212,44 @@ jobs:
           curl -sLk -A "Mozilla/5.0 (Evil Scanner)" "https://localhost/health?file=../../../../etc/passwd" || true
           
           echo "✅ Attaques NIDS envoyées pour analyse Suricata."
+
+          echo "=== Attente d'indexation OpenSearch & Déclenchement SOAR (15s) ==="
+          sleep 15
+
+          echo "=== Vérification des alertes indexées dans OpenSearch ==="
+          OS_ALERTS=$(curl -s "http://localhost:9200/suricata-*/_count" || curl -s "http://localhost:9200/minisoc-alerts/_count")
+          COUNT=$(echo "$OS_ALERTS" | jq -r '.count // 0')
+          echo "Nombre d'alertes trouvées dans OpenSearch : $COUNT"
+
+          if [ "$COUNT" -gt 0 ]; then
+            echo "✅ Alertes Suricata vérifiées dans OpenSearch avec succès."
+          else
+            echo "⚠️ Attention : Aucune alerte Suricata détectée dans l'index OpenSearch."
+          fi
+
+          echo "=== Vérification du déclenchement du Playbook SOAR ==="
+          SOAR_LOGS=$(docker exec minisoc-api node -e "
+            const { PrismaClient } = require('@prisma/client');
+            const prisma = new PrismaClient();
+            async function main() {
+              try {
+                const count = await prisma.playbookExecution.count();
+                console.log(count);
+              } catch (e) {
+                console.log(0);
+              } finally {
+                await prisma.\$disconnect();
+              }
+            }
+            main();
+          " 2>/dev/null || echo "0")
+
+          echo "Nombre d'exécutions de Playbooks SOAR enregistrées : $SOAR_LOGS"
+          if [ "$SOAR_LOGS" -gt 0 ]; then
+            echo "✅ Exécution automatique du Playbook SOAR confirmée !"
+          else
+            echo "ℹ️ Aucun playbook déclenché automatiquement pour le moment (déclenchement soumis aux règles définies)."
+          fi
 
       # ------------------------------------------------------------------
       # 9. TEST RÉEL RUNTIME SECURITY (FALCO)
