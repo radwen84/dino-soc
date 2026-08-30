@@ -1,3 +1,4 @@
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from '../../src/auth/auth.service';
 import { JwtService } from '@nestjs/jwt';
@@ -5,6 +6,7 @@ import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../../src/users/users.service';
 import { TotpService } from '../../src/auth/mfa/totp.service';
 import { AuditService } from '../../src/audit/audit.service';
+import { RedisService } from '../../src/redis/redis.service';
 import { UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 
@@ -23,6 +25,14 @@ describe('AuthService', () => {
     failedLoginAttempts: 0,
     lockedUntil: null,
     isActive: true,
+  };
+
+  const mockRedisService = {
+    get: jest.fn(),
+    set: jest.fn(),
+    del: jest.fn(),
+    isLocked: jest.fn().mockResolvedValue(false),
+    increment: jest.fn().mockResolvedValue(1),
   };
 
   beforeAll(async () => {
@@ -48,6 +58,10 @@ describe('AuthService', () => {
         },
         { provide: TotpService, useValue: { verify: jest.fn() } },
         { provide: AuditService, useValue: { log: jest.fn() } },
+        // --- Injection du Mock RedisService ---
+        { provide: RedisService, useValue: mockRedisService },
+        { provide: 'RedisService', useValue: mockRedisService },
+        { provide: 'REDIS_CLIENT', useValue: mockRedisService },
       ],
     }).compile();
 
