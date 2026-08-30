@@ -139,29 +139,57 @@ jobs:
       # ------------------------------------------------------------------
       - name: 5b. Initialisation & Déverrouillage Automatique de Vault (Unseal)
         run: |
-          echo "=== Attente du démarrage du service Vault ==="
-          TIMEOUT=12
-          until docker exec minisoc-vault vault status -address='http://127.0.0.1:8200' > /dev/null 2>&1 || [ $TIMEOUT -eq 0 ]; do
+          echo "=== Attente de l'accès à l'API Vault (Timeout: 30s) ==="
+          TIMEOUT=10
+          until docker exec -e VAULT_ADDR='http://127.0.0.1:8200' minisoc-vault vault status > /dev/null 2>&1 || [ $TIMEOUT -eq 0 ]; do
+            echo "En attente du service Vault... ($TIMEOUT essais restants)"
             sleep 3
             TIMEOUT=$((TIMEOUT-1))
           done
 
-          INIT_JSON=$(docker exec -e VAULT_ADDR='http://127.0.0.1:8200' minisoc-vault vault operator init -format=json 2>/dev/null || true)
-          KEY1=$(echo "$INIT_JSON" | jq -r '.unseal_keys_b64[0]')
-          KEY2=$(echo "$INIT_JSON" | jq -r '.unseal_keys_b64[1]')
-          KEY3=$(echo "$INIT_JSON" | jq -r '.unseal_keys_b64[2]')
+          echo "=== Vérification de l'état de Vault ==="
+          STATUS_JSON=$(docker exec -e VAULT_ADDR='http://127.0.0.1:8200' minisoc-vault vault status -format=json || true)
+          IS_INIT=$(echo "$STATUS_JSON" | jq -r '.initialized // false')
+          IS_SEALED=$(echo "$STATUS_JSON" | jq -r '.sealed // true')
 
-          if [ -n "$KEY1" ] && [ "$KEY1" != "null" ]; then
+          if [ "$IS_INIT" = "true" ] && [ "$IS_SEALED" = "false" ]; then
+            echo "ℹ️ Vault est déjà initialisé et déverrouillé (Mode Dev ou persistant)."
+          elif [ "$IS_INIT" = "false" ]; then
+            echo "⚡ Initialisation d'une nouvelle instance Vault..."
+            INIT_JSON=$(docker exec -e VAULT_ADDR='http://127.0.0.1:8200' minisoc-vault vault operator init -key-shares=3 -key-threshold=2 -format=json)
+            
+            KEY1=$(echo "$INIT_JSON" | jq -r '.unseal_keys_b64[0]')
+            KEY2=$(echo "$INIT_JSON" | jq -r '.unseal_keys_b64[1]')
+            ROOT_TOKEN=$(echo "$INIT_JSON" | jq -r '.root_token')
+
             echo "::add-mask::$KEY1"
             echo "::add-mask::$KEY2"
-            echo "::add-mask::$KEY3"
+            echo "::add-mask::$ROOT_TOKEN"
 
             docker exec -e VAULT_ADDR='http://127.0.0.1:8200' minisoc-vault vault operator unseal "$KEY1" > /dev/null
             docker exec -e VAULT_ADDR='http://127.0.0.1:8200' minisoc-vault vault operator unseal "$KEY2" > /dev/null
-            docker exec -e VAULT_ADDR='http://127.0.0.1:8200' minisoc-vault vault operator unseal "$KEY3" > /dev/null
-            echo "✅ Vault unsealed avec succès (Clés masquées) !"
+            echo "✅ Vault initialisé et déverrouillé avec succès (2/3 clés appliquées) !"
+          elif [ "$IS_SEALED" = "true" ]; then
+            echo "⚠️ Vault est initialisé mais verrouillé. Tentative de déverrouillage..."
+          fi
+
+      # ------------------------------------------------------------------
+      # 6. TEST & VALIDATION DE LA SANTÉ DE VAULT & DES CONTENEURS
+      # ------------------------------------------------------------------
+      - name: 6. Validation de la santé de Vault et des conteneurs
+        run: |
+          echo "=== État des conteneurs Docker ==="
+          docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+
+          echo "=== Vérification API Vault via Endpoint /v1/sys/health ==="
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8200/v1/sys/health || echo "000")
+          echo "Code HTTP retourné par Vault /sys/health : $HTTP_CODE"
+
+          if [ "$HTTP_CODE" -eq 200 ] || [ "$HTTP_CODE" -eq 429 ]; then
+            echo "✅ Vault est 100% fonctionnel et prêt pour les secrets."
           else
-            echo "ℹ️ Vault est déjà initialisé ou non disponible à cet endroit."
+            echo "❌ Vault n'est pas prêt (Code HTTP: $HTTP_CODE)."
+            exit 1
           fi
 
       # ------------------------------------------------------------------
@@ -368,31 +396,25 @@ jobs:
           BASE_URL="https://localhost/api"
           OPENSEARCH_URL="http://localhost:9200"
 
-          # ----------------------------------------------------------------------
           # [0/16] INSPECTER LE DÉTAIL DE L'ALERTE DANS OPENSEARCH
-          # ----------------------------------------------------------------------
           echo ""
           echo "---> [0/16] Inspection préalable des alertes dans OpenSearch..."
           OS_ALERTS=$(curl -s "${OPENSEARCH_URL}/*suricata*/_count" 2>/dev/null || curl -s "${OPENSEARCH_URL}/minisoc-alerts/_count" 2>/dev/null || echo "{\"count\": 0}")
           COUNT=$(echo "$OS_ALERTS" | jq -r '.count // 0')
           echo "📊 Nombre d'alertes trouvées dans OpenSearch : $COUNT"
 
-          # ----------------------------------------------------------------------
           # [1/16] GET Health Check
-          # ----------------------------------------------------------------------
           echo ""
           echo "---> [1/16] GET /api/health"
           curl -sLk "${BASE_URL}/health" || curl -sLk "https://localhost/health" || true
           echo ""
 
-          # ----------------------------------------------------------------------
           # [2/16] POST Login (Authentification & JWT)
-          # ----------------------------------------------------------------------
           echo ""
           echo "---> [2/16] POST /api/auth/login"
           LOGIN_RES=$(curl -sLk -X POST "${BASE_URL}/auth/login" \
             -H "Content-Type: application/json" \
-            -d '{"email":"admin@minisoc.local","password":"AdminPassword123!"}')
+            -d '{"email":"admin@minisoc.local","password":"Admin@MiniSOC2026!"}')
 
           echo "Réponse: $LOGIN_RES"
           TOKEN=$(echo "$LOGIN_RES" | jq -r '.accessToken // .access_token // .token // empty')
@@ -405,9 +427,7 @@ jobs:
             exit 1
           fi
 
-          # ----------------------------------------------------------------------
           # [3/16] POST Refresh Token
-          # ----------------------------------------------------------------------
           echo ""
           echo "---> [3/16] POST /api/auth/refresh"
           if [ -n "$REFRESH_TOKEN" ] && [ "$REFRESH_TOKEN" != "null" ]; then
@@ -417,9 +437,7 @@ jobs:
             echo ""
           fi
 
-          # ----------------------------------------------------------------------
           # [4/16] POST MFA Verify
-          # ----------------------------------------------------------------------
           echo ""
           echo "---> [4/16] POST /api/auth/mfa/verify"
           curl -sLk -X POST "${BASE_URL}/auth/mfa/verify" \
@@ -428,9 +446,7 @@ jobs:
             -d '{"mfaCode":"123456"}' || echo "MFA ignoré ou non configuré"
           echo ""
 
-          # ----------------------------------------------------------------------
           # [5/16] POST Création d'Incident
-          # ----------------------------------------------------------------------
           echo ""
           echo "---> [5/16] POST /api/incidents"
           INCIDENT_RES=$(curl -sLk -X POST "${BASE_URL}/incidents" \
@@ -450,27 +466,21 @@ jobs:
           echo "Réponse Création Incident: $INCIDENT_RES"
           INCIDENT_ID=$(echo "$INCIDENT_RES" | jq -r '.id // empty')
 
-          # ----------------------------------------------------------------------
           # [6/16] GET Incidents
-          # ----------------------------------------------------------------------
           echo ""
           echo "---> [6/16] GET /api/incidents"
           curl -sLk -X GET "${BASE_URL}/incidents" \
             -H "Authorization: Bearer $TOKEN" || true
           echo ""
 
-          # ----------------------------------------------------------------------
           # [7/16] GET Alerts
-          # ----------------------------------------------------------------------
           echo ""
           echo "---> [7/16] GET /api/alerts"
           curl -sLk -X GET "${BASE_URL}/alerts" \
             -H "Authorization: Bearer $TOKEN" || true
           echo ""
 
-          # ----------------------------------------------------------------------
           # [8/16] POST Création IOC
-          # ----------------------------------------------------------------------
           echo ""
           echo "---> [8/16] POST /api/ioc"
           IOC_RES=$(curl -sLk -X POST "${BASE_URL}/ioc" \
@@ -486,27 +496,21 @@ jobs:
             }')
           echo "Réponse Création IOC: $IOC_RES"
 
-          # ----------------------------------------------------------------------
           # [9/16] GET IOCs
-          # ----------------------------------------------------------------------
           echo ""
           echo "---> [9/16] GET /api/ioc"
           curl -sLk -X GET "${BASE_URL}/ioc" \
             -H "Authorization: Bearer $TOKEN" || true
           echo ""
 
-          # ----------------------------------------------------------------------
           # [10/16] GET Threat Intel Lookup
-          # ----------------------------------------------------------------------
           echo ""
           echo "---> [10/16] GET /api/threat-intel/lookup/185.220.101.5"
           curl -sLk -X GET "${BASE_URL}/threat-intel/lookup/185.220.101.5" \
             -H "Authorization: Bearer $TOKEN" || true
           echo ""
 
-          # ----------------------------------------------------------------------
           # [11/16] POST Ingestion TAXII
-          # ----------------------------------------------------------------------
           echo ""
           echo "---> [11/16] POST /api/threat-intel/taxii/ingest"
           curl -sLk -X POST "${BASE_URL}/threat-intel/taxii/ingest" \
@@ -519,18 +523,14 @@ jobs:
             }' || true
           echo ""
 
-          # ----------------------------------------------------------------------
           # [12/16] GET Assets
-          # ----------------------------------------------------------------------
           echo ""
           echo "---> [12/16] GET /api/assets"
           curl -sLk -X GET "${BASE_URL}/assets" \
             -H "Authorization: Bearer $TOKEN" || true
           echo ""
 
-          # ----------------------------------------------------------------------
           # [13/16] POST Création Playbook SOAR
-          # ----------------------------------------------------------------------
           echo ""
           echo "---> [13/16] POST Playbook Creation via REST API"
           PLAYBOOK_RES=$(curl -sLk -X POST "${BASE_URL}/playbooks" \
@@ -589,9 +589,7 @@ jobs:
 
           echo "✅ Playbook valide pour l'exécution: $PLAYBOOK_ID"
 
-          # ----------------------------------------------------------------------
           # [14/16] POST Exécution de l'action SOAR
-          # ----------------------------------------------------------------------
           echo ""
           echo "---> [14/16] POST Execute Playbook ($PLAYBOOK_ID)"
           if [ -n "$PLAYBOOK_ID" ] && [ "$PLAYBOOK_ID" != "null" ]; then
@@ -608,18 +606,14 @@ jobs:
             echo "❌ Étape ignorée : Aucun ID de Playbook disponible."
           fi
 
-          # ----------------------------------------------------------------------
           # [15/16] GET Génération du Rapport KPI
-          # ----------------------------------------------------------------------
           echo ""
           echo "---> [15/16] GET /api/reports/generate?type=kpi_metrics"
           curl -sLk -X GET "${BASE_URL}/reports/generate?type=kpi_metrics" \
             -H "Authorization: Bearer $TOKEN" || true
           echo ""
 
-          # ----------------------------------------------------------------------
           # [16/16] GET Prometheus Metrics
-          # ----------------------------------------------------------------------
           echo ""
           echo "---> [16/16] GET Prometheus Metrics"
           PROMETHEUS_RES=$(curl -sLk "${BASE_URL}/metrics" || docker exec minisoc-api curl -s http://127.0.0.1:4000/metrics || echo "")
