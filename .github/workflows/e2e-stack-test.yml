@@ -85,23 +85,9 @@ jobs:
           ./scripts/generate-certs.sh || true
 
       # ------------------------------------------------------------------
-      # 4. CONFIGURATION NODE.JS (NÉCESSAIRE POUR LA MIGRATION PRISMA LOCAL)
+      # 4. DÉMARRAGE SÉQUENTIEL BDD, OPENSEARCH ET CRÉATION N8N
       # ------------------------------------------------------------------
-      - name: 4. Setup Node.js pour Prisma local
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
-
-      # ------------------------------------------------------------------
-      # 5. DÉMARRAGE SÉQUENTIEL BDD, MIGRATIONS, SEED & STACK DOCKER
-      # ------------------------------------------------------------------
-      - name: 5. Démarrage Séquentiel BDD, Migrations, Seed & Stack Docker
-        env:
-          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD || 'minisoc_db_password_2026' }}
-          ABUSEIPDB_API_KEY: ${{ secrets.ABUSEIPDB_API_KEY }}
-          VIRUSTOTAL_API_KEY: ${{ secrets.VIRUSTOTAL_API_KEY }}
-          OTX_API_KEY: ${{ secrets.OTX_API_KEY }}
-          SHODAN_API_KEY: ${{ secrets.SHODAN_API_KEY }}
+      - name: 4. Démarrage BDD, OpenSearch et Base n8n
         run: |
           docker compose --env-file .env up -d postgres opensearch
 
@@ -116,17 +102,27 @@ jobs:
 
           docker exec minisoc-postgres psql -U minisoc_app -d minisoc -c "CREATE DATABASE n8n;" || true
 
-          echo "Exécution des migrations et du Seed Prisma..."
-          cd apps/backend
-          npm install prisma @prisma/client || true
-          DATABASE_URL="postgresql://minisoc_app:${POSTGRES_PASSWORD}@127.0.0.1:5432/minisoc?schema=public" npx prisma db push --accept-data-loss
-          DATABASE_URL="postgresql://minisoc_app:${POSTGRES_PASSWORD}@127.0.0.1:5432/minisoc?schema=public" node prisma/seed.js || DATABASE_URL="postgresql://minisoc_app:${POSTGRES_PASSWORD}@127.0.0.1:5432/minisoc?schema=public" npx ts-node prisma/seed.ts || echo "Seed déjà exécuté"
-          cd ../..
-
+      # ------------------------------------------------------------------
+      # 5. DÉPLOIEMENT DE LA STACK DOCKER COMPOSE COMPLETE
+      # ------------------------------------------------------------------
+      - name: 5. Lancement global de la Stack Docker
+        env:
+          ABUSEIPDB_API_KEY: ${{ secrets.ABUSEIPDB_API_KEY }}
+          VIRUSTOTAL_API_KEY: ${{ secrets.VIRUSTOTAL_API_KEY }}
+          OTX_API_KEY: ${{ secrets.OTX_API_KEY }}
+          SHODAN_API_KEY: ${{ secrets.SHODAN_API_KEY }}
+        run: |
           docker compose --env-file .env run --rm --entrypoint "rm -f /var/run/suricata.pid" suricata || true
 
           echo "Lancement global de l'ensemble des conteneurs..."
           docker compose --env-file .env up -d --build
+
+          echo "Stabilisation des conteneurs (20s)..."
+          sleep 20
+
+          echo "Exécution des migrations et du Seed Prisma dans le conteneur API..."
+          docker exec minisoc-api npx prisma db push --accept-data-loss || true
+          docker exec minisoc-api node prisma/seed.js || docker exec minisoc-api npx ts-node prisma/seed.ts || echo "Seed déjà exécuté"
 
           echo "Injection à chaud sécurisée des API Keys dans minisoc-api..."
           docker exec \
@@ -135,8 +131,8 @@ jobs:
             -e VIRUSTOTAL_API_KEY="$VIRUSTOTAL_API_KEY" \
             minisoc-api sh -c 'export ABUSEIPDB_API_KEY="$ABUSEIPDB_API_KEY"; export OTX_API_KEY="$OTX_API_KEY"; export VIRUSTOTAL_API_KEY="$VIRUSTOTAL_API_KEY"' || true
 
-          echo "Stabilisation globale des services (40s)..."
-          sleep 40
+          echo "Stabilisation finale des services (20s)..."
+          sleep 20
 
       # ------------------------------------------------------------------
       # 5b. INITIALISATION & DÉVERROUILLAGE AUTOMATIQUE DE VAULT (UNSEAL)
