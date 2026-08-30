@@ -2,13 +2,9 @@ name: Mini-SOC End-to-End Validation Pipeline
 
 on:
   push:
-    branches: 
-      - 'feature/**'
-      - 'test/**'
-      - main
+    branches: [ main, master, dev ]
   pull_request:
-    branches: 
-      - main
+    branches: [ main, master ]
   workflow_dispatch:
 
 jobs:
@@ -18,30 +14,71 @@ jobs:
 
     steps:
       # ------------------------------------------------------------------
-      # 1. Checkout du repository
+      # 1. CHECKOUT DU CODE SOURCE
       # ------------------------------------------------------------------
-      - name: 1. Checkout code
+      - name: 1. Checkout du Code Source
         uses: actions/checkout@v4
 
       # ------------------------------------------------------------------
-      # 2. Configuration de Node.js
+      # 2. PRÉPARATION SYSTÈME & RÉSEAU DE L'HÔTE (CI/CD)
       # ------------------------------------------------------------------
-      - name: 2. Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      # ------------------------------------------------------------------
-      # 3. Installation de Docker Compose & utilitaires CLI
-      # ------------------------------------------------------------------
-      - name: 3. Install dependencies and system utilities
+      - name: 2. Préparation Système & Réseau de l'Hôte (CI/CD)
         run: |
-          sudo apt-get update
-          sudo apt-get install -y jq curl net-tools iproute2
+          sudo sysctl -w vm.max_map_count=262144 || true
+          sudo sysctl -w kernel.unprivileged_bpf_disabled=0 || true
+          sudo ip link set eth0 promisc on || true
+          sudo mkdir -p /var/lib/docker/volumes/
+          sudo chmod -R 777 /var/lib/docker/volumes/ || true
 
       # ------------------------------------------------------------------
-      # 4. Déploiement de la stack Docker Compose Mini-SOC
+      # 3. INITIALISATION DES SECRETS & INJECTION DE L'ENVIRONNEMENT .ENV
+      # ------------------------------------------------------------------
+      - name: 3. Initialisation des Secrets & Injection de l'Environnement .env
+        env:
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD || 'minisoc_db_password_2026' }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET || 'minisoc_jwt_secret_key_2026_super_secret_32chars' }}
+          JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET || 'minisoc_jwt_refresh_secret_key_2026_super_secret_32chars' }}
+          ABUSEIPDB_API_KEY: ${{ secrets.ABUSEIPDB_API_KEY }}
+          VIRUSTOTAL_API_KEY: ${{ secrets.VIRUSTOTAL_API_KEY }}
+          OTX_API_KEY: ${{ secrets.OTX_API_KEY }}
+          SHODAN_API_KEY: ${{ secrets.SHODAN_API_KEY }}
+        run: |
+          mkdir -p secrets
+          
+          echo "$POSTGRES_PASSWORD" > secrets/postgres_password.txt
+          echo "$POSTGRES_PASSWORD" > secrets/db_password.txt
+          echo "$JWT_SECRET" > secrets/jwt_secret.txt
+          echo "$JWT_REFRESH_SECRET" > secrets/jwt_refresh_secret.txt
+          echo "wazuh_api_password_2026" > secrets/wazuh_api_password.txt
+          echo "minisoc_redis_password_2026" > secrets/redis_password.txt
+          echo "minisoc_misp_password_2026" > secrets/misp_password.txt
+          
+          cat <<EOF > .env
+          POSTGRES_USER=minisoc_app
+          POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+          POSTGRES_DB=minisoc
+          DATABASE_URL=postgresql://minisoc_app:${POSTGRES_PASSWORD}@postgres:5432/minisoc?schema=public
+          DB_POSTGRESDB_USER=minisoc_app
+          DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
+          DB_POSTGRESDB_DATABASE=n8n
+          JWT_SECRET=${JWT_SECRET}
+          JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+          API_CORS_ORIGINS=*
+          ORACLE_PORTS=1521
+          HTTP_PORTS=80
+          API_PORT=4000
+          ABUSEIPDB_API_KEY=${ABUSEIPDB_API_KEY}
+          VIRUSTOTAL_API_KEY=${VIRUSTOTAL_API_KEY}
+          OTX_API_KEY=${OTX_API_KEY}
+          ALIENVAULT_OTX_API_KEY=${OTX_API_KEY}
+          SHODAN_API_KEY=${SHODAN_API_KEY}
+          EOF
+
+          chmod +x ./scripts/generate-certs.sh || true
+          ./scripts/generate-certs.sh || true
+
+      # ------------------------------------------------------------------
+      # 4. DÉPLOIEMENT DES CONTENEURS DOCKER COMPOSE
       # ------------------------------------------------------------------
       - name: 4. Build and start Mini-SOC containers
         run: |
@@ -50,16 +87,16 @@ jobs:
           docker compose ps
 
       # ------------------------------------------------------------------
-      # 5. Attente de la disponibilité des services critiques
+      # 5. ATTENTE DE DISPONIBILITÉ DES SERVICES
       # ------------------------------------------------------------------
       - name: 5. Wait for core services to become healthy
         run: |
-          echo "Attente du démarrage de PostgreSQL, OpenSearch et Mini-SOC API..."
-          sleep 15
+          echo "Attente de l'initialisation des conteneurs..."
+          sleep 25
           docker compose ps
 
       # ------------------------------------------------------------------
-      # 6. Exécution des migrations de base de données (Prisma)
+      # 6. MIGRATIONS ET SEEDING DE BASE DE DONNÉES (PRISMA)
       # ------------------------------------------------------------------
       - name: 6. Run database migrations and seeding
         run: |
@@ -68,7 +105,7 @@ jobs:
           docker exec -t minisoc-api npx prisma db seed || true
 
       # ------------------------------------------------------------------
-      # 11b. TESTS REST API, OPENSEARCH, SOAR & PROMETHEUS METRICS
+      # 11b. TEST ET VALIDATION COMPLÈTE MINI-SOC (SOAR/OPENSEARCH/API)
       # ------------------------------------------------------------------
       - name: 11b. Test de Validation Complète Mini-SOC (SOAR/OpenSearch/API)
         env:
@@ -109,7 +146,7 @@ jobs:
           echo "---> [2/16] POST /api/auth/login"
           LOGIN_RES=$(curl -sLk -X POST "${BASE_URL}/auth/login" \
             -H "Content-Type: application/json" \
-            -d '{"email":"admin@minisoc.local","password":"Admin@MiniSOC2026!"}')
+            -d '{"email":"admin@minisoc.local","password":"AdminPassword123!"}')
 
           echo "Réponse: $LOGIN_RES"
           TOKEN=$(echo "$LOGIN_RES" | jq -r '.accessToken // .access_token // .token // empty')
@@ -135,7 +172,7 @@ jobs:
           fi
 
           # ----------------------------------------------------------------------
-          # [4/16] POST MFA Verify (Test avec token factice)
+          # [4/16] POST MFA Verify
           # ----------------------------------------------------------------------
           echo ""
           echo "---> [4/16] POST /api/auth/mfa/verify"
@@ -246,7 +283,7 @@ jobs:
           echo ""
 
           # ----------------------------------------------------------------------
-          # [13/16] POST Création Playbook SOAR (REST API + Verification Prisma)
+          # [13/16] POST Création Playbook SOAR
           # ----------------------------------------------------------------------
           echo ""
           echo "---> [13/16] POST Playbook Creation via REST API"
@@ -307,7 +344,7 @@ jobs:
           echo "✅ Playbook valide pour l'exécution: $PLAYBOOK_ID"
 
           # ----------------------------------------------------------------------
-          # [14/16] POST Exécution de l'action SOAR via REST API avec Token JWT
+          # [14/16] POST Exécution de l'action SOAR
           # ----------------------------------------------------------------------
           echo ""
           echo "---> [14/16] POST Execute Playbook ($PLAYBOOK_ID)"
@@ -356,7 +393,7 @@ jobs:
           echo "========================================================================"
 
       # ------------------------------------------------------------------
-      # Nettoyage de fin de job
+      # CLEANUP FINAL EN FIN DE RUN
       # ------------------------------------------------------------------
       - name: Cleanup Docker containers
         if: always()
