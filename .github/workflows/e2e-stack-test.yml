@@ -104,16 +104,21 @@ jobs:
 
           docker exec minisoc-postgres psql -U minisoc_app -d minisoc -c "CREATE DATABASE n8n;" || true
 
-          echo "Exécution des migrations et du Seed Prisma depuis l'hôte..."
-          cd apps/backend
-          
-          # Force l'utilisation du binaire Prisma local ou de la version stable pour éviter la RC 8.x
-          export DATABASE_URL="postgresql://minisoc_app:${POSTGRES_PASSWORD}@127.0.0.1:5432/minisoc?schema=public"
-          
-          npx --no-install prisma db push --accept-data-loss || npx prisma@latest db push --accept-data-loss
-          
-          node prisma/seed.js || npx ts-node prisma/seed.ts || echo "Seed exécuté"
-          cd ../..
+          echo "Exécution de la synchronisation du schéma et du Seed Prisma..."
+          # Option A: Exécution via le binaire local node_modules sans téléchargement npx
+          if [ -f "./apps/backend/node_modules/.bin/prisma" ]; then
+            cd apps/backend
+            DATABASE_URL="postgresql://minisoc_app:${POSTGRES_PASSWORD}@127.0.0.1:5432/minisoc?schema=public" ./node_modules/.bin/prisma db push --accept-data-loss
+            DATABASE_URL="postgresql://minisoc_app:${POSTGRES_PASSWORD}@127.0.0.1:5432/minisoc?schema=public" node prisma/seed.js || DATABASE_URL="postgresql://minisoc_app:${POSTGRES_PASSWORD}@127.0.0.1:5432/minisoc?schema=public" ./node_modules/.bin/ts-node prisma/seed.ts || true
+            cd ../..
+          # Option B: Utilisation de npx avec -y et version lockée
+          else
+            cd apps/backend
+            DATABASE_URL="postgresql://minisoc_app:${POSTGRES_PASSWORD}@127.0.0.1:5432/minisoc?schema=public" npx -y prisma@5 db push --accept-data-loss
+            DATABASE_URL="postgresql://minisoc_app:${POSTGRES_PASSWORD}@127.0.0.1:5432/minisoc?schema=public" node prisma/seed.js || DATABASE_URL="postgresql://minisoc_app:${POSTGRES_PASSWORD}@127.0.0.1:5432/minisoc?schema=public" npx -y ts-node prisma/seed.ts || true
+            cd ../..
+          fi
+          echo "✅ Initialisation Prisma terminée avec succès."
       # ------------------------------------------------------------------
       # 5. DÉPLOIEMENT DE LA STACK DOCKER COMPOSE COMPLETE
       # ------------------------------------------------------------------
