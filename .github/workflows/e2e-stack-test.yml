@@ -2,9 +2,13 @@ name: Mini-SOC End-to-End Validation Pipeline
 
 on:
   push:
-    branches: [ main, master, dev ]
+    branches: 
+      - 'feature/**'
+      - 'test/**'
+      - main
   pull_request:
-    branches: [ main, master ]
+    branches: 
+      - main
   workflow_dispatch:
 
 jobs:
