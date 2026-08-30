@@ -238,7 +238,7 @@ services:
     entrypoint: >
       /bin/sh -c "
       rm -f /var/run/suricata.pid &&
-      suricata -c /etc/suricata/suricata.yaml -i eth0 "
+      suricata -c /etc/suricata/suricata.yaml -i eth0 -i lo"
     cap_add:
       - NET_ADMIN
       - NET_RAW
