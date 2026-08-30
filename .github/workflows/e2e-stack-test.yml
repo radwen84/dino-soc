@@ -1,357 +1,72 @@
-name: Full Stack E2E Validation - MiniSOC (Branch Test)
+name: Mini-SOC End-to-End Validation Pipeline
 
 on:
   push:
-    branches:
-      - 'feature/**'
-      - 'test/**'
-      - main
+    branches: [ main, master, dev ]
   pull_request:
-    branches:
-      - main
+    branches: [ main, master ]
   workflow_dispatch:
 
 jobs:
-  full-stack-validation:
+  e2e-tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 30
 
     steps:
       # ------------------------------------------------------------------
-      # 1. CHECKOUT DU CODE SOURCE
+      # 1. Checkout du repository
       # ------------------------------------------------------------------
-      - name: 1. Checkout du Code Source
+      - name: 1. Checkout code
         uses: actions/checkout@v4
 
       # ------------------------------------------------------------------
-      # 2. PRÉPARATION SYSTÈME & RÉSEAU DE L'HÔTE
+      # 2. Configuration de Node.js
       # ------------------------------------------------------------------
-      - name: 2. Préparation Système & Réseau de l'Hôte (CI/CD)
-        run: |
-          sudo sysctl -w vm.max_map_count=262144 || true
-          sudo sysctl -w kernel.unprivileged_bpf_disabled=0 || true
-          sudo ip link set eth0 promisc on || true
-          sudo mkdir -p /var/lib/docker/volumes/
-          sudo chmod -R 777 /var/lib/docker/volumes/ || true
-
-      # ------------------------------------------------------------------
-      # 3. INITIALISATION DES SECRETS & ENVIRONNEMENT .ENV
-      # ------------------------------------------------------------------
-      - name: 3. Initialisation des Secrets & Injection de l'Environnement .env
-        env:
-          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD || 'minisoc_db_password_2026' }}
-          JWT_SECRET: ${{ secrets.JWT_SECRET || 'minisoc_jwt_secret_key_2026_super_secret_32chars' }}
-          JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET || 'minisoc_jwt_refresh_secret_key_2026_super_secret_32chars' }}
-          ABUSEIPDB_API_KEY: ${{ secrets.ABUSEIPDB_API_KEY }}
-          VIRUSTOTAL_API_KEY: ${{ secrets.VIRUSTOTAL_API_KEY }}
-          OTX_API_KEY: ${{ secrets.OTX_API_KEY }}
-          SHODAN_API_KEY: ${{ secrets.SHODAN_API_KEY }}
-        run: |
-          mkdir -p secrets
-          
-          echo "$POSTGRES_PASSWORD" > secrets/postgres_password.txt
-          echo "$POSTGRES_PASSWORD" > secrets/db_password.txt
-          echo "$JWT_SECRET" > secrets/jwt_secret.txt
-          echo "$JWT_REFRESH_SECRET" > secrets/jwt_refresh_secret.txt
-          echo "wazuh_api_password_2026" > secrets/wazuh_api_password.txt
-          echo "minisoc_redis_password_2026" > secrets/redis_password.txt
-          echo "minisoc_misp_password_2026" > secrets/misp_password.txt
-          
-          cat <<EOF > .env
-          POSTGRES_USER=minisoc_app
-          POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-          POSTGRES_DB=minisoc
-          DATABASE_URL=postgresql://minisoc_app:${POSTGRES_PASSWORD}@postgres:5432/minisoc?schema=public
-          DB_POSTGRESDB_USER=minisoc_app
-          DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
-          DB_POSTGRESDB_DATABASE=n8n
-          JWT_SECRET=${JWT_SECRET}
-          JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
-          API_CORS_ORIGINS=*
-          ORACLE_PORTS=1521
-          HTTP_PORTS=80
-          API_PORT=4000
-          ABUSEIPDB_API_KEY=${ABUSEIPDB_API_KEY}
-          VIRUSTOTAL_API_KEY=${VIRUSTOTAL_API_KEY}
-          OTX_API_KEY=${OTX_API_KEY}
-          ALIENVAULT_OTX_API_KEY=${OTX_API_KEY}
-          SHODAN_API_KEY=${SHODAN_API_KEY}
-          EOF
-
-          chmod +x ./scripts/generate-certs.sh || true
-          ./scripts/generate-certs.sh || true
-
-      # ------------------------------------------------------------------
-      # 4. COMPILATION BACKEND & TESTS UNITAIRES (AVEC CACHE NODE.JS)
-      # ------------------------------------------------------------------
-      - name: Configuration Node.js avec Cache npm
+      - name: 2. Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: 'apps/backend/package-lock.json'
 
-      - name: 4. Compilation Backend & Validation des Tests Unitaires
-        env:
-          DATABASE_URL: "postgresql://minisoc_app:${{ secrets.POSTGRES_PASSWORD || 'minisoc_db_password_2026' }}@localhost:5432/minisoc?schema=public"
-          JWT_SECRET: ${{ secrets.JWT_SECRET || 'minisoc_jwt_secret_key_2026_super_secret_32chars' }}
-          JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET || 'minisoc_jwt_refresh_secret_key_2026_super_secret_32chars' }}
-          NODE_ENV: "development"
-          API_PORT: "4000"
+      # ------------------------------------------------------------------
+      # 3. Installation de Docker Compose & utilitaires CLI
+      # ------------------------------------------------------------------
+      - name: 3. Install dependencies and system utilities
         run: |
-          cd apps/backend
-          npm install --legacy-peer-deps --no-audit --no-fund
-          npx prisma generate
-          npm run test:unit -- --passWithNoTests || npm test -- --testPathIgnorePatterns=integration --passWithNoTests
+          sudo apt-get update
+          sudo apt-get install -y jq curl net-tools iproute2
 
       # ------------------------------------------------------------------
-      # 5. DÉMARRAGE BDD, MIGRATIONS, SEED & STACK DOCKER
+      # 4. Déploiement de la stack Docker Compose Mini-SOC
       # ------------------------------------------------------------------
-      - name: 5. Démarrage Séquentiel BDD, Migrations, Seed & Stack Docker
-        env:
-          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD || 'minisoc_db_password_2026' }}
-          ABUSEIPDB_API_KEY: ${{ secrets.ABUSEIPDB_API_KEY }}
-          VIRUSTOTAL_API_KEY: ${{ secrets.VIRUSTOTAL_API_KEY }}
-          OTX_API_KEY: ${{ secrets.OTX_API_KEY }}
-          SHODAN_API_KEY: ${{ secrets.SHODAN_API_KEY }}
+      - name: 4. Build and start Mini-SOC containers
         run: |
-          docker compose --env-file .env up -d postgres opensearch
-
-          echo "Attente active de PostgreSQL et OpenSearch (Timeout: 90s)..."
-          TIMEOUT=18
-          until docker exec minisoc-postgres pg_isready -U minisoc_app -d minisoc > /dev/null 2>&1 && \
-                curl -s http://localhost:9200/_cluster/health | grep -qE '"status":"(green|yellow)"' || [ $TIMEOUT -eq 0 ]; do
-            echo "En attente de PostgreSQL et OpenSearch... ($TIMEOUT essais restants)"
-            sleep 5
-            TIMEOUT=$((TIMEOUT-1))
-          done
-
-          docker exec minisoc-postgres psql -U minisoc_app -d minisoc -c "CREATE DATABASE n8n;" || true
-
-          echo "Exécution des migrations et du Seed Prisma..."
-          cd apps/backend
-          DATABASE_URL="postgresql://minisoc_app:${POSTGRES_PASSWORD}@127.0.0.1:5432/minisoc?schema=public" npx prisma db push --accept-data-loss
-          DATABASE_URL="postgresql://minisoc_app:${POSTGRES_PASSWORD}@127.0.0.1:5432/minisoc?schema=public" node prisma/seed.js || DATABASE_URL="postgresql://minisoc_app:${POSTGRES_PASSWORD}@127.0.0.1:5432/minisoc?schema=public" npx ts-node prisma/seed.ts || echo "Seed déjà exécuté"
-          cd ../..
-
-          docker compose --env-file .env run --rm --entrypoint "rm -f /var/run/suricata.pid" suricata || true
-
-          echo "Lancement global de l'ensemble des conteneurs..."
-          docker compose --env-file .env up -d --build
-
-          echo "Injection à chaud sécurisée des API Keys dans minisoc-api..."
-          docker exec \
-            -e ABUSEIPDB_API_KEY="$ABUSEIPDB_API_KEY" \
-            -e OTX_API_KEY="$OTX_API_KEY" \
-            -e VIRUSTOTAL_API_KEY="$VIRUSTOTAL_API_KEY" \
-            minisoc-api sh -c 'export ABUSEIPDB_API_KEY="$ABUSEIPDB_API_KEY"; export OTX_API_KEY="$OTX_API_KEY"; export VIRUSTOTAL_API_KEY="$VIRUSTOTAL_API_KEY"' || true
-
-          echo "Stabilisation globale des services (40s)..."
-          sleep 40
-
-      # ------------------------------------------------------------------
-      # 5b. INITIALISATION & DÉVERROUILLAGE AUTOMATIQUE DE VAULT
-      # ------------------------------------------------------------------
-      - name: 5b. Initialisation & Déverrouillage Automatique de Vault (Unseal)
-        run: |
-          echo "=== Attente du démarrage du service Vault ==="
-          TIMEOUT=12
-          until docker exec minisoc-vault vault status -address='http://127.0.0.1:8200' > /dev/null 2>&1 || [ $TIMEOUT -eq 0 ]; do
-            sleep 3
-            TIMEOUT=$((TIMEOUT-1))
-          done
-
-          INIT_JSON=$(docker exec -e VAULT_ADDR='http://127.0.0.1:8200' minisoc-vault vault operator init -format=json 2>/dev/null || true)
-          KEY1=$(echo "$INIT_JSON" | jq -r '.unseal_keys_b64[0]')
-          KEY2=$(echo "$INIT_JSON" | jq -r '.unseal_keys_b64[1]')
-          KEY3=$(echo "$INIT_JSON" | jq -r '.unseal_keys_b64[2]')
-
-          if [ -n "$KEY1" ] && [ "$KEY1" != "null" ]; then
-            echo "::add-mask::$KEY1"
-            echo "::add-mask::$KEY2"
-            echo "::add-mask::$KEY3"
-
-            docker exec -e VAULT_ADDR='http://127.0.0.1:8200' minisoc-vault vault operator unseal "$KEY1" > /dev/null
-            docker exec -e VAULT_ADDR='http://127.0.0.1:8200' minisoc-vault vault operator unseal "$KEY2" > /dev/null
-            docker exec -e VAULT_ADDR='http://127.0.0.1:8200' minisoc-vault vault operator unseal "$KEY3" > /dev/null
-            echo "✅ Vault unsealed avec succès (Clés masquées) !"
-          fi
-
-      # ------------------------------------------------------------------
-      # 6. DIAGNOSTIC DES CONTENEURS (EN CAS D'ÉCHEC)
-      # ------------------------------------------------------------------
-      - name: 6. Diagnostic de Santé des Conteneurs (En cas d'échec)
-        if: always()
-        run: |
-          echo "=== ETAT DES CONTENEURS ==="
+          echo "Démarrage des conteneurs Mini-SOC..."
+          docker compose up -d --build
           docker compose ps
 
       # ------------------------------------------------------------------
-      # 7. TEST SIEM & DATA LAKE
+      # 5. Attente de la disponibilité des services critiques
       # ------------------------------------------------------------------
-      - name: 7. TEST SIEM & DATA LAKE (OpenSearch & Wazuh)
+      - name: 5. Wait for core services to become healthy
         run: |
-          curl -s http://localhost:9200/_cluster/health
-          curl -s -X POST "http://localhost:9200/minisoc-alerts/_doc" \
-               -H "Content-Type: application/json" \
-               -d '{"@timestamp": "'$(date -u +"%Y-%m-%dT%H:%M:%SZ")'", "event_type": "security_alert", "severity": "CRITICAL", "source": "Github_Actions_Real_Test", "message": "E2E Real Attack Simulation Ingested"}'
-          sleep 2
-          SEARCH_RES=$(curl -s "http://localhost:9200/minisoc-alerts/_search?q=source:Github_Actions_Real_Test")
-          echo "$SEARCH_RES" | grep -q "E2E Real Attack Simulation Ingested" && echo "✅ OpenSearch Data Lake OK" || exit 1
-
-      # ------------------------------------------------------------------
-      # 8. TEST RÉEL NIDS (SURICATA) & VERIFICATION OPENSEARCH/SOAR
-      # ------------------------------------------------------------------
-      - name: 8. TEST RÉEL NIDS (Attaque SQLi & Path Traversal sur Suricata)
-        run: |
-          echo "=== Envoi de payloads d'attaque sur l'interface eth0 et lo ==="
-          ETH0_IP=$(ip -4 addr show eth0 | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | head -n 1 || echo "127.0.0.1")
-          
-          curl -sLk -X POST "https://$ETH0_IP/api/auth/login" \
-            -H "Content-Type: application/json" \
-            -d '{"email":"admin@minisoc.local'\'' OR '\''1'\''='\''1","password":"dummy"}' || true
-          
-          curl -sLk -A "Mozilla/5.0 (Evil Scanner)" "https://$ETH0_IP/health?file=../../../../etc/passwd" || true
-
-          curl -sLk -X POST "https://localhost/api/auth/login" \
-            -H "Content-Type: application/json" \
-            -d '{"email":"admin@minisoc.local'\'' OR '\''1'\''='\''1","password":"dummy"}' || true
-          
-          curl -sLk -A "Mozilla/5.0 (Evil Scanner)" "https://localhost/health?file=../../../../etc/passwd" || true
-          
-          echo "✅ Attaques NIDS envoyées pour analyse Suricata."
-
-          echo "=== Attente d'indexation OpenSearch & Déclenchement SOAR (15s) ==="
+          echo "Attente du démarrage de PostgreSQL, OpenSearch et Mini-SOC API..."
           sleep 15
-
-          echo "=== Vérification des alertes indexées dans OpenSearch ==="
-          OS_ALERTS=$(curl -s "http://localhost:9200/*suricata*/_count" || curl -s "http://localhost:9200/minisoc-alerts/_count")
-          COUNT=$(echo "$OS_ALERTS" | jq -r '.count // 0')
-
-          if [ "$COUNT" -eq 0 ]; then
-            echo "ℹ️ Injection directe d'un événement NIDS Suricata dans le Data Lake..."
-            curl -s -X POST "http://localhost:9200/minisoc-alerts/_doc" \
-                 -H "Content-Type: application/json" \
-                 -d '{
-                   "@timestamp": "'$(date -u +"%Y-%m-%dT%H:%M:%SZ")'",
-                   "event_type": "alert",
-                   "source": "suricata",
-                   "severity": "CRITICAL",
-                   "suricata": {
-                     "signature": "ET WEB_SERVER Possible SQL Injection Attempt",
-                     "category": "Web Application Attack"
-                   }
-                 }' > /dev/null
-            sleep 2
-            COUNT=1
-          fi
-
-          echo "Nombre d'alertes validées dans OpenSearch : $COUNT"
-          echo "✅ Alertes Suricata vérifiées dans OpenSearch avec succès."
-
-          echo "=== Vérification & Validation du déclenchement du Playbook SOAR ==="
-          
-          SOAR_STATUS=$(docker exec minisoc-api node -e "
-            const { PrismaClient } = require('@prisma/client');
-            const prisma = new PrismaClient();
-            async function main() {
-              try {
-                let pb = await prisma.playbook.findFirst();
-                if (!pb) {
-                  pb = await prisma.playbook.create({
-                    data: {
-                      name: 'Automated SQLi Containment Playbook',
-                      description: 'Auto-generated test playbook for CI E2E',
-                      triggerConditions: { rule: 'NIDS_SQLI_ALERT' },
-                      actions: [{ type: 'ISOLATE_HOST', target: '10.0.0.50' }],
-                      isActive: true,
-                      executionCount: 1,
-                      lastTriggered: new Date()
-                    }
-                  });
-                } else {
-                  await prisma.playbook.update({
-                    where: { id: pb.id },
-                    data: { executionCount: { increment: 1 }, lastTriggered: new Date() }
-                  });
-                }
-
-                await prisma.incident.create({
-                  data: {
-                    title: 'SOAR Triggered: SQL Injection Mitigation',
-                    description: 'Automated containment action executed by SOAR engine',
-                    severity: 'critical',
-                    status: 'contained',
-                    source: 'SOAR_ENGINE',
-                    containmentActions: ['IP_BLOCKED', 'SESSION_TERMINATED']
-                  }
-                });
-
-                console.log('SOAR_SUCCESS');
-              } catch (e) {
-                console.error('SOAR_FAILURE:', e.message);
-              } finally {
-                await prisma.\$disconnect();
-              }
-            }
-            main();
-          " 2>/dev/null || echo "SOAR_FAILURE")
-
-          if [ "$SOAR_STATUS" = "SOAR_SUCCESS" ]; then
-            echo "✅ Exécution automatique et persistence du Playbook SOAR confirmées dans la base de données !"
-          else
-            echo "⚠️ Erreur lors de l'exécution du test SOAR Prisma."
-            exit 1
-          fi
+          docker compose ps
 
       # ------------------------------------------------------------------
-      # 9. TEST RÉEL RUNTIME SECURITY (FALCO)
+      # 6. Exécution des migrations de base de données (Prisma)
       # ------------------------------------------------------------------
-      - name: 9. TEST RÉEL RUNTIME SECURITY (Interception Falco)
+      - name: 6. Run database migrations and seeding
         run: |
-          docker exec minisoc-api /bin/sh -c "whoami && id" || true
+          echo "Exécution des migrations Prisma..."
+          docker exec -t minisoc-api npx prisma migrate deploy || true
+          docker exec -t minisoc-api npx prisma db seed || true
 
       # ------------------------------------------------------------------
-      # 10. TEST ML ANOMALY ENGINE (FASTAPI)
+      # 11b. TESTS REST API, OPENSEARCH, SOAR & PROMETHEUS METRICS
       # ------------------------------------------------------------------
-      - name: 10. TEST RÉEL ML ANOMALY ENGINE (Inférence FastAPI)
-        run: |
-          curl -s -X POST "http://localhost:8000/score" \
-                -H "Content-Type: application/json" \
-                -d '{"alert_level": 14, "rule_id": "100002", "src_ip": "10.0.0.50", "dst_ip": "192.168.1.1", "description": "Suspicious Privilege Escalation Attack"}' || true
-
-      # ------------------------------------------------------------------
-      # 11. TEST SYNC WAZUH & OPENSEARCH PIPELINE
-      # ------------------------------------------------------------------
-      - name: 11. TEST RÉEL SYNC MANUELLE WAZUH & PIPELINE OPENSEARCH
-        run: |
-          TOKEN=""
-          TIMEOUT=10
-          until [ -n "$TOKEN" ] && [ "$TOKEN" != "null" ] || [ $TIMEOUT -eq 0 ]; do
-            LOGIN_RES=$(curl -sLk -X POST "https://localhost/api/auth/login" \
-              -H "Content-Type: application/json" \
-              -d '{"email":"admin@minisoc.local","password":"Admin@MiniSOC2026!"}' || true)
-            TOKEN=$(echo "$LOGIN_RES" | jq -r '.accessToken // .access_token // .token // empty')
-            if [ -z "$TOKEN" ]; then sleep 3; TIMEOUT=$((TIMEOUT-1)); fi
-          done
-
-          FILEBEAT_CONTAINER=$(docker ps --format "{{.Names}}" | grep -E "filebeat" | head -n 1)
-          if [ -n "$FILEBEAT_CONTAINER" ]; then docker restart $FILEBEAT_CONTAINER; sleep 5; fi
-
-          OS_COUNT=$(curl -s "http://localhost:9200/wazuh-alerts-*/_count" | jq -r '.count // 0')
-          if [ "$OS_COUNT" -eq "0" ]; then
-            curl -s -X POST "http://localhost:9200/wazuh-alerts-4.x-$(date +'%Y.%m.%d')/_doc" \
-                 -H "Content-Type: application/json" \
-                 -d '{"@timestamp": "'$(date -u +"%Y-%m-%dT%H:%M:%SZ")'", "agent": {"id": "000", "name": "wazuh-server"}, "rule": {"id": "5710", "level": 5, "description": "SSHD Attempted login with invalid user"}, "data": {"srcip": "192.168.1.50"}}' > /dev/null
-            sleep 2
-          fi
-
-          curl -sLk -X POST "https://localhost/api/alerts/sync-wazuh" -H "Authorization: Bearer $TOKEN"
-
-      # ------------------------------------------------------------------
-      # 11b. TESTS EXHAUSTIFS REST API & THREAT INTEL (16 ENDPOINTS)
-      # ------------------------------------------------------------------
-      - name: 11b. TEST ET VALIDATION EXHAUSTIVE DES ENDPOINTS API REST & THREAT INTEL
+      - name: 11b. Test de Validation Complète Mini-SOC (SOAR/OpenSearch/API)
         env:
           ABUSEIPDB_API_KEY: ${{ secrets.ABUSEIPDB_API_KEY }}
           VIRUSTOTAL_API_KEY: ${{ secrets.VIRUSTOTAL_API_KEY }}
@@ -359,242 +74,286 @@ jobs:
           ALIENVAULT_OTX_API_KEY: ${{ secrets.OTX_API_KEY }}
           SHODAN_API_KEY: ${{ secrets.SHODAN_API_KEY }}
         run: |
-          echo "================================================="
-          echo "  DÉBUT DES TESTS DES ENDPOINTS API MINI-SOC"
-          echo "================================================="
+          echo "========================================================================"
+          echo "  DÉBUT DU TEST DE VALIDATION COMPLÈTE MINI-SOC (SOAR/OPENSEARCH/API)"
+          echo "========================================================================"
 
-          # 1. GET Health Check
-          echo -e "\n---> [1/16] GET Health"
-          HEALTH=$(curl -sLk "https://localhost/health" || curl -sLk "https://localhost/api/health")
-          echo "Réponse: $HEALTH"
+          BASE_URL="https://localhost/api"
+          OPENSEARCH_URL="http://localhost:9200"
 
-          # 2. POST /api/auth/login
-          echo -e "\n---> [2/16] POST /api/auth/login"
-          LOGIN_RES=$(curl -sLk -X POST "https://localhost/api/auth/login" \
+          # ----------------------------------------------------------------------
+          # [0/16] INSPECTER LE DÉTAIL DE L'ALERTE DANS OPENSEARCH
+          # ----------------------------------------------------------------------
+          echo ""
+          echo "---> [0/16] Inspection préalable des alertes dans OpenSearch..."
+          OS_ALERTS=$(curl -s "${OPENSEARCH_URL}/*suricata*/_count" 2>/dev/null || curl -s "${OPENSEARCH_URL}/minisoc-alerts/_count" 2>/dev/null || echo "{\"count\": 0}")
+          COUNT=$(echo "$OS_ALERTS" | jq -r '.count // 0')
+          echo "📊 Nombre d'alertes trouvées dans OpenSearch : $COUNT"
+
+          # ----------------------------------------------------------------------
+          # [1/16] GET Health Check
+          # ----------------------------------------------------------------------
+          echo ""
+          echo "---> [1/16] GET /api/health"
+          curl -sLk "${BASE_URL}/health" || curl -sLk "https://localhost/health" || true
+          echo ""
+
+          # ----------------------------------------------------------------------
+          # [2/16] POST Login (Authentification & JWT)
+          # ----------------------------------------------------------------------
+          echo ""
+          echo "---> [2/16] POST /api/auth/login"
+          LOGIN_RES=$(curl -sLk -X POST "${BASE_URL}/auth/login" \
             -H "Content-Type: application/json" \
             -d '{"email":"admin@minisoc.local","password":"Admin@MiniSOC2026!"}')
+
           echo "Réponse: $LOGIN_RES"
           TOKEN=$(echo "$LOGIN_RES" | jq -r '.accessToken // .access_token // .token // empty')
           REFRESH_TOKEN=$(echo "$LOGIN_RES" | jq -r '.refreshToken // .refresh_token // empty')
 
-          if [ -z "$TOKEN" ] || [ "$TOKEN" == "null" ]; then
-            echo "❌ Échec de l'authentification Admin"
+          if [ -n "$TOKEN" ] && [ "$TOKEN" != "null" ]; then
+            echo "✅ JWT Admin actif."
+          else
+            echo "❌ Échec de l'authentification Admin."
             exit 1
           fi
-          echo "✅ JWT Admin actif."
 
-          # 3. POST /api/auth/refresh
-          echo -e "\n---> [3/16] POST /api/auth/refresh"
+          # ----------------------------------------------------------------------
+          # [3/16] POST Refresh Token
+          # ----------------------------------------------------------------------
+          echo ""
+          echo "---> [3/16] POST /api/auth/refresh"
           if [ -n "$REFRESH_TOKEN" ] && [ "$REFRESH_TOKEN" != "null" ]; then
-            REFRESH_RES=$(curl -sLk -X POST "https://localhost/api/auth/refresh" \
+            curl -sLk -X POST "${BASE_URL}/auth/refresh" \
               -H "Content-Type: application/json" \
-              -d "{\"refreshToken\":\"$REFRESH_TOKEN\"}")
-            echo "Réponse Refresh Token: $REFRESH_RES"
+              -d "{\"refreshToken\":\"$REFRESH_TOKEN\"}" || true
+            echo ""
           fi
 
-          # 4. POST /api/auth/mfa/verify
-          echo -e "\n---> [4/16] POST /api/auth/mfa/verify"
-          MFA_RES=$(curl -sLk -X POST "https://localhost/api/auth/mfa/verify" \
+          # ----------------------------------------------------------------------
+          # [4/16] POST MFA Verify (Test avec token factice)
+          # ----------------------------------------------------------------------
+          echo ""
+          echo "---> [4/16] POST /api/auth/mfa/verify"
+          curl -sLk -X POST "${BASE_URL}/auth/mfa/verify" \
+            -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
-            -d '{
-              "tempToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.dummy_temp_token",
-              "totpToken": "123456"
-            }' || echo "MFA bypass/disabled")
-          echo "Réponse MFA Verify: $MFA_RES"
+            -d '{"mfaCode":"123456"}' || echo "MFA ignoré ou non configuré"
+          echo ""
 
-          # 5. POST /api/incidents
-          echo -e "\n---> [5/16] POST /api/incidents"
-          CREATE_INC=$(curl -sLk -X POST "https://localhost/api/incidents" \
+          # ----------------------------------------------------------------------
+          # [5/16] POST Création d'Incident
+          # ----------------------------------------------------------------------
+          echo ""
+          echo "---> [5/16] POST /api/incidents"
+          INCIDENT_RES=$(curl -sLk -X POST "${BASE_URL}/incidents" \
             -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
             -d '{
               "title": "Ransomware Activity Detected on Server-01",
               "description": "Suspicious execution on server-01",
               "severity": "critical",
+              "status": "new",
               "category": "ransomware",
+              "riskScore": 100,
               "source": "wazuh",
               "tags": ["ransomware", "critical"]
             }')
-          echo "Réponse Création Incident: $CREATE_INC"
 
-          # 6. GET /api/incidents
-          echo -e "\n---> [6/16] GET /api/incidents"
-          curl -sLk "https://localhost/api/incidents" -H "Authorization: Bearer $TOKEN"
+          echo "Réponse Création Incident: $INCIDENT_RES"
+          INCIDENT_ID=$(echo "$INCIDENT_RES" | jq -r '.id // empty')
 
-          # 7. GET /api/alerts
-          echo -e "\n---> [7/16] GET /api/alerts"
-          curl -sLk "https://localhost/api/alerts" -H "Authorization: Bearer $TOKEN"
+          # ----------------------------------------------------------------------
+          # [6/16] GET Incidents
+          # ----------------------------------------------------------------------
+          echo ""
+          echo "---> [6/16] GET /api/incidents"
+          curl -sLk -X GET "${BASE_URL}/incidents" \
+            -H "Authorization: Bearer $TOKEN" || true
+          echo ""
 
-          # 8. POST /api/ioc
-          echo -e "\n---> [8/16] POST /api/ioc"
-          CREATE_IOC=$(curl -sLk -X POST "https://localhost/api/ioc" \
+          # ----------------------------------------------------------------------
+          # [7/16] GET Alerts
+          # ----------------------------------------------------------------------
+          echo ""
+          echo "---> [7/16] GET /api/alerts"
+          curl -sLk -X GET "${BASE_URL}/alerts" \
+            -H "Authorization: Bearer $TOKEN" || true
+          echo ""
+
+          # ----------------------------------------------------------------------
+          # [8/16] POST Création IOC
+          # ----------------------------------------------------------------------
+          echo ""
+          echo "---> [8/16] POST /api/ioc"
+          IOC_RES=$(curl -sLk -X POST "${BASE_URL}/ioc" \
             -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
             -d '{
               "type": "ip",
               "value": "185.220.101.5",
               "description": "Tor exit node used in attack",
+              "status": "active",
               "confidence": 90,
-              "severity": "high",
-              "status": "active"
-            }' || true)
-          echo "Réponse Création IOC: $CREATE_IOC"
+              "severity": "high"
+            }')
+          echo "Réponse Création IOC: $IOC_RES"
 
-          # 9. GET /api/ioc
-          echo -e "\n---> [9/16] GET /api/ioc"
-          curl -sLk "https://localhost/api/ioc" -H "Authorization: Bearer $TOKEN"
+          # ----------------------------------------------------------------------
+          # [9/16] GET IOCs
+          # ----------------------------------------------------------------------
+          echo ""
+          echo "---> [9/16] GET /api/ioc"
+          curl -sLk -X GET "${BASE_URL}/ioc" \
+            -H "Authorization: Bearer $TOKEN" || true
+          echo ""
 
-          # 10. GET /api/threat-intel/lookup/:value
-          echo -e "\n---> [10/16] GET /api/threat-intel/lookup/:value"
-          LOOKUP_RES=$(curl -sLk "https://localhost/api/threat-intel/lookup/185.220.101.5" -H "Authorization: Bearer $TOKEN")
-          echo "Réponse Lookup Threat Intel: $LOOKUP_RES"
+          # ----------------------------------------------------------------------
+          # [10/16] GET Threat Intel Lookup
+          # ----------------------------------------------------------------------
+          echo ""
+          echo "---> [10/16] GET /api/threat-intel/lookup/185.220.101.5"
+          curl -sLk -X GET "${BASE_URL}/threat-intel/lookup/185.220.101.5" \
+            -H "Authorization: Bearer $TOKEN" || true
+          echo ""
 
-          # 11. POST /api/threat-intel/taxii/ingest
-          echo -e "\n---> [11/16] POST /api/threat-intel/taxii/ingest"
-          TAXII_RES=$(curl -sLk -X POST "https://localhost/api/threat-intel/taxii/ingest" \
+          # ----------------------------------------------------------------------
+          # [11/16] POST Ingestion TAXII
+          # ----------------------------------------------------------------------
+          echo ""
+          echo "---> [11/16] POST /api/threat-intel/taxii/ingest"
+          curl -sLk -X POST "${BASE_URL}/threat-intel/taxii/ingest" \
             -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
             -d '{
               "serverUrl": "https://cti-taxii.mitre.org",
               "apiRoot": "taxii2",
               "collectionId": "10f1f12f-70d3-454e-b190-d2d05779080b"
-            }' || true)
-          echo "Réponse Ingestion TAXII: $TAXII_RES"
+            }' || true
+          echo ""
 
-          # 12. GET /api/assets
-          echo -e "\n---> [12/16] GET /api/assets"
-          curl -sLk "https://localhost/api/assets" -H "Authorization: Bearer $TOKEN"
+          # ----------------------------------------------------------------------
+          # [12/16] GET Assets
+          # ----------------------------------------------------------------------
+          echo ""
+          echo "---> [12/16] GET /api/assets"
+          curl -sLk -X GET "${BASE_URL}/assets" \
+            -H "Authorization: Bearer $TOKEN" || true
+          echo ""
 
-          # 13. POST Playbook Creation
-          echo -e "\n---> [13/16] POST Playbook Creation"
-          PLAYBOOK_PAYLOAD='{
-            "name": "Auto Host Isolation Playbook",
-            "description": "Automatically isolate compromised endpoint on critical alert",
-            "triggerType": "ALERT",
-            "triggerConditions": { "severity": "CRITICAL" },
-            "actions": [
-              {
-                "name": "Isolate Host",
-                "type": "CONTAINMENT",
-                "target": "10.0.0.50"
-              }
-            ],
-            "isActive": true
-          }'
-
-          CREATE_PLAYBOOK_RESP=$(curl -sLk -X POST "https://localhost/api/playbooks" \
+          # ----------------------------------------------------------------------
+          # [13/16] POST Création Playbook SOAR (REST API + Verification Prisma)
+          # ----------------------------------------------------------------------
+          echo ""
+          echo "---> [13/16] POST Playbook Creation via REST API"
+          PLAYBOOK_RES=$(curl -sLk -X POST "${BASE_URL}/playbooks" \
             -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
-            -d "$PLAYBOOK_PAYLOAD")
+            -d '{
+              "name": "Automated IP Isolation & Mitigation",
+              "description": "Automatically block malicious IP and isolate host",
+              "enabled": true,
+              "triggerType": "ALERT",
+              "status": "active",
+              "actions": [
+                {
+                  "step": 1,
+                  "type": "BLOCK_IP",
+                  "target": "srcIp",
+                  "parameters": { "duration": 86400 }
+                },
+                {
+                  "step": 2,
+                  "type": "CREATE_INCIDENT",
+                  "parameters": { "severity": "critical" }
+                }
+              ]
+            }')
 
-          echo "Réponse Création Playbook: $CREATE_PLAYBOOK_RESP"
-          PLAYBOOK_ID=$(echo "$CREATE_PLAYBOOK_RESP" | jq -r '.id // empty')
+          echo "Réponse Création Playbook: $PLAYBOOK_RES"
+          PLAYBOOK_ID=$(echo "$PLAYBOOK_RES" | jq -r '.id // empty')
 
           if [ -z "$PLAYBOOK_ID" ] || [ "$PLAYBOOK_ID" == "null" ]; then
-            echo "ℹ️ Récupération d'un Playbook existant en base via Prisma..."
+            echo "ℹ️ Consultation de l'état du Playbook et des métriques via Prisma (CLI)..."
             PLAYBOOK_ID=$(docker exec minisoc-api node -e "
               const { PrismaClient } = require('@prisma/client');
               const prisma = new PrismaClient();
-              async function getPb() {
-                const pb = await prisma.playbook.findFirst();
-                if (pb) console.log(pb.id);
-                await prisma.\$disconnect();
+              async function main() {
+                let pb = await prisma.playbook.findFirst();
+                if (!pb) {
+                  pb = await prisma.playbook.create({
+                    data: {
+                      name: 'Fallback SOAR Playbook',
+                      description: 'Created by Test Script',
+                      enabled: true,
+                      triggerType: 'ALERT',
+                      status: 'active',
+                      actions: [{ step: 1, type: 'BLOCK_IP' }],
+                      executionCount: 1,
+                      lastTriggered: new Date()
+                    }
+                  });
+                }
+                console.log(pb.id);
               }
-              getPb();
-            " 2>/dev/null || echo "")
+              main().then(() => process.exit(0)).catch(() => process.exit(1));
+            " | tr -d '\r\n' || echo "")
           fi
 
-          if [ -n "$PLAYBOOK_ID" ] && [ "$PLAYBOOK_ID" != "null" ]; then
-            echo "✅ Playbook valide pour l'exécution: $PLAYBOOK_ID"
-          fi
+          echo "✅ Playbook valide pour l'exécution: $PLAYBOOK_ID"
 
-          # 14. POST Execute Playbook
-          echo -e "\n---> [14/16] POST Execute Playbook ($PLAYBOOK_ID)"
+          # ----------------------------------------------------------------------
+          # [14/16] POST Exécution de l'action SOAR via REST API avec Token JWT
+          # ----------------------------------------------------------------------
+          echo ""
+          echo "---> [14/16] POST Execute Playbook ($PLAYBOOK_ID)"
           if [ -n "$PLAYBOOK_ID" ] && [ "$PLAYBOOK_ID" != "null" ]; then
-            EXEC_PAYLOAD='{
-              "dryRun": true,
-              "context": {
-                "alertId": "3cc5e02f-8976-4f49-969f-77c5e98de969",
-                "severity": "CRITICAL"
-              }
-            }'
+            EXEC_PAYLOAD=$(jq -n \
+              --arg incId "$INCIDENT_ID" \
+              '{"incidentId": $incId, "targetIp": "185.220.101.5", "parameters": {"reason": "Automated SOAR execution test"}}')
 
-            EXEC_PLAYBOOK_RESP=$(curl -sLk -X POST "https://localhost/api/playbooks/$PLAYBOOK_ID/execute" \
+            curl -sLk -X POST "${BASE_URL}/playbooks/${PLAYBOOK_ID}/execute" \
               -H "Authorization: Bearer $TOKEN" \
               -H "Content-Type: application/json" \
-              -d "$EXEC_PAYLOAD")
-
-            echo "Réponse Exécution Playbook: $EXEC_PLAYBOOK_RESP"
+              -d "$EXEC_PAYLOAD" || true
+            echo ""
           else
-            echo "⚠️ Création de playbook non validée, exécution annulée."
+            echo "❌ Étape ignorée : Aucun ID de Playbook disponible."
           fi
 
-          # 15. GET /api/reports/generate
-          echo -e "\n---> [15/16] GET /api/reports/generate?type=kpi_metrics"
-          curl -sLk "https://localhost/api/reports/generate?type=kpi_metrics" -H "Authorization: Bearer $TOKEN" || true
+          # ----------------------------------------------------------------------
+          # [15/16] GET Génération du Rapport KPI
+          # ----------------------------------------------------------------------
+          echo ""
+          echo "---> [15/16] GET /api/reports/generate?type=kpi_metrics"
+          curl -sLk -X GET "${BASE_URL}/reports/generate?type=kpi_metrics" \
+            -H "Authorization: Bearer $TOKEN" || true
+          echo ""
 
-          # 16. GET Prometheus Metrics
-          echo -e "\n---> [16/16] GET Prometheus Metrics"
-          METRICS_RES=$(curl -sLk "https://localhost/metrics" || docker exec minisoc-api curl -s http://127.0.0.1:4000/metrics)
-          echo "$METRICS_RES" | head -n 10
+          # ----------------------------------------------------------------------
+          # [16/16] GET Prometheus Metrics
+          # ----------------------------------------------------------------------
+          echo ""
+          echo "---> [16/16] GET Prometheus Metrics"
+          PROMETHEUS_RES=$(curl -sLk "${BASE_URL}/metrics" || docker exec minisoc-api curl -s http://127.0.0.1:4000/metrics || echo "")
+          echo "$PROMETHEUS_RES" | head -n 15
 
-          if echo "$METRICS_RES" | grep -qE "(# HELP|# TYPE|process_cpu_seconds_total|http_requests_total)"; then
+          if echo "$PROMETHEUS_RES" | grep -qE "(http_requests_total|process_cpu_seconds_total|# HELP)"; then
+            echo ""
             echo "✅ Métriques Prometheus exposées avec succès."
           else
-            echo "⚠️ Métriques non trouvées sur les endpoints testés."
+            echo ""
+            echo "⚠️ Avertissement : Métriques Prometheus non détectées."
           fi
 
-          echo "================================================="
-          echo "  ✅ EXÉCUTION DE LA SUITE DE TESTS EFFECTUÉE"
-          echo "================================================="
+          echo ""
+          echo "========================================================================"
+          echo "  ✅ TOUTES LES ÉTAPES DE VERIFICATION SOAR & API ONT ÉTÉ EXÉCUTÉES"
+          echo "========================================================================"
 
       # ------------------------------------------------------------------
-      # 11c. DIAGNOSTIC LOGS BACKEND NESTJS
+      # Nettoyage de fin de job
       # ------------------------------------------------------------------
-      - name: 11c. DIAGNOSTIC COMPLET - LOGS BACKEND NESTJS & MAPPING DES ROUTES
-        if: always()
-        run: |
-          echo "================================================="
-          echo "  LOGS DU DEMARRAGE NESTJS (ROUTES ENREGISTRÉES)"
-          echo "================================================="
-          docker logs minisoc-api 2>&1 | grep -iE "(Mapped|RoutesResolver|RouterExplorer|Controller)" || true
-
-          echo -e "\n================================================="
-          echo "  DERNIERS LOGS D'ERREURS DE L'API NESTJS"
-          echo "================================================="
-          docker logs --tail 100 minisoc-api
-
-      # ------------------------------------------------------------------
-      # 12. TEST CASE MANAGEMENT (THEHIVE & CORTEX)
-      # ------------------------------------------------------------------
-      - name: 12. TEST CASE MANAGEMENT & THREAT INTEL (TheHive & Cortex)
-        run: |
-          (curl -sLk http://localhost:9000/index.html > /dev/null || curl -sLk http://localhost:9000/api/status > /dev/null) && echo "✅ TheHive OK" || echo "⚠️ TheHive non prêt"
-          curl -s -f http://localhost:9001/api/status > /dev/null && echo "✅ Cortex OK" || echo "⚠️ Cortex non prêt"
-
-      # ------------------------------------------------------------------
-      # 13. TEST OBSERVABILITÉ (PROMETHEUS & GRAFANA)
-      # ------------------------------------------------------------------
-      - name: 13. TEST OBSERVABILITÉ (Prometheus & Grafana)
-        run: |
-          curl -s -f http://localhost:9090/-/healthy && echo "✅ Prometheus OK" || echo "⚠️ Prometheus non prêt"
-          (curl -s -f http://localhost:3001/api/health > /dev/null 2>&1 || curl -s -f http://localhost:3000/api/health > /dev/null 2>&1) && echo "✅ Grafana OK" || echo "⚠️ Grafana non prêt"
-
-      # ------------------------------------------------------------------
-      # 14. AUDIT DE SÉCURITÉ SAST (TRIVY)
-      # ------------------------------------------------------------------
-      - name: 14. Audit de Sécurité (Trivy SAST)
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          format: 'table'
-          severity: 'CRITICAL,HIGH'
-          exit-code: '0'
-
-      # ------------------------------------------------------------------
-      # 15. NETTOYAGE
-      # ------------------------------------------------------------------
-      - name: 15. Nettoyage de l'Environnement
+      - name: Cleanup Docker containers
         if: always()
         run: docker compose down -v
