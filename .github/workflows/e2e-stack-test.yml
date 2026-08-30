@@ -303,8 +303,8 @@ jobs:
           sleep 2
 
           echo "=== Vérification des alertes indexées dans OpenSearch ==="
-          OS_ALERTS=$(curl -s "http://localhost:9200/minisoc-alerts/_count")
-          COUNT=$(echo "$OS_ALERTS" | jq -r '.count // 0')
+          OS_ALERTS=$(curl -s "http://localhost:9200/minisoc-alerts/_search?q=src_ip:10.0.0.50")
+          COUNT=$(echo "$OS_ALERTS" | jq -r '.hits.total.value // 0')
 
           echo "Nombre total d'alertes enregistrées dans OpenSearch : $COUNT"
           if [ "$COUNT" -gt 0 ]; then
@@ -407,12 +407,9 @@ jobs:
             const prisma = new PrismaClient();
             async function main() {
               try {
-                // Calculation algorithm based on MITRE Tactics & Severity weights
                 const weightMap = { LOW: 10, MEDIUM: 25, HIGH: 50, CRITICAL: 90 };
                 const tactics = ['Initial Access', 'Credential Access', 'Execution', 'Exfiltration'];
-                const baseScore = tactics.length * 20; // 80 base risk score
                 
-                // Persist ML Incident Risk in Database
                 await prisma.incident.create({
                   data: {
                     title: 'ML Risk Engine: High Risk Anomalous Activity (10.0.0.50)',
@@ -489,18 +486,19 @@ jobs:
           echo "  DÉBUT DU TEST DE VALIDATION COMPLÈTE MINI-SOC (SOAR/OPENSEARCH/API)"
           echo "========================================================================"
 
-          BASE_URL="https://localhost/api"
+          SERVER_ROOT="https://localhost"
+          API_BASE_URL="https://localhost/api"
 
           # [1/16] GET Health Check
           echo ""
-          echo "---> [1/16] GET /api/health"
-          curl -sLk "${BASE_URL}/health" || curl -sLk "https://localhost/health" || true
+          echo "---> [1/16] GET /health"
+          curl -sLk "${SERVER_ROOT}/health" || curl -sLk "${API_BASE_URL}/health" || true
           echo ""
 
           # [2/16] POST Login
           echo ""
           echo "---> [2/16] POST /api/auth/login"
-          LOGIN_RES=$(curl -sLk -X POST "${BASE_URL}/auth/login" \
+          LOGIN_RES=$(curl -sLk -X POST "${API_BASE_URL}/auth/login" \
             -H "Content-Type: application/json" \
             -d '{"email":"admin@minisoc.local","password":"Admin@MiniSOC2026!"}')
 
@@ -517,28 +515,28 @@ jobs:
           # [3/16] GET Incidents
           echo ""
           echo "---> [3/16] GET /api/incidents"
-          curl -sLk -X GET "${BASE_URL}/incidents" \
+          curl -sLk -X GET "${API_BASE_URL}/incidents" \
             -H "Authorization: Bearer $TOKEN" || true
           echo ""
 
           # [4/16] GET Alerts
           echo ""
           echo "---> [4/16] GET /api/alerts"
-          curl -sLk -X GET "${BASE_URL}/alerts" \
+          curl -sLk -X GET "${API_BASE_URL}/alerts" \
             -H "Authorization: Bearer $TOKEN" || true
           echo ""
 
           # [5/16] GET Threat Intel Lookup
           echo ""
           echo "---> [5/16] GET /api/threat-intel/lookup/185.220.101.5"
-          curl -sLk -X GET "${BASE_URL}/threat-intel/lookup/185.220.101.5" \
+          curl -sLk -X GET "${API_BASE_URL}/threat-intel/lookup/185.220.101.5" \
             -H "Authorization: Bearer $TOKEN" || true
           echo ""
 
           # [6/16] GET Prometheus Metrics
           echo ""
           echo "---> [6/16] GET Prometheus Metrics"
-          PROMETHEUS_RES=$(curl -sLk "${BASE_URL}/metrics" || docker exec minisoc-api curl -s http://127.0.0.1:4000/metrics || echo "")
+          PROMETHEUS_RES=$(curl -sLk "${SERVER_ROOT}/metrics" || docker exec minisoc-api curl -s http://127.0.0.1:4000/metrics || echo "")
           echo "$PROMETHEUS_RES" | head -n 15
 
           echo ""
