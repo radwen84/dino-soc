@@ -122,34 +122,30 @@ jobs:
       # 5. DÉPLOIEMENT DE LA STACK DOCKER COMPOSE COMPLÈTE
       # ------------------------------------------------------------------
       - name: 5. Lancement global de la Stack Docker
-        env:
-          ABUSEIPDB_API_KEY: ${{ secrets.ABUSEIPDB_API_KEY }}
-          VIRUSTOTAL_API_KEY: ${{ secrets.VIRUSTOTAL_API_KEY }}
-          OTX_API_KEY: ${{ secrets.OTX_API_KEY }}
-          SHODAN_API_KEY: ${{ secrets.SHODAN_API_KEY }}
         run: |
           docker compose --env-file .env run --rm --entrypoint "rm -f /var/run/suricata.pid" suricata || true
 
           echo "Lancement global de l'ensemble des conteneurs..."
           docker compose --env-file .env up -d --build
 
-          echo "Stabilisation des conteneurs (20s)..."
-          sleep 20
+          echo "Attente et vérification de la stabilité de minisoc-api (Timeout: 60s)..."
+          TIMEOUT=12
+          until docker exec minisoc-api node -e "console.log('API Ready')" > /dev/null 2>&1 || [ $TIMEOUT -eq 0 ]; do
+            echo "En attente du conteneur minisoc-api... ($TIMEOUT essais restants)"
+            sleep 5
+            TIMEOUT=$((TIMEOUT-1))
+          done
 
-          echo "Exécution forcée de la synchronisation de la base Prisma..."
+          if [ $TIMEOUT -eq 0 ]; then
+            echo "❌ ERREUR : Le conteneur minisoc-api ne démarre pas. Logs du conteneur :"
+            docker logs minisoc-api --tail 50
+            exit 1
+          fi
+
+          echo "Exécution de la synchronisation du schéma Prisma..."
           docker exec minisoc-api npx prisma db push --accept-data-loss || true
           docker exec minisoc-api node prisma/seed.js || docker exec minisoc-api npx ts-node prisma/seed.ts || echo "Seed exécuté"
-
-          echo "Injection à chaud sécurisée des API Keys dans minisoc-api..."
-          docker exec \
-            -e ABUSEIPDB_API_KEY="$ABUSEIPDB_API_KEY" \
-            -e OTX_API_KEY="$OTX_API_KEY" \
-            -e VIRUSTOTAL_API_KEY="$VIRUSTOTAL_API_KEY" \
-            -e SHODAN_API_KEY="$SHODAN_API_KEY" \
-            minisoc-api sh -c 'export ABUSEIPDB_API_KEY="$ABUSEIPDB_API_KEY"; export OTX_API_KEY="$OTX_API_KEY"; export VIRUSTOTAL_API_KEY="$VIRUSTOTAL_API_KEY"; export SHODAN_API_KEY="$SHODAN_API_KEY"' || true
-
-          echo "Stabilisation finale des services (20s)..."
-          sleep 20
+          echo "✅ Stack Docker et API opérationnels."
 
       # ------------------------------------------------------------------
       # 5b. INITIALISATION & DÉVERROUILLAGE AUTOMATIQUE DE VAULT (UNSEAL)
@@ -305,7 +301,11 @@ jobs:
           fi
 
           echo "=== Déclenchement & Validation du Playbook SOAR ==="
-          docker exec minisoc-api npx prisma db push --accept-data-loss || true
+          if [ "$(docker inspect -f '{{.State.Running}}' minisoc-api)" != "true" ]; then
+            echo "❌ Le conteneur minisoc-api est arrêté. Logs du conteneur :"
+            docker logs minisoc-api --tail 50
+            exit 1
+          fi
 
           SOAR_STATUS=$(docker exec minisoc-api node -e "
             const { PrismaClient } = require('@prisma/client');
@@ -384,7 +384,7 @@ jobs:
             const prisma = new PrismaClient();
             async function main() {
               try {
-                const computedRiskScore = 88; // Score supérieur à la limite de 80
+                const computedRiskScore = 88;
                 await prisma.incident.create({
                   data: {
                     title: 'ML Anomaly Engine: Risk Score Evaluated (88/100)',
