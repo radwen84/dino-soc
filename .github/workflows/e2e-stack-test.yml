@@ -88,6 +88,8 @@ jobs:
       # 4. DÉMARRAGE SÉQUENTIEL BDD, OPENSEARCH ET CRÉATION N8N
       # ------------------------------------------------------------------
       - name: 4. Démarrage BDD, OpenSearch et Base n8n
+        env:
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD || 'minisoc_db_password_2026' }}
         run: |
           docker compose --env-file .env up -d postgres opensearch
 
@@ -102,6 +104,11 @@ jobs:
 
           docker exec minisoc-postgres psql -U minisoc_app -d minisoc -c "CREATE DATABASE n8n;" || true
 
+          echo "Exécution des migrations et du Seed Prisma depuis l'hôte..."
+          cd apps/backend
+          DATABASE_URL="postgresql://minisoc_app:${POSTGRES_PASSWORD}@127.0.0.1:5432/minisoc?schema=public" npx prisma db push --accept-data-loss
+          DATABASE_URL="postgresql://minisoc_app:${POSTGRES_PASSWORD}@127.0.0.1:5432/minisoc?schema=public" node prisma/seed.js || DATABASE_URL="postgresql://minisoc_app:${POSTGRES_PASSWORD}@127.0.0.1:5432/minisoc?schema=public" npx ts-node prisma/seed.ts || echo "Seed déjà exécuté"
+          cd ../..
       # ------------------------------------------------------------------
       # 5. DÉPLOIEMENT DE LA STACK DOCKER COMPOSE COMPLETE
       # ------------------------------------------------------------------
