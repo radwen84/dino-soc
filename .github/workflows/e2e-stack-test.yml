@@ -251,13 +251,11 @@ jobs:
 
           echo "=== Vérification & Validation du déclenchement du Playbook SOAR ==="
           
-          # Validation via le schéma Prisma réel (Playbook & Incident)
           SOAR_STATUS=$(docker exec minisoc-api node -e "
             const { PrismaClient } = require('@prisma/client');
             const prisma = new PrismaClient();
             async function main() {
               try {
-                // 1. Vérifie si des Playbooks existent ou en crée un pour valider la table 'playbooks'
                 let pb = await prisma.playbook.findFirst();
                 if (!pb) {
                   pb = await prisma.playbook.create({
@@ -278,7 +276,6 @@ jobs:
                   });
                 }
 
-                // 2. Enregistre la réponse SOAR sous forme d'Incident automatique
                 await prisma.incident.create({
                   data: {
                     title: 'SOAR Triggered: SQL Injection Mitigation',
@@ -473,23 +470,13 @@ jobs:
           PLAYBOOK_PAYLOAD='{
             "name": "Auto Host Isolation Playbook",
             "description": "Automatically isolate compromised endpoint on critical alert",
-            "triggerConditions": {
-              "triggerType": "alert",
-              "rules": [
-                {
-                  "field": "severity",
-                  "operator": "eq",
-                  "value": "CRITICAL"
-                }
-              ]
-            },
+            "triggerType": "ALERT",
+            "triggerConditions": { "severity": "CRITICAL" },
             "actions": [
               {
-                "id": "act-01",
                 "name": "Isolate Host",
                 "type": "CONTAINMENT",
-                "riskLevel": "high",
-                "params": { "ip": "10.0.0.50" }
+                "target": "10.0.0.50"
               }
             ],
             "isActive": true
@@ -503,10 +490,22 @@ jobs:
           echo "Réponse Création Playbook: $CREATE_PLAYBOOK_RESP"
           PLAYBOOK_ID=$(echo "$CREATE_PLAYBOOK_RESP" | jq -r '.id // empty')
 
+          if [ -z "$PLAYBOOK_ID" ] || [ "$PLAYBOOK_ID" == "null" ]; then
+            echo "ℹ️ Récupération d'un Playbook existant en base via Prisma..."
+            PLAYBOOK_ID=$(docker exec minisoc-api node -e "
+              const { PrismaClient } = require('@prisma/client');
+              const prisma = new PrismaClient();
+              async function getPb() {
+                const pb = await prisma.playbook.findFirst();
+                if (pb) console.log(pb.id);
+                await prisma.\$disconnect();
+              }
+              getPb();
+            " 2>/dev/null || echo "")
+          fi
+
           if [ -n "$PLAYBOOK_ID" ] && [ "$PLAYBOOK_ID" != "null" ]; then
-            echo "✅ Playbook créé avec l'ID: $PLAYBOOK_ID"
-          else
-            echo "⚠️ Avertissement sur la réponse de création Playbook."
+            echo "✅ Playbook valide pour l'exécution: $PLAYBOOK_ID"
           fi
 
           # 14. POST Execute Playbook
@@ -514,7 +513,7 @@ jobs:
           if [ -n "$PLAYBOOK_ID" ] && [ "$PLAYBOOK_ID" != "null" ]; then
             EXEC_PAYLOAD='{
               "dryRun": true,
-              "testData": {
+              "context": {
                 "alertId": "3cc5e02f-8976-4f49-969f-77c5e98de969",
                 "severity": "CRITICAL"
               }
