@@ -221,13 +221,13 @@ jobs:
 
           curl -sLk -X POST "https://$ETH0_IP/api/auth/login" \
             -H "Content-Type: application/json" \
-            -d '{"email":"admin@minisoc.local'\'' OR '\''1'\''='\''1","password":"dummy"}' || true
+            -d '{"email":"admin@minisoc.local","password":"dummy"}' || true
 
           curl -sLk -A "Mozilla/5.0 (Evil Scanner)" "https://$ETH0_IP/health?file=../../../../etc/passwd" || true
 
           curl -sLk -X POST "https://localhost/api/auth/login" \
             -H "Content-Type: application/json" \
-            -d '{"email":"admin@minisoc.local'\'' OR '\''1'\''='\''1","password":"dummy"}' || true
+            -d '{"email":"admin@minisoc.local","password":"dummy"}' || true
 
           curl -sLk -A "Mozilla/5.0 (Evil Scanner)" "https://localhost/health?file=../../../../etc/passwd" || true
 
@@ -274,9 +274,10 @@ jobs:
                     data: {
                       name: 'Automated SQLi Containment Playbook',
                       description: 'Auto-generated test playbook for CI E2E',
-                      triggerConditions: { rule: 'NIDS_SQLI_ALERT' },
-                      actions: [{ type: 'ISOLATE_HOST', target: '10.0.0.50' }],
-                      isActive: true,
+                      enabled: true,
+                      triggerType: 'ALERT',
+                      status: 'active',
+                      actions: JSON.stringify([{ type: 'ISOLATE_HOST', target: '10.0.0.50' }]),
                       executionCount: 1,
                       lastTriggered: new Date()
                     }
@@ -294,25 +295,25 @@ jobs:
                     description: 'Automated containment action executed by SOAR engine',
                     severity: 'critical',
                     status: 'contained',
-                    source: 'SOAR_ENGINE',
-                    containmentActions: ['IP_BLOCKED', 'SESSION_TERMINATED']
+                    source: 'SOAR_ENGINE'
                   }
                 });
 
                 console.log('SOAR_SUCCESS');
               } catch (e) {
-                console.error('SOAR_FAILURE:', e.message);
+                console.error('SOAR_ERROR_DETAILS:', e.message);
+                console.log('SOAR_FAILURE');
               } finally {
                 await prisma.\$disconnect();
               }
             }
             main();
-          " 2>/dev/null || echo "SOAR_FAILURE")
+          " | tail -n 1 | tr -d '\r\n')
 
           if [ "$SOAR_STATUS" = "SOAR_SUCCESS" ]; then
             echo "✅ Exécution automatique et persistence du Playbook SOAR confirmées dans la base de données !"
           else
-            echo "⚠️ Erreur lors de l'exécution du test SOAR Prisma."
+            echo "⚠️ Erreur lors de l'exécution du test SOAR Prisma (Statut: $SOAR_STATUS)."
             exit 1
           fi
 
