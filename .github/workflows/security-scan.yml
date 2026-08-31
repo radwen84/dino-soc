@@ -7,14 +7,9 @@ permissions:
 
 on:
   push:
-    branches:
-      - main
-      - develop
-
+    branches: [main, develop]
   pull_request:
-    branches:
-      - main
-
+    branches: [main]
   schedule:
     - cron: '0 6 * * 1'
 
@@ -24,15 +19,11 @@ jobs:
   # ==========================================
   semgrep:
     runs-on: ubuntu-latest
-
     container:
       image: semgrep/semgrep
-
     steps:
       - uses: actions/checkout@v4
-
       - name: Run Semgrep
-        continue-on-error: true
         run: |
           semgrep scan \
             --config=auto \
@@ -42,16 +33,11 @@ jobs:
             --sarif \
             --output=semgrep-results.sarif \
             --metrics=off \
-            apps/ || true
-
-          if [ ! -f semgrep-results.sarif ]; then
-            echo '{}' > semgrep-results.sarif
-          fi
-
+            apps/
       - name: Upload Semgrep SARIF
         if: always()
-        continue-on-error: true
         uses: github/codeql-action/upload-sarif@v4
+        continue-on-error: true
         with:
           sarif_file: semgrep-results.sarif
 
@@ -60,13 +46,10 @@ jobs:
   # ==========================================
   trivy-scan:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-
       - name: Trivy Backend
-        uses: aquasecurity/trivy-action@master
-        continue-on-error: true
+        uses: aquasecurity/trivy-action@0.28.0
         with:
           scan-type: fs
           scan-ref: apps/backend
@@ -74,28 +57,24 @@ jobs:
           output: trivy-backend.sarif
           severity: CRITICAL,HIGH
           vuln-type: library
-
       - name: Trivy Frontend
-        uses: aquasecurity/trivy-action@master
-        continue-on-error: true
+        uses: aquasecurity/trivy-action@0.28.0
         with:
           scan-type: fs
           scan-ref: apps/frontend
           format: sarif
           output: trivy-frontend.sarif
           severity: CRITICAL,HIGH
-
       - name: Upload Trivy Backend SARIF
         if: always()
-        continue-on-error: true
         uses: github/codeql-action/upload-sarif@v4
+        continue-on-error: true
         with:
           sarif_file: trivy-backend.sarif
-
       - name: Upload Trivy Frontend SARIF
         if: always()
-        continue-on-error: true
         uses: github/codeql-action/upload-sarif@v4
+        continue-on-error: true
         with:
           sarif_file: trivy-frontend.sarif
 
@@ -104,21 +83,16 @@ jobs:
   # ==========================================
   secret-scan:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - name: TruffleHog
-        uses: trufflesecurity/trufflehog@main
-        continue-on-error: true
+        uses: trufflesecurity/trufflehog@v3.82.13
         with:
           extra_args: --only-verified --results=verified
-
       - name: Gitleaks
         uses: gitleaks/gitleaks-action@v2
-        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -127,24 +101,20 @@ jobs:
   # ==========================================
   sbom:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-
       - name: Generate Backend SBOM
         uses: anchore/sbom-action@v0
         with:
           path: apps/backend
           format: spdx-json
           output-file: sbom-backend.spdx.json
-
       - name: Generate Frontend SBOM
         uses: anchore/sbom-action@v0
         with:
           path: apps/frontend
           format: spdx-json
           output-file: sbom-frontend.spdx.json
-
       - name: Upload SBOMs
         uses: actions/upload-artifact@v4
         with:
@@ -158,13 +128,10 @@ jobs:
   # ==========================================
   owasp-check:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-
       - name: OWASP Dependency Check
         uses: dependency-check/Dependency-Check_Action@main
-        continue-on-error: true
         with:
           project: MiniSOC
           path: apps/
@@ -173,7 +140,6 @@ jobs:
           args: >
             --failOnCVSS 8
             --enableExperimental
-
       - name: Upload Report
         if: always()
         uses: actions/upload-artifact@v4
@@ -186,22 +152,19 @@ jobs:
   # ==========================================
   infra-scan:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-
       - name: Checkov Scan
-        uses: bridgecrewio/checkov-action@master
+        uses: bridgecrewio/checkov-action@v12
         with:
           directory: infrastructure/
           framework: terraform,kubernetes,dockerfile
           output_format: sarif
           output_file_path: checkov-results.sarif
           soft_fail: true
-
       - name: Upload Checkov SARIF
         if: always()
-        continue-on-error: true
         uses: github/codeql-action/upload-sarif@v4
+        continue-on-error: true
         with:
           sarif_file: checkov-results.sarif

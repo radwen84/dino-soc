@@ -16,6 +16,14 @@ export class MetricsService implements OnModuleInit {
   public readonly authLoginFailures: Counter;
   public readonly authLoginSuccess: Counter;
 
+  // SOAR metrics
+  public readonly soarExecutionsTotal: Counter;
+  public readonly soarFailuresTotal: Counter;
+
+  // ML metrics
+  public readonly mlPredictionsTotal: Counter;
+  public readonly mlAnomaliesTotal: Counter;
+
   // Gauges
   public readonly activeIncidents: Gauge;
   public readonly activeAlerts: Gauge;
@@ -67,6 +75,33 @@ export class MetricsService implements OnModuleInit {
     this.authLoginSuccess = new Counter({
       name: 'auth_login_success_total',
       help: 'Total successful logins',
+      registers: [this.registry],
+    });
+
+    this.soarExecutionsTotal = new Counter({
+      name: 'minisoc_soar_executions_total',
+      help: 'Total SOAR playbook executions',
+      labelNames: ['playbook', 'status'],
+      registers: [this.registry],
+    });
+
+    this.soarFailuresTotal = new Counter({
+      name: 'minisoc_soar_failures_total',
+      help: 'Total SOAR playbook failures',
+      labelNames: ['playbook'],
+      registers: [this.registry],
+    });
+
+    this.mlPredictionsTotal = new Counter({
+      name: 'minisoc_ml_predictions_total',
+      help: 'Total ML predictions made',
+      labelNames: ['endpoint'],
+      registers: [this.registry],
+    });
+
+    this.mlAnomaliesTotal = new Counter({
+      name: 'minisoc_ml_anomalies_total',
+      help: 'Total anomalies detected by ML engine',
       registers: [this.registry],
     });
 
