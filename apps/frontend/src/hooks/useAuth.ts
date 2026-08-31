@@ -35,8 +35,14 @@ export function useLogin() {
   const { setAuth } = useAuthStore();
   const navigate = useNavigate();
 
-  return useMutation<LoginResponse, AxiosError<ApiErrorResponse>, LoginCredentials>({
-    mutationFn: async (credentials: LoginCredentials): Promise<LoginResponse> => {
+  return useMutation<
+    LoginResponse,
+    AxiosError<ApiErrorResponse>,
+    LoginCredentials
+  >({
+    mutationFn: async (
+      credentials: LoginCredentials,
+    ): Promise<LoginResponse> => {
       const { data } = await api.post("/auth/login", credentials);
       return data;
     },
@@ -46,11 +52,7 @@ export function useLogin() {
         return;
       }
 
-      setAuth(
-        data.user,
-        data.accessToken,
-        data.refreshToken,
-      );
+      setAuth(data.user, data.accessToken, data.refreshToken);
 
       toast.success(`Bienvenue, ${data.user.name}`);
       navigate("/");

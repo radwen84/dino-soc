@@ -3,7 +3,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../lib/api";
 import { DataTable } from "../components/common/DataTable";
 import { SeverityBadge } from "../components/common/SeverityBadge";
-import { PlusIcon, MagnifyingGlassIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import {
+  PlusIcon,
+  MagnifyingGlassIcon,
+  XMarkIcon,
+} from "@heroicons/react/24/outline";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import toast from "react-hot-toast";
@@ -43,7 +47,13 @@ export function IocPage() {
       queryClient.invalidateQueries({ queryKey: ["iocs"] });
       toast.success("IOC ajouté avec succès");
       setIsModalOpen(false);
-      setNewIoc({ type: "ip", value: "", severity: "medium", confidence: 80, source: "Manual entry" });
+      setNewIoc({
+        type: "ip",
+        value: "",
+        severity: "medium",
+        confidence: 80,
+        source: "Manual entry",
+      });
     },
     onError: () => toast.error("Erreur lors de l'ajout de l'IOC"),
   });
@@ -188,10 +198,14 @@ export function IocPage() {
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-soc-muted mb-1">Type</label>
+                <label className="block text-xs font-medium text-soc-muted mb-1">
+                  Type
+                </label>
                 <select
                   value={newIoc.type}
-                  onChange={(e) => setNewIoc({ ...newIoc, type: e.target.value })}
+                  onChange={(e) =>
+                    setNewIoc({ ...newIoc, type: e.target.value })
+                  }
                   className="input w-full"
                 >
                   <option value="ip">IP</option>
@@ -201,20 +215,28 @@ export function IocPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-soc-muted mb-1">Valeur</label>
+                <label className="block text-xs font-medium text-soc-muted mb-1">
+                  Valeur
+                </label>
                 <input
                   value={newIoc.value}
-                  onChange={(e) => setNewIoc({ ...newIoc, value: e.target.value })}
+                  onChange={(e) =>
+                    setNewIoc({ ...newIoc, value: e.target.value })
+                  }
                   placeholder="ex: 192.168.1.100 ou bad-domain.com"
                   className="input w-full font-mono text-sm"
                   required
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-soc-muted mb-1">Sévérité</label>
+                <label className="block text-xs font-medium text-soc-muted mb-1">
+                  Sévérité
+                </label>
                 <select
                   value={newIoc.severity}
-                  onChange={(e) => setNewIoc({ ...newIoc, severity: e.target.value })}
+                  onChange={(e) =>
+                    setNewIoc({ ...newIoc, severity: e.target.value })
+                  }
                   className="input w-full"
                 >
                   <option value="critical">Critical</option>

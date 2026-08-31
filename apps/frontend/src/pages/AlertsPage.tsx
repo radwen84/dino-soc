@@ -82,7 +82,7 @@ export function AlertsPage() {
       toast.success(`Statut mis à jour : ${variables.status}`);
       if (selectedAlert?.id === variables.id) {
         setSelectedAlert((prev) =>
-          prev ? { ...prev, status: variables.status } : null
+          prev ? { ...prev, status: variables.status } : null,
         );
       }
     },
@@ -107,10 +107,10 @@ export function AlertsPage() {
             item.level >= 12
               ? "text-red-400"
               : item.level >= 8
-              ? "text-orange-400"
-              : item.level >= 5
-              ? "text-yellow-400"
-              : "text-green-400"
+                ? "text-orange-400"
+                : item.level >= 5
+                  ? "text-yellow-400"
+                  : "text-green-400",
           )}
         >
           L{item.level}
@@ -165,10 +165,10 @@ export function AlertsPage() {
             item.status === "new"
               ? "bg-red-500/20 text-red-300 border border-red-500/30"
               : item.status === "acknowledged"
-              ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
-              : item.status === "escalated"
-              ? "bg-pink-500/20 text-pink-300 border border-pink-500/30"
-              : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
+                : item.status === "escalated"
+                  ? "bg-pink-500/20 text-pink-300 border border-pink-500/30"
+                  : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30",
           )}
         >
           {item.status}
@@ -257,7 +257,7 @@ export function AlertsPage() {
                         "text-xs font-mono font-bold px-2 py-0.5 rounded",
                         selectedAlert.level >= 12
                           ? "bg-red-500/20 text-red-400"
-                          : "bg-yellow-500/20 text-yellow-400"
+                          : "bg-yellow-500/20 text-yellow-400",
                       )}
                     >
                       Niveau {selectedAlert.level}
@@ -267,7 +267,8 @@ export function AlertsPage() {
                     </span>
                   </div>
                   <h2 className="text-base font-bold text-white">
-                    {selectedAlert.ruleDescription || `Règle ${selectedAlert.ruleId}`}
+                    {selectedAlert.ruleDescription ||
+                      `Règle ${selectedAlert.ruleId}`}
                   </h2>
                 </div>
                 <button
@@ -284,26 +285,36 @@ export function AlertsPage() {
                 <div>
                   <span className="text-soc-muted block mb-1">Horodatage</span>
                   <span className="text-white font-mono">
-                    {format(new Date(selectedAlert.timestamp), "dd/MM/yyyy HH:mm:ss", {
-                      locale: fr,
-                    })}
+                    {format(
+                      new Date(selectedAlert.timestamp),
+                      "dd/MM/yyyy HH:mm:ss",
+                      {
+                        locale: fr,
+                      },
+                    )}
                   </span>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 bg-soc-surface p-3 rounded-lg border border-soc-border">
                   <div>
                     <span className="text-soc-muted block">IP Source</span>
-                    <span className="text-white font-mono">{selectedAlert.srcIp || "—"}</span>
+                    <span className="text-white font-mono">
+                      {selectedAlert.srcIp || "—"}
+                    </span>
                   </div>
                   <div>
                     <span className="text-soc-muted block">IP Destination</span>
-                    <span className="text-white font-mono">{selectedAlert.dstIp || "—"}</span>
+                    <span className="text-white font-mono">
+                      {selectedAlert.dstIp || "—"}
+                    </span>
                   </div>
                 </div>
 
                 {selectedAlert.mitreTechnique && (
                   <div>
-                    <span className="text-soc-muted block mb-1">Technique MITRE ATT&CK</span>
+                    <span className="text-soc-muted block mb-1">
+                      Technique MITRE ATT&CK
+                    </span>
                     <span className="badge bg-soc-surface text-soc-accent font-mono border border-soc-border">
                       {selectedAlert.mitreTechnique}
                     </span>
@@ -312,7 +323,9 @@ export function AlertsPage() {
 
                 {selectedAlert.rawLog && (
                   <div>
-                    <span className="text-soc-muted block mb-1">Payload Brut (JSON)</span>
+                    <span className="text-soc-muted block mb-1">
+                      Payload Brut (JSON)
+                    </span>
                     <pre className="p-3 bg-soc-surface text-soc-text rounded-lg font-mono text-[11px] overflow-x-auto border border-soc-border max-h-48">
                       {JSON.stringify(selectedAlert.rawLog, null, 2)}
                     </pre>
@@ -323,12 +336,19 @@ export function AlertsPage() {
 
             {/* Actions rapides sur le statut */}
             <div className="pt-4 border-t border-soc-border space-y-2">
-              <span className="text-xs text-soc-muted block mb-2">Changer le statut</span>
+              <span className="text-xs text-soc-muted block mb-2">
+                Changer le statut
+              </span>
               <div className="grid grid-cols-3 gap-2">
                 <button
                   type="button"
-                  onClick={() => handleStatusChange(selectedAlert.id, "acknowledged")}
-                  disabled={selectedAlert.status === "acknowledged" || updateStatusMutation.isPending}
+                  onClick={() =>
+                    handleStatusChange(selectedAlert.id, "acknowledged")
+                  }
+                  disabled={
+                    selectedAlert.status === "acknowledged" ||
+                    updateStatusMutation.isPending
+                  }
                   className="btn-ghost text-xs border border-soc-border flex items-center justify-center gap-1 disabled:opacity-40"
                 >
                   <CheckIcon className="h-3.5 w-3.5" /> Acquitter
@@ -336,8 +356,13 @@ export function AlertsPage() {
 
                 <button
                   type="button"
-                  onClick={() => handleStatusChange(selectedAlert.id, "escalated")}
-                  disabled={selectedAlert.status === "escalated" || updateStatusMutation.isPending}
+                  onClick={() =>
+                    handleStatusChange(selectedAlert.id, "escalated")
+                  }
+                  disabled={
+                    selectedAlert.status === "escalated" ||
+                    updateStatusMutation.isPending
+                  }
                   className="btn-ghost text-xs border border-soc-border flex items-center justify-center gap-1 text-pink-400 disabled:opacity-40"
                 >
                   <ArrowUpRightIcon className="h-3.5 w-3.5" /> Escalader
@@ -345,8 +370,13 @@ export function AlertsPage() {
 
                 <button
                   type="button"
-                  onClick={() => handleStatusChange(selectedAlert.id, "resolved")}
-                  disabled={selectedAlert.status === "resolved" || updateStatusMutation.isPending}
+                  onClick={() =>
+                    handleStatusChange(selectedAlert.id, "resolved")
+                  }
+                  disabled={
+                    selectedAlert.status === "resolved" ||
+                    updateStatusMutation.isPending
+                  }
                   className="btn-ghost text-xs border border-soc-border flex items-center justify-center gap-1 text-emerald-400 disabled:opacity-40"
                 >
                   <CheckCircleIcon className="h-3.5 w-3.5" /> Résoudre

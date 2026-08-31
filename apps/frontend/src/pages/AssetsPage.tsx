@@ -2,7 +2,11 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../lib/api";
 import { DataTable } from "../components/common/DataTable";
-import { PlusIcon, MagnifyingGlassIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import {
+  PlusIcon,
+  MagnifyingGlassIcon,
+  XMarkIcon,
+} from "@heroicons/react/24/outline";
 import { clsx } from "clsx";
 import toast from "react-hot-toast";
 
@@ -38,7 +42,12 @@ export function AssetsPage() {
       queryClient.invalidateQueries({ queryKey: ["assets"] });
       toast.success("Asset ajouté");
       setIsModalOpen(false);
-      setNewAsset({ hostname: "", ipAddress: "", os: "Linux", criticality: "medium" });
+      setNewAsset({
+        hostname: "",
+        ipAddress: "",
+        os: "Linux",
+        criticality: "medium",
+      });
     },
     onError: () => toast.error("Erreur d'ajout"),
   });
@@ -54,21 +63,27 @@ export function AssetsPage() {
     {
       key: "hostname",
       label: "Hostname",
-      render: (item: any) => <span className="font-mono text-sm text-white">{item.hostname}</span>,
+      render: (item: any) => (
+        <span className="font-mono text-sm text-white">{item.hostname}</span>
+      ),
     },
     {
       key: "ipAddress",
       label: "IP",
       width: "130px",
       render: (item: any) => (
-        <span className="font-mono text-xs text-soc-muted">{item.ipAddress || "—"}</span>
+        <span className="font-mono text-xs text-soc-muted">
+          {item.ipAddress || "—"}
+        </span>
       ),
     },
     {
       key: "os",
       label: "OS",
       width: "120px",
-      render: (item: any) => <span className="text-xs text-soc-muted">{item.os || "—"}</span>,
+      render: (item: any) => (
+        <span className="text-xs text-soc-muted">{item.os || "—"}</span>
+      ),
     },
     {
       key: "criticality",
@@ -78,7 +93,9 @@ export function AssetsPage() {
         <span
           className={clsx(
             "text-xs font-medium",
-            criticalityColors[item.criticality as keyof typeof criticalityColors]
+            criticalityColors[
+              item.criticality as keyof typeof criticalityColors
+            ],
           )}
         >
           {item.criticality}
@@ -93,13 +110,13 @@ export function AssetsPage() {
         <span
           className={clsx(
             "flex items-center gap-1 text-xs",
-            item.isActive ? "text-emerald-400" : "text-gray-500"
+            item.isActive ? "text-emerald-400" : "text-gray-500",
           )}
         >
           <span
             className={clsx(
               "h-1.5 w-1.5 rounded-full",
-              item.isActive ? "bg-emerald-400" : "bg-gray-500"
+              item.isActive ? "bg-emerald-400" : "bg-gray-500",
             )}
           />
           {item.isActive ? "Actif" : "Inactif"}
@@ -161,20 +178,28 @@ export function AssetsPage() {
               className="space-y-3"
             >
               <div>
-                <label className="block text-xs text-soc-muted mb-1">Hostname</label>
+                <label className="block text-xs text-soc-muted mb-1">
+                  Hostname
+                </label>
                 <input
                   value={newAsset.hostname}
-                  onChange={(e) => setNewAsset({ ...newAsset, hostname: e.target.value })}
+                  onChange={(e) =>
+                    setNewAsset({ ...newAsset, hostname: e.target.value })
+                  }
                   placeholder="srv-web-01"
                   className="input w-full"
                   required
                 />
               </div>
               <div>
-                <label className="block text-xs text-soc-muted mb-1">Adresse IP</label>
+                <label className="block text-xs text-soc-muted mb-1">
+                  Adresse IP
+                </label>
                 <input
                   value={newAsset.ipAddress}
-                  onChange={(e) => setNewAsset({ ...newAsset, ipAddress: e.target.value })}
+                  onChange={(e) =>
+                    setNewAsset({ ...newAsset, ipAddress: e.target.value })
+                  }
                   placeholder="192.168.1.50"
                   className="input w-full"
                 />
@@ -183,7 +208,9 @@ export function AssetsPage() {
                 <label className="block text-xs text-soc-muted mb-1">OS</label>
                 <input
                   value={newAsset.os}
-                  onChange={(e) => setNewAsset({ ...newAsset, os: e.target.value })}
+                  onChange={(e) =>
+                    setNewAsset({ ...newAsset, os: e.target.value })
+                  }
                   placeholder="Ubuntu / Windows Server"
                   className="input w-full"
                 />

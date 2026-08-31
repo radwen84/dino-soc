@@ -65,11 +65,14 @@ export function ReportsPage() {
 
   const handleDownloadJson = (data: any, reportType: string) => {
     const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(
-      JSON.stringify(data, null, 2)
+      JSON.stringify(data, null, 2),
     )}`;
     const downloadAnchor = document.createElement("a");
     downloadAnchor.setAttribute("href", jsonString);
-    downloadAnchor.setAttribute("download", `rapport_${reportType}_${selectedPeriod}.json`);
+    downloadAnchor.setAttribute(
+      "download",
+      `rapport_${reportType}_${selectedPeriod}.json`,
+    );
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
@@ -137,7 +140,7 @@ export function ReportsPage() {
               onClick={() =>
                 handleDownloadJson(
                   generateMutation.data.data,
-                  generateMutation.data.metadata?.type || "report"
+                  generateMutation.data.metadata?.type || "report",
                 )
               }
               className="btn-primary text-xs flex items-center gap-1.5 cursor-pointer"

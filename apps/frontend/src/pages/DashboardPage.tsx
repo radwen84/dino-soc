@@ -86,7 +86,9 @@ export function DashboardPage() {
     );
   }
 
-  const mttdHours = kpis?.severityMetrics?.[0]?.avgMttdHours ?? kpis?.severityMetrics?.[0]?.avgMttrHours;
+  const mttdHours =
+    kpis?.severityMetrics?.[0]?.avgMttdHours ??
+    kpis?.severityMetrics?.[0]?.avgMttrHours;
   const mttrHours = kpis?.severityMetrics?.[0]?.avgMttrHours;
 
   return (

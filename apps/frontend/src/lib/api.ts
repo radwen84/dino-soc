@@ -1,7 +1,4 @@
-import axios, {
-  AxiosError,
-  InternalAxiosRequestConfig,
-} from "axios";
+import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 import { useAuthStore } from "../stores/auth.store";
 import toast from "react-hot-toast";
 
@@ -35,10 +32,7 @@ let failedQueue: Array<{
   reject: (reason?: unknown) => void;
 }> = [];
 
-const processQueue = (
-  error: unknown,
-  token: string | null = null,
-): void => {
+const processQueue = (error: unknown, token: string | null = null): void => {
   failedQueue.forEach((promise) => {
     if (error) {
       promise.reject(error);
@@ -88,19 +82,13 @@ api.interceptors.response.use(
           refreshToken,
         });
 
-        const {
-          accessToken,
-          refreshToken: newRefreshToken,
-        } = response.data;
+        const { accessToken, refreshToken: newRefreshToken } = response.data;
 
-        useAuthStore
-          .getState()
-          .setTokens(accessToken, newRefreshToken);
+        useAuthStore.getState().setTokens(accessToken, newRefreshToken);
 
         processQueue(null, accessToken);
 
-        originalRequest.headers.Authorization =
-          `Bearer ${accessToken}`;
+        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
 
         return api(originalRequest);
       } catch (refreshError) {
@@ -120,16 +108,9 @@ api.interceptors.response.use(
     if (error.response?.status === 403) {
       toast.error("Accès non autorisé");
     } else if (error.response?.status === 429) {
-      toast.error(
-        "Trop de requêtes. Réessayez dans un moment.",
-      );
-    } else if (
-      error.response?.status &&
-      error.response.status >= 500
-    ) {
-      toast.error(
-        "Erreur serveur. Veuillez réessayer.",
-      );
+      toast.error("Trop de requêtes. Réessayez dans un moment.");
+    } else if (error.response?.status && error.response.status >= 500) {
+      toast.error("Erreur serveur. Veuillez réessayer.");
     }
 
     return Promise.reject(error);

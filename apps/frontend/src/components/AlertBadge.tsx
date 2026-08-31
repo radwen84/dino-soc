@@ -1,12 +1,12 @@
-import React from 'react';
+import React from "react";
 
 interface AlertBadgeProps {
-  severity: 'low' | 'medium' | 'high' | 'critical';
+  severity: "low" | "medium" | "high" | "critical";
   count: number;
 }
 
 export const AlertBadge: React.FC<AlertBadgeProps> = ({ severity, count }) => {
-  const isCritical = severity === 'critical';
+  const isCritical = severity === "critical";
 
   return (
     <div className={`alert-badge badge-${severity}`}>

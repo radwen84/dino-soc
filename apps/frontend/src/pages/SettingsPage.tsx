@@ -5,9 +5,15 @@ import toast from "react-hot-toast";
 
 export function SettingsPage() {
   const { user } = useAuthStore();
-  const [activeModal, setActiveModal] = useState<"password" | "mfa" | "sessions" | null>(null);
+  const [activeModal, setActiveModal] = useState<
+    "password" | "mfa" | "sessions" | null
+  >(null);
 
-  const [passwordForm, setPasswordForm] = useState({ current: "", newPass: "", confirm: "" });
+  const [passwordForm, setPasswordForm] = useState({
+    current: "",
+    newPass: "",
+    confirm: "",
+  });
 
   const handlePasswordSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,37 +109,62 @@ export function SettingsPage() {
             {activeModal === "password" && (
               <form onSubmit={handlePasswordSubmit} className="space-y-3">
                 <div>
-                  <label className="block text-xs text-soc-muted mb-1">Mot de passe actuel</label>
+                  <label className="block text-xs text-soc-muted mb-1">
+                    Mot de passe actuel
+                  </label>
                   <input
                     type="password"
                     value={passwordForm.current}
-                    onChange={(e) => setPasswordForm({ ...passwordForm, current: e.target.value })}
+                    onChange={(e) =>
+                      setPasswordForm({
+                        ...passwordForm,
+                        current: e.target.value,
+                      })
+                    }
                     className="input w-full"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-soc-muted mb-1">Nouveau mot de passe</label>
+                  <label className="block text-xs text-soc-muted mb-1">
+                    Nouveau mot de passe
+                  </label>
                   <input
                     type="password"
                     value={passwordForm.newPass}
-                    onChange={(e) => setPasswordForm({ ...passwordForm, newPass: e.target.value })}
+                    onChange={(e) =>
+                      setPasswordForm({
+                        ...passwordForm,
+                        newPass: e.target.value,
+                      })
+                    }
                     className="input w-full"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-soc-muted mb-1">Confirmer le mot de passe</label>
+                  <label className="block text-xs text-soc-muted mb-1">
+                    Confirmer le mot de passe
+                  </label>
                   <input
                     type="password"
                     value={passwordForm.confirm}
-                    onChange={(e) => setPasswordForm({ ...passwordForm, confirm: e.target.value })}
+                    onChange={(e) =>
+                      setPasswordForm({
+                        ...passwordForm,
+                        confirm: e.target.value,
+                      })
+                    }
                     className="input w-full"
                     required
                   />
                 </div>
                 <div className="flex justify-end gap-2 pt-2">
-                  <button type="button" onClick={() => setActiveModal(null)} className="btn-ghost text-sm">
+                  <button
+                    type="button"
+                    onClick={() => setActiveModal(null)}
+                    className="btn-ghost text-sm"
+                  >
                     Annuler
                   </button>
                   <button type="submit" className="btn-primary text-sm">
@@ -145,7 +176,9 @@ export function SettingsPage() {
 
             {activeModal === "mfa" && (
               <div className="space-y-4 text-center">
-                <p className="text-xs text-soc-muted">Scannez ce QR Code avec Google Authenticator ou Authy :</p>
+                <p className="text-xs text-soc-muted">
+                  Scannez ce QR Code avec Google Authenticator ou Authy :
+                </p>
                 <div className="h-32 w-32 bg-white mx-auto flex items-center justify-center rounded-lg text-black font-mono text-xs">
                   [QR CODE MFA]
                 </div>
@@ -165,12 +198,21 @@ export function SettingsPage() {
               <div className="space-y-3 text-xs">
                 <div className="p-3 bg-soc-surface rounded-lg flex items-center justify-between border border-soc-border">
                   <div>
-                    <p className="font-semibold text-white">Navigateur actuel</p>
-                    <p className="text-soc-muted">Windows • Chrome • 127.0.0.1</p>
+                    <p className="font-semibold text-white">
+                      Navigateur actuel
+                    </p>
+                    <p className="text-soc-muted">
+                      Windows • Chrome • 127.0.0.1
+                    </p>
                   </div>
-                  <span className="badge bg-emerald-500/20 text-emerald-300">Actif</span>
+                  <span className="badge bg-emerald-500/20 text-emerald-300">
+                    Actif
+                  </span>
                 </div>
-                <button onClick={() => setActiveModal(null)} className="btn-ghost w-full text-sm">
+                <button
+                  onClick={() => setActiveModal(null)}
+                  className="btn-ghost w-full text-sm"
+                >
                   Fermer
                 </button>
               </div>

@@ -57,13 +57,10 @@ export function RecentIncidents() {
               </p>
 
               <p className="text-xs text-soc-muted">
-                {formatDistanceToNow(
-                  new Date(incident.detectedAt),
-                  {
-                    addSuffix: true,
-                    locale: fr,
-                  }
-                )}
+                {formatDistanceToNow(new Date(incident.detectedAt), {
+                  addSuffix: true,
+                  locale: fr,
+                })}
               </p>
             </div>
 

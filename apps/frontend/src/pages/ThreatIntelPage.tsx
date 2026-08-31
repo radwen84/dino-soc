@@ -37,7 +37,9 @@ export function ThreatIntelPage() {
       return data;
     },
     onSuccess: (data) => {
-      toast.success(`Sync terminé: OTX=${data?.otx || 0}, MISP=${data?.misp || 0}`);
+      toast.success(
+        `Sync terminé: OTX=${data?.otx || 0}, MISP=${data?.misp || 0}`,
+      );
     },
     onError: () => {
       toast.error("Erreur lors de la synchronisation des flux");

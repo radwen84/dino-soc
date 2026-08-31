@@ -41,7 +41,8 @@ export function UsersPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newUser.name || !newUser.email) return toast.error("Informations incomplètes");
+    if (!newUser.name || !newUser.email)
+      return toast.error("Informations incomplètes");
     createMutation.mutate(newUser);
   };
 
@@ -135,7 +136,9 @@ export function UsersPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div className="card w-full max-w-md bg-soc-card border border-soc-border p-6 rounded-xl">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-white">Nouvel Utilisateur</h2>
+              <h2 className="text-lg font-bold text-white">
+                Nouvel Utilisateur
+              </h2>
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
@@ -146,31 +149,43 @@ export function UsersPage() {
             </div>
             <form onSubmit={handleSubmit} className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-soc-muted mb-1">Nom complet</label>
+                <label className="block text-xs font-medium text-soc-muted mb-1">
+                  Nom complet
+                </label>
                 <input
                   value={newUser.name}
-                  onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+                  onChange={(e) =>
+                    setNewUser({ ...newUser, name: e.target.value })
+                  }
                   placeholder="John Doe"
                   className="input w-full"
                   required
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-soc-muted mb-1">Email</label>
+                <label className="block text-xs font-medium text-soc-muted mb-1">
+                  Email
+                </label>
                 <input
                   type="email"
                   value={newUser.email}
-                  onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                  onChange={(e) =>
+                    setNewUser({ ...newUser, email: e.target.value })
+                  }
                   placeholder="analyst@minisoc.local"
                   className="input w-full"
                   required
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-soc-muted mb-1">Rôle</label>
+                <label className="block text-xs font-medium text-soc-muted mb-1">
+                  Rôle
+                </label>
                 <select
                   value={newUser.role}
-                  onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
+                  onChange={(e) =>
+                    setNewUser({ ...newUser, role: e.target.value })
+                  }
                   className="input w-full"
                 >
                   <option value="analyst_l1">Analyste L1</option>
@@ -180,11 +195,15 @@ export function UsersPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-soc-muted mb-1">Mot de passe temporaire</label>
+                <label className="block text-xs font-medium text-soc-muted mb-1">
+                  Mot de passe temporaire
+                </label>
                 <input
                   type="password"
                   value={newUser.password}
-                  onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                  onChange={(e) =>
+                    setNewUser({ ...newUser, password: e.target.value })
+                  }
                   placeholder="••••••••"
                   className="input w-full"
                   required

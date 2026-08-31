@@ -45,7 +45,12 @@ export function IncidentsPage() {
       queryClient.invalidateQueries({ queryKey: ["incidents"] });
       toast.success("Incident créé avec succès");
       setIsModalOpen(false);
-      setNewIncident({ title: "", description: "", severity: "medium", category: "Unspecified" });
+      setNewIncident({
+        title: "",
+        description: "",
+        severity: "medium",
+        category: "Unspecified",
+      });
     },
     onError: () => toast.error("Erreur lors de la création"),
   });
@@ -71,7 +76,8 @@ export function IncidentsPage() {
           <p className="font-medium text-white">{item.title}</p>
           <p className="text-xs text-soc-muted mt-0.5">
             {item.category && `${item.category} • `}
-            {item.mitreTechniques?.length > 0 && `MITRE: ${item.mitreTechniques[0]}`}
+            {item.mitreTechniques?.length > 0 &&
+              `MITRE: ${item.mitreTechniques[0]}`}
           </p>
         </div>
       ),
@@ -87,7 +93,9 @@ export function IncidentsPage() {
       label: "Assigné à",
       width: "150px",
       render: (item: any) => (
-        <span className="text-soc-muted text-xs">{item.assignedTo?.name || "—"}</span>
+        <span className="text-soc-muted text-xs">
+          {item.assignedTo?.name || "—"}
+        </span>
       ),
     },
     {
@@ -168,7 +176,9 @@ export function IncidentsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div className="card w-full max-w-lg relative bg-soc-card border border-soc-border p-6 rounded-xl shadow-2xl">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-white">Créer un Incident</h2>
+              <h2 className="text-lg font-bold text-white">
+                Créer un Incident
+              </h2>
               <button
                 onClick={() => setIsModalOpen(false)}
                 className="text-soc-muted hover:text-white"
@@ -178,28 +188,43 @@ export function IncidentsPage() {
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-soc-muted mb-1">Titre</label>
+                <label className="block text-xs font-medium text-soc-muted mb-1">
+                  Titre
+                </label>
                 <input
                   value={newIncident.title}
-                  onChange={(e) => setNewIncident({ ...newIncident, title: e.target.value })}
+                  onChange={(e) =>
+                    setNewIncident({ ...newIncident, title: e.target.value })
+                  }
                   placeholder="ex: Infiltration Malware détectée"
                   className="input w-full"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-soc-muted mb-1">Description</label>
+                <label className="block text-xs font-medium text-soc-muted mb-1">
+                  Description
+                </label>
                 <textarea
                   value={newIncident.description}
-                  onChange={(e) => setNewIncident({ ...newIncident, description: e.target.value })}
+                  onChange={(e) =>
+                    setNewIncident({
+                      ...newIncident,
+                      description: e.target.value,
+                    })
+                  }
                   placeholder="Détails de l'incident..."
                   className="input w-full h-24"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-soc-muted mb-1">Sévérité</label>
+                <label className="block text-xs font-medium text-soc-muted mb-1">
+                  Sévérité
+                </label>
                 <select
                   value={newIncident.severity}
-                  onChange={(e) => setNewIncident({ ...newIncident, severity: e.target.value })}
+                  onChange={(e) =>
+                    setNewIncident({ ...newIncident, severity: e.target.value })
+                  }
                   className="input w-full"
                 >
                   <option value="critical">Critical</option>

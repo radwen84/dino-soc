@@ -31,14 +31,9 @@ export function RecentAlerts() {
   return (
     <div className="card">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-medium text-soc-muted">
-          Alertes récentes
-        </h3>
+        <h3 className="text-sm font-medium text-soc-muted">Alertes récentes</h3>
 
-        <Link
-          to="/alerts"
-          className="text-xs text-soc-primary hover:underline"
-        >
+        <Link to="/alerts" className="text-xs text-soc-primary hover:underline">
           Voir tout →
         </Link>
       </div>
@@ -55,10 +50,10 @@ export function RecentAlerts() {
                 alert.level >= 12
                   ? "bg-red-500"
                   : alert.level >= 8
-                  ? "bg-orange-500"
-                  : alert.level >= 5
-                  ? "bg-yellow-500"
-                  : "bg-green-500"
+                    ? "bg-orange-500"
+                    : alert.level >= 5
+                      ? "bg-yellow-500"
+                      : "bg-green-500",
               )}
             />
 

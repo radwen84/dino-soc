@@ -1,9 +1,6 @@
 import { ReactNode } from "react";
 import { clsx } from "clsx";
-import {
-  ChevronLeftIcon,
-  ChevronRightIcon,
-} from "@heroicons/react/24/outline";
+import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 
 interface Column<T> {
   key: keyof T;
@@ -44,10 +41,7 @@ export function DataTable<T extends { id: string }>({
       <div className="card">
         <div className="animate-pulse space-y-3">
           {Array.from({ length: 5 }).map((_, i) => (
-            <div
-              key={i}
-              className="h-10 bg-soc-surface rounded"
-            />
+            <div key={i} className="h-10 bg-soc-surface rounded" />
           ))}
         </div>
       </div>
@@ -76,17 +70,11 @@ export function DataTable<T extends { id: string }>({
             {data.map((item) => (
               <tr
                 key={item.id}
-                className={clsx(
-                  "table-row",
-                  onRowClick && "cursor-pointer"
-                )}
+                className={clsx("table-row", onRowClick && "cursor-pointer")}
                 onClick={() => onRowClick?.(item)}
               >
                 {columns.map((col) => (
-                  <td
-                    key={String(col.key)}
-                    className="px-4 py-3 text-soc-text"
-                  >
+                  <td key={String(col.key)} className="px-4 py-3 text-soc-text">
                     {col.render
                       ? col.render(item)
                       : String(item[col.key] ?? "")}
@@ -99,9 +87,7 @@ export function DataTable<T extends { id: string }>({
       </div>
 
       {data.length === 0 && (
-        <div className="text-center py-8 text-soc-muted">
-          {emptyMessage}
-        </div>
+        <div className="text-center py-8 text-soc-muted">{emptyMessage}</div>
       )}
 
       {meta && meta.totalPages > 1 && (

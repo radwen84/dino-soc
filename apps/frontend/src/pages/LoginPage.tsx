@@ -152,7 +152,10 @@ export function LoginPage() {
                 <input
                   {...register("mfaCode", {
                     required: "Code MFA requis",
-                    pattern: { value: /^\d{6}$/, message: "Saisissez 6 chiffres" },
+                    pattern: {
+                      value: /^\d{6}$/,
+                      message: "Saisissez 6 chiffres",
+                    },
                   })}
                   type="text"
                   inputMode="numeric"

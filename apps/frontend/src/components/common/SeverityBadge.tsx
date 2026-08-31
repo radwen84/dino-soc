@@ -1,6 +1,7 @@
 import { clsx } from "clsx";
 
-export type SeverityType = "critical" | "high" | "medium" | "low" | "informational" | string | undefined;
+export type SeverityType =
+  "critical" | "high" | "medium" | "low" | "informational" | string | undefined;
 
 interface SeverityBadgeProps {
   severity?: SeverityType;

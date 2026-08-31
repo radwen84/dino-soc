@@ -22,7 +22,9 @@ const queryClient = new QueryClient({
 const rootElement = document.getElementById("root");
 
 if (!rootElement) {
-  throw new Error("L'élément racine #root n'a pas été trouvé dans le document HTML.");
+  throw new Error(
+    "L'élément racine #root n'a pas été trouvé dans le document HTML.",
+  );
 }
 
 ReactDOM.createRoot(rootElement).render(
@@ -33,7 +35,8 @@ ReactDOM.createRoot(rootElement).render(
         <Toaster
           position="top-right"
           toastOptions={{
-            className: "bg-soc-card text-soc-text border border-soc-border shadow-xl text-sm font-sans",
+            className:
+              "bg-soc-card text-soc-text border border-soc-border shadow-xl text-sm font-sans",
             duration: 4000,
             style: {
               background: "#1e2a3a",
@@ -45,5 +48,5 @@ ReactDOM.createRoot(rootElement).render(
       </BrowserRouter>
       <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
-  </React.StrictMode>
+  </React.StrictMode>,
 );

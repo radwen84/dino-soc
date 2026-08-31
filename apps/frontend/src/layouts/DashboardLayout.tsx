@@ -64,7 +64,7 @@ export function DashboardLayout() {
         className={clsx(
           "fixed inset-y-0 left-0 z-50 w-64 bg-soc-surface border-r border-soc-border",
           "transform transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static lg:z-auto",
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          sidebarOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
         {/* Logo */}
@@ -86,7 +86,7 @@ export function DashboardLayout() {
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
                   isActive
                     ? "bg-soc-primary/10 text-soc-primary border border-soc-primary/20"
-                    : "text-soc-muted hover:text-soc-text hover:bg-soc-card"
+                    : "text-soc-muted hover:text-soc-text hover:bg-soc-card",
                 )
               }
             >
@@ -198,7 +198,7 @@ export function DashboardLayout() {
                           }}
                           className={clsx(
                             "p-3 text-xs cursor-pointer transition-colors hover:bg-soc-surface",
-                            !n.read ? "bg-soc-primary/5" : "opacity-75"
+                            !n.read ? "bg-soc-primary/5" : "opacity-75",
                           )}
                         >
                           <div className="flex items-start justify-between gap-2">
