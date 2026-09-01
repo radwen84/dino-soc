@@ -16,7 +16,7 @@ permissions:
   contents: write
   pull-requests: write
   packages: write
-  workflows: write
+  actions: write
 
 env:
   REGISTRY: ghcr.io
