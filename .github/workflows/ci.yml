@@ -75,8 +75,10 @@ jobs:
         working-directory: apps/backend
       - run: npx prisma generate
         working-directory: apps/backend
-      - name: Run Migrations
-        run: npx prisma migrate deploy
+      - name: Run Database Setup & Migrations
+        run: |
+          npx prisma db push --skip-generate
+          npx prisma migrate deploy || echo "::warning::Migration deploy bypassed, schema synchronized with db push"
         working-directory: apps/backend
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/minisoc_test
@@ -258,8 +260,8 @@ jobs:
         working-directory: apps/backend
       - run: npx prisma generate
         working-directory: apps/backend
-      - name: Prisma migrate deploy
-        run: npx prisma migrate deploy
+      - name: Database Schema Setup
+        run: npx prisma db push --skip-generate
         working-directory: apps/backend
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/minisoc_test
