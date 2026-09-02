@@ -2,18 +2,11 @@ name: Mini-SOC CI Pipeline
 
 on:
   push:
-    branches:
-      - main
-      - master
-      - develop
-      - dev
-      - 'feature/**'
-      - 'test/**'
+    branches: [main, develop]
+    
   pull_request:
-    branches:
-      - main
-      - master
-      - develop
+    branches:  [main]
+      
   schedule:
     # Réentraînement ML hebdomadaire + validation complète.
     - cron: '0 3 * * 1'
