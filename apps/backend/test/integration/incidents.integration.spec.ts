@@ -19,7 +19,11 @@ describe('Incidents (Integration)', () => {
     }).compile();
 
     testContext.app = module.createNestApplication();
+    
+    // ✅ Configuration du préfixe global /api pour matcher les routes de production
+    testContext.app.setGlobalPrefix('api');
     testContext.app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+    
     await testContext.app.init();
 
     testContext.prisma = module.get<PrismaService>(PrismaService);
@@ -27,6 +31,7 @@ describe('Incidents (Integration)', () => {
     const loginRes = await request(testContext.app.getHttpServer())
       .post('/api/auth/login')
       .send({ email: 'admin@minisoc.local', password: 'Admin@MiniSOC2026!' });
+    
     testContext.authToken = loginRes.body.accessToken;
   }, 30000);
 
@@ -69,7 +74,9 @@ describe('Incidents (Integration)', () => {
     });
 
     it('should reject unauthenticated requests', async () => {
+      // ✅ Correction : Ajout de .post('/api/incidents')
       await request(testContext.app!.getHttpServer())
+        .post('/api/incidents')
         .send({ title: 'Test', severity: 'low' })
         .expect(401);
     });
