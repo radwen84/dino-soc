@@ -41,7 +41,7 @@ jobs:
         working-directory: apps/${{ matrix.app }}
 
   # ==========================================
-  # UNIT TESTS - BACKEND
+  # UNIT & INTEGRATION TESTS - BACKEND
   # ==========================================
   test-backend:
     runs-on: ubuntu-latest
@@ -64,6 +64,11 @@ jobs:
         image: redis:7-alpine
         ports:
           - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -94,6 +99,8 @@ jobs:
           DATABASE_URL: postgresql://test:test@localhost:5432/minisoc_test
           JWT_SECRET: super-secure-sonar-test-secret-minimum-32-chars-long
           JWT_REFRESH_SECRET: super-secure-refresh-test-secret-minimum-32-chars
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
           REDIS_URL: redis://localhost:6379
           NODE_ENV: test
 
@@ -329,7 +336,7 @@ jobs:
           # /detect-anomaly (anomalous payload)
           ANOMALY=$(curl -sf -X POST http://localhost:8000/detect-anomaly \
             -H 'Content-Type: application/json' \
-            -d '{"hour_of_day":3,"day_of_week":6,"alert_level":14,"src_port":31337,"dst_port":4444,"bytes_transferred":5000000,"connection_duration":120,"failed_attempts":50,"unique_destinations":30,"is_internal_src":false}')
+            -d '{"hour_of_day":3,"day_of_week":6,"alert_level":14,"src_port":31337,"dst_port":4444,"bytes_transferred":5000000,"connection_duration":120,"failed_attempts":50,"unique_destinations":30,"is_internal_src":false}' )
           echo "Anomaly response: $ANOMALY"
           echo "$ANOMALY" | python3 -c "
           import sys,json
@@ -735,7 +742,7 @@ jobs:
   # ==========================================
   collect-artifacts:
     runs-on: ubuntu-latest
-    needs: [ml-validation, mitre-validation, e2e-playwright, infra-validation, observability-validation, security-regression, database-validation, security-services-validation, soar-validation]
+    needs: [test-backend, test-frontend, ml-validation, mitre-validation, e2e-playwright, infra-validation, observability-validation, security-regression, database-validation, security-services-validation, soar-validation]
     if: always()
     steps:
       - name: Pipeline Summary
@@ -745,8 +752,8 @@ jobs:
           echo "| Stage | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| Lint | ✅ |" >> $GITHUB_STEP_SUMMARY
-          echo "| Unit Tests Backend | ${{ needs.database-validation.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Unit Tests Frontend | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| Unit Tests Backend | ${{ needs.test-backend.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Unit Tests Frontend | ${{ needs.test-frontend.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Build | ✅ |" >> $GITHUB_STEP_SUMMARY
           echo "| Infrastructure | ${{ needs.infra-validation.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Database / Prisma | ${{ needs.database-validation.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
