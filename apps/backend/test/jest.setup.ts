@@ -3,18 +3,18 @@ import { config } from 'dotenv';
 // Charge les variables d'environnement de test
 config({ path: '.env.test' });
 
-// Augmente le timeout global de Jest (10 secondes)
-jest.setTimeout(10000);
+// Augmente le timeout global de Jest (30 secondes pour laisser le temps aux bases de données)
+jest.setTimeout(30000);
+
+// Reinitialise les mocks entre chaque test pour éviter la fuite d'état
+afterEach(() => {
+  jest.clearAllMocks();
+});
 
 afterAll(async () => {
-  // S'assure que les timers réels de Node.js sont utilisés pour éviter tout blocage avec jest.useFakeTimers()
+  // 1. Réinitialise les timers si des fake timers ont été utilisés
   jest.useRealTimers();
 
-  // Permet de libérer proprement l'event loop sans maintenir de handle actif
-  await new Promise<void>((resolve) => {
-    const timer = setTimeout(resolve, 100);
-    if (timer.unref) {
-      timer.unref(); // Indique à Node.js de ne pas attendre ce timer pour fermer le processus
-    }
-  });
+  // 2. Vide la file de micro-tâches et libère proprement l'event loop
+  await new Promise<void>((resolve) => setTimeout(resolve, 500));
 });
