@@ -92,7 +92,7 @@ jobs:
         working-directory: apps/backend
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/minisoc_test
-      - name: Run Backend Tests
+      - name: Run Backend Tests (Incidents & Integration)
         run: npm run test:cov -- --watch=false
         working-directory: apps/backend
         env:
@@ -189,7 +189,7 @@ jobs:
     needs: build
     steps:
       - uses: actions/checkout@v4
-      - name: Create required secrets directory
+      - name: Create required secrets directory & dummy env
         run: |
           mkdir -p secrets
           echo "testpass" > secrets/db_password.txt
@@ -197,6 +197,7 @@ jobs:
           echo "testjwt-refresh-secret-minimum-32-chars-long" > secrets/jwt_refresh_secret.txt
           echo "testwazuhpass" > secrets/wazuh_api_password.txt
           echo "testredispass" > secrets/redis_password.txt
+          touch .env
       - name: Validate docker-compose syntax
         run: docker compose config --quiet
       - name: Validate Grafana dashboard JSON
@@ -319,7 +320,6 @@ jobs:
           uvicorn main:app --host 0.0.0.0 --port 8000 &
           ML_PID=$!
 
-          # Wait for startup with retry loop
           for i in $(seq 1 15); do
             if curl -sf http://localhost:8000/health > /dev/null 2>&1; then
               echo "ML Engine ready after ${i}s"
@@ -328,12 +328,10 @@ jobs:
             sleep 1
           done
 
-          # /health
           HEALTH=$(curl -sf http://localhost:8000/health)
           echo "Health: $HEALTH"
           echo "$HEALTH" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['status']=='healthy', f'Unhealthy: {d}'"
 
-          # /detect-anomaly (anomalous payload)
           ANOMALY=$(curl -sf -X POST http://localhost:8000/detect-anomaly \
             -H 'Content-Type: application/json' \
             -d '{"hour_of_day":3,"day_of_week":6,"alert_level":14,"src_port":31337,"dst_port":4444,"bytes_transferred":5000000,"connection_duration":120,"failed_attempts":50,"unique_destinations":30,"is_internal_src":false}' )
@@ -345,7 +343,6 @@ jobs:
           assert isinstance(d['anomaly_score'], (int,float)), 'anomaly_score not numeric'
           "
 
-          # /risk-score
           RISK=$(curl -sf -X POST http://localhost:8000/risk-score \
             -H 'Content-Type: application/json' \
             -d '{"severity":"critical","confidence":90,"ioc_matches":2,"affected_assets":3,"asset_criticality":"high","mitre_techniques":2}')
@@ -358,7 +355,6 @@ jobs:
           assert d['risk_level'] in ('low','medium','high','critical'), f'Bad risk_level: {d[\"risk_level\"]}'
           "
 
-          # /ueba/score
           UEBA=$(curl -sf -X POST http://localhost:8000/ueba/score \
             -H 'Content-Type: application/json' \
             -d '{"user_id":"test-user","login_count_24h":5,"failed_login_count_24h":10,"unique_ips_24h":8,"off_hours_activity":true,"privilege_escalation":true}')
@@ -431,7 +427,6 @@ jobs:
           echo "Suricata rules: $RULE_COUNT rules found"
           test "$RULE_COUNT" -gt 0
 
-          # Check all rules have sid
           MISSING_SID=$(grep "^alert " "$RULES_FILE" | grep -cv "sid:")
           if [ "$MISSING_SID" -gt 0 ]; then
             echo "ERROR: $MISSING_SID rules missing sid" >&2
@@ -482,7 +477,6 @@ jobs:
           import xml.etree.ElementTree as ET
           tree = ET.parse('security/wazuh/ossec.conf')
           root = tree.getroot()
-          # Check key sections exist
           assert root.find('global') is not None, 'Missing <global>'
           assert root.find('syscheck') is not None, 'Missing <syscheck>'
           assert root.find('rootcheck') is not None, 'Missing <rootcheck>'
@@ -550,7 +544,6 @@ jobs:
           assert d['uid'] == 'soc-overview'
           panels = d['panels']
           assert len(panels) >= 10, f'Expected 10+ panels, got {len(panels)}'
-          # Check required panel types exist
           panel_titles = [p['title'] for p in panels]
           print(f'Dashboard panels: {panel_titles}')
           assert any('Alert' in t for t in panel_titles), 'Missing alerts panel'
@@ -567,14 +560,12 @@ jobs:
         run: |
           python3 -c "
           import yaml
-          # Prometheus config
           with open('infrastructure/monitoring/prometheus/prometheus.yml') as f:
               c = yaml.safe_load(f)
           jobs = [s['job_name'] for s in c.get('scrape_configs',[])]
           assert 'minisoc-backend' in jobs, 'Missing backend scrape'
           print(f'Prometheus scrape jobs: {jobs}')
 
-          # Alert rules
           with open('infrastructure/monitoring/prometheus/alerts/minisoc.yml') as f:
               alerts = yaml.safe_load(f)
           groups = alerts.get('groups', [])
@@ -614,7 +605,6 @@ jobs:
           npm ci
           npm run build
           npx vite preview --port 5173 &
-          # Wait with retry loop instead of sleep
           for i in $(seq 1 30); do
             if curl -sf http://localhost:5173 > /dev/null 2>&1; then
               echo "Frontend ready after ${i}s"
@@ -649,13 +639,11 @@ jobs:
       - uses: actions/checkout@v4
       - name: Verify no secrets in codebase
         run: |
-          # Check for common secret patterns (not in .env.example)
           FOUND=0
           for pattern in "AKIA[0-9A-Z]{16}" "-----BEGIN.*PRIVATE KEY-----" "ghp_[a-zA-Z0-9]{36}"; do
             MATCHES=$(grep -rn "$pattern" --include="*.ts" --include="*.py" --include="*.yml" --include="*.json" . 2>/dev/null | grep -v node_modules | grep -v ".env.example" | grep -v package-lock || true)
             if [ -n "$MATCHES" ]; then
-              echo "POTENTIAL SECRET FOUND with pattern $pattern:"
-              echo "$MATCHES"
+              echo "POTENTIAL SECRET FOUND with pattern $pattern (Matched files omitted from stdout for security)"
               FOUND=1
             fi
           done
@@ -667,7 +655,6 @@ jobs:
 
       - name: Verify Docker security practices
         run: |
-          # Check Dockerfiles don't run as root in final stage
           for df in apps/backend/Dockerfile apps/frontend/Dockerfile services/ml-engine/Dockerfile; do
             if [ -f "$df" ]; then
               if grep -q "^USER " "$df"; then
@@ -703,7 +690,18 @@ jobs:
   # ==========================================
   docker-push:
     runs-on: ubuntu-latest
-    needs: [build, security, ml-validation, mitre-validation, infra-validation, e2e-playwright, security-regression]
+    needs:
+      - build
+      - security
+      - ml-validation
+      - mitre-validation
+      - infra-validation
+      - e2e-playwright
+      - security-regression
+      - database-validation
+      - security-services-validation
+      - soar-validation
+      - observability-validation
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: read
