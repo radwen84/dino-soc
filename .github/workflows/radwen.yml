@@ -3,11 +3,8 @@ name: Mini-SOC CI Pipeline
 on:
   push:
     branches: [main, develop]
-    
   pull_request:
-    branches:  [main]
-      
-  
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -145,7 +142,6 @@ jobs:
           REDIS_PORT: '6379'
           REDIS_URL: redis://localhost:6379
           NODE_ENV: test
-          MINISOC_CI_TEST_ID: ${{ env.MINISOC_CI_TEST_ID }}
         run: npm run test:cov -- --watch=false
 
       - name: Upload backend coverage
@@ -634,10 +630,6 @@ jobs:
 
   # ============================================================
   # 11. FULL MINI-SOC E2E STACK
-  #
-  # IMPORTANT:
-  # Tout ce qui doit communiquer ensemble est exécuté dans CE job.
-  # Un autre job GitHub Actions n'est pas réutilisable comme réseau.
   # ============================================================
   minisoc-e2e:
     name: Full Mini-SOC E2E
@@ -660,7 +652,6 @@ jobs:
       OTX_API_KEY: ${{ secrets.OTX_API_KEY }}
       SHODAN_API_KEY: ${{ secrets.SHODAN_API_KEY }}
       MISP_API_KEY: ${{ secrets.MISP_API_KEY }}
-      MINISOC_CI_TEST_ID: ${{ env.MINISOC_CI_TEST_ID }}
 
     steps:
       - uses: actions/checkout@v4
@@ -852,7 +843,6 @@ jobs:
 
           docker compose ps "$SURICATA_CONTAINER"
 
-          # Génère du trafic de test non destructif.
           curl -sS -o /dev/null -A 'MiniSOC-CI-Suricata-Test' \
             'http://localhost/health?file=../../../../etc/passwd' || true
 
@@ -904,7 +894,6 @@ jobs:
 
           docker compose ps "$FALCO_CONTAINER"
 
-          # Événement runtime contrôlé dans le conteneur API.
           docker exec minisoc-api /bin/sh -c 'id && whoami' >/dev/null
 
           sleep 5
@@ -977,7 +966,6 @@ jobs:
           echo "Triggering a correlation input through the public API."
           curl -ksS https://localhost/api/health >/dev/null
 
-          # L'API doit exposer les métriques et rester opérationnelle.
           METRICS=$(curl -ksS https://localhost/api/metrics || curl -ksS https://localhost/metrics)
           echo "$METRICS" | head -n 50
 
@@ -1002,7 +990,6 @@ jobs:
             fi
           done
 
-          # Vérification que les modules SOAR existent et que l'API reste disponible.
           curl -ksSf https://localhost/api/health >/dev/null || curl -ksSf http://localhost:4000/health >/dev/null
 
       # ----------------------------------------------------------
@@ -1035,7 +1022,6 @@ jobs:
         env:
           CI: 'true'
           PLAYWRIGHT_BASE_URL: https://localhost
-          MINISOC_CI_TEST_ID: ${{ env.MINISOC_CI_TEST_ID }}
         run: npx playwright test --reporter=list
 
       # ----------------------------------------------------------
