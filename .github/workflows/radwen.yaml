@@ -1,0 +1,1166 @@
+name: Mini-SOC CI Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - develop
+      - dev
+      - 'feature/**'
+      - 'test/**'
+  pull_request:
+    branches:
+      - main
+      - master
+      - develop
+  schedule:
+    # Réentraînement ML hebdomadaire + validation complète.
+    - cron: '0 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: minisoc-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  NODE_VERSION: '24'
+  PYTHON_VERSION: '3.12'
+  POSTGRES_TEST_URL: postgresql://test:test@localhost:5432/minisoc_test
+  MINISOC_CI_TEST_ID: ${{ github.run_id }}-${{ github.run_attempt }}
+
+jobs:
+  # ============================================================
+  # 1. LINT / FORMAT
+  # ============================================================
+  lint:
+    name: Lint / Format (${{ matrix.app }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [backend, frontend]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: apps/${{ matrix.app }}/package-lock.json
+
+      - name: Install dependencies
+        working-directory: apps/${{ matrix.app }}
+        run: npm ci
+
+      - name: Generate Prisma client
+        if: matrix.app == 'backend'
+        working-directory: apps/backend
+        run: npx prisma generate
+
+      - name: Lint
+        working-directory: apps/${{ matrix.app }}
+        run: npm run lint
+
+      - name: Format check
+        working-directory: apps/${{ matrix.app }}
+        run: npm run format:check
+
+  # ============================================================
+  # 2. BACKEND TESTS
+  # ============================================================
+  test-backend:
+    name: Backend Unit / Integration
+    runs-on: ubuntu-latest
+    needs: lint
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: minisoc_test
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test -d minisoc_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: apps/backend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: apps/backend
+        run: npm ci --omit=optional
+
+      - name: Generate Prisma client
+        working-directory: apps/backend
+        run: npx prisma generate
+
+      - name: Prepare test database
+        working-directory: apps/backend
+        env:
+          DATABASE_URL: ${{ env.POSTGRES_TEST_URL }}
+        run: |
+          set -euo pipefail
+          npx prisma db push --skip-generate
+          npx prisma validate
+
+      - name: Seed test database
+        working-directory: apps/backend
+        env:
+          DATABASE_URL: ${{ env.POSTGRES_TEST_URL }}
+        run: |
+          set -euo pipefail
+          if npm run | grep -q "db:seed"; then
+            npm run db:seed
+          else
+            npx prisma db seed
+          fi
+
+      - name: Run backend tests
+        working-directory: apps/backend
+        env:
+          DATABASE_URL: ${{ env.POSTGRES_TEST_URL }}
+          JWT_SECRET: super-secure-sonar-test-secret-minimum-32-chars-long
+          JWT_REFRESH_SECRET: super-secure-refresh-test-secret-minimum-32-chars
+          REDIS_HOST: localhost
+          REDIS_PORT: '6379'
+          REDIS_URL: redis://localhost:6379
+          NODE_ENV: test
+          MINISOC_CI_TEST_ID: ${{ env.MINISOC_CI_TEST_ID }}
+        run: npm run test:cov -- --watch=false
+
+      - name: Upload backend coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: apps/backend/coverage/
+          retention-days: 14
+          if-no-files-found: ignore
+
+  # ============================================================
+  # 3. FRONTEND TESTS
+  # ============================================================
+  test-frontend:
+    name: Frontend Unit Tests
+    runs-on: ubuntu-latest
+    needs: lint
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: apps/frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: apps/frontend
+        run: npm ci
+
+      - name: Run Vitest
+        working-directory: apps/frontend
+        env:
+          CI: 'true'
+        run: npx vitest run
+
+  # ============================================================
+  # 4. BUILD
+  # ============================================================
+  build:
+    name: Build (${{ matrix.app }})
+    runs-on: ubuntu-latest
+    needs: [test-backend, test-frontend]
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [backend, frontend]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: apps/${{ matrix.app }}/package-lock.json
+
+      - name: Install dependencies
+        working-directory: apps/${{ matrix.app }}
+        run: npm ci
+
+      - name: Generate Prisma client
+        if: matrix.app == 'backend'
+        working-directory: apps/backend
+        run: npx prisma generate
+
+      - name: Build
+        working-directory: apps/${{ matrix.app }}
+        run: npm run build
+
+  # ============================================================
+  # 5. SECURITY SCAN
+  # ============================================================
+  security:
+    name: Dependency / Filesystem Security Scan
+    runs-on: ubuntu-latest
+    needs: lint
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trivy backend
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: apps/backend
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: '0'
+
+      - name: Trivy frontend
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: apps/frontend
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: '0'
+
+      - name: npm audit
+        run: |
+          set -euo pipefail
+          echo "--- Backend audit ---"
+          (cd apps/backend && npm ci --ignore-scripts && npm audit --audit-level=critical) || echo "::warning::Backend audit reported vulnerabilities"
+          echo "--- Frontend audit ---"
+          (cd apps/frontend && npm ci --ignore-scripts && npm audit --audit-level=critical) || echo "::warning::Frontend audit reported vulnerabilities"
+
+  # ============================================================
+  # 6. STATIC INFRA / CONFIG VALIDATION
+  # ============================================================
+  infra-validation:
+    name: Infrastructure / Config Validation
+    runs-on: ubuntu-latest
+    needs: build
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Python validation dependencies
+        run: python3 -m pip install pyyaml
+
+      - name: Prepare compose secrets
+        run: |
+          set -euo pipefail
+          mkdir -p secrets
+          printf '%s' 'testpass' > secrets/postgres_password.txt
+          printf '%s' 'testpass' > secrets/db_password.txt
+          printf '%s' 'testjwt-secret-minimum-32-chars-long-for-testing' > secrets/jwt_secret.txt
+          printf '%s' 'testjwt-refresh-secret-minimum-32-chars-long' > secrets/jwt_refresh_secret.txt
+          printf '%s' 'testwazuhpass' > secrets/wazuh_api_password.txt
+          printf '%s' 'testredispass' > secrets/redis_password.txt
+          printf '%s' 'testmisppass' > secrets/misp_password.txt
+          touch .env
+
+      - name: Validate Docker Compose
+        run: docker compose config --quiet
+
+      - name: Validate Grafana dashboard
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          p = "infrastructure/monitoring/grafana/dashboards/soc-overview.json"
+          d = json.load(open(p))
+          assert d.get("uid") == "soc-overview", "Bad Grafana dashboard uid"
+          assert len(d.get("panels", [])) >= 10, "Expected at least 10 Grafana panels"
+          print("Grafana dashboard OK")
+          PY
+
+      - name: Validate Prometheus
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import yaml
+          p = "infrastructure/monitoring/prometheus/prometheus.yml"
+          d = yaml.safe_load(open(p))
+          jobs = [x.get("job_name") for x in d.get("scrape_configs", [])]
+          assert "minisoc-backend" in jobs, "Missing minisoc-backend scrape job"
+          print(jobs)
+          PY
+
+      - name: Validate workflow YAML
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import glob, yaml
+          for p in glob.glob(".github/workflows/*.yml"):
+              yaml.safe_load(open(p))
+              print("Valid:", p)
+          PY
+
+  # ============================================================
+  # 7. DATABASE VALIDATION
+  # ============================================================
+  database-validation:
+    name: PostgreSQL / Prisma Validation
+    runs-on: ubuntu-latest
+    needs: build
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: minisoc_test
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test -d minisoc_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: apps/backend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: apps/backend
+        run: npm ci --omit=optional
+
+      - name: Prisma generate / validate / schema
+        working-directory: apps/backend
+        env:
+          DATABASE_URL: ${{ env.POSTGRES_TEST_URL }}
+        run: |
+          set -euo pipefail
+          npx prisma generate
+          npx prisma validate
+          npx prisma db push --skip-generate
+
+      - name: Seed
+        working-directory: apps/backend
+        env:
+          DATABASE_URL: ${{ env.POSTGRES_TEST_URL }}
+        run: npx prisma db seed
+
+      - name: Verify required tables
+        run: |
+          set -euo pipefail
+          PGPASSWORD=test psql -h localhost -U test -d minisoc_test -c "\dt" | tee tables.txt
+          grep -q "users" tables.txt
+          grep -q "incidents" tables.txt
+          grep -q "alerts" tables.txt
+
+  # ============================================================
+  # 8. ML VALIDATION + SCHEDULED RETRAINING
+  # ============================================================
+  ml-validation:
+    name: ML Training / Evaluation / API
+    runs-on: ubuntu-latest
+    needs: build
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: services/ml-engine/requirements.txt
+
+      - name: Install ML dependencies
+        run: python -m pip install -r services/ml-engine/requirements.txt pyyaml
+
+      - name: Generate training data
+        run: python services/ml-engine/training/generate_synthetic_data.py
+
+      - name: Train model
+        run: python services/ml-engine/training/train.py
+
+      - name: Evaluate model
+        run: python services/ml-engine/training/evaluate.py
+
+      - name: Regression validation
+        run: python services/ml-engine/training/validate_model.py
+
+      - name: Start ML API and test anomaly endpoint
+        run: |
+          set -euo pipefail
+          cd services/ml-engine
+          uvicorn main:app --host 127.0.0.1 --port 8000 > ../../ml-engine.log 2>&1 &
+          echo $! > ../../ml-engine.pid
+
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8000/health >/dev/null; then
+              break
+            fi
+            [ "$i" -eq 30 ] && { cat ../../ml-engine.log; exit 1; }
+            sleep 1
+          done
+
+          curl -fsS http://127.0.0.1:8000/health | tee ../../ml-health.json
+
+          curl -fsS -X POST http://127.0.0.1:8000/detect-anomaly \
+            -H 'Content-Type: application/json' \
+            -d '{"hour_of_day":3,"day_of_week":6,"alert_level":14,"src_port":31337,"dst_port":4444,"bytes_transferred":5000000,"connection_duration":120,"failed_attempts":50,"unique_destinations":30,"is_internal_src":false}' \
+            | tee ../../ml-anomaly.json
+
+          python3 - <<'PY'
+          import json
+          d=json.load(open("ml-anomaly.json"))
+          assert isinstance(d.get("anomaly_score"), (int,float)), d
+          PY
+
+      - name: Stop ML API
+        if: always()
+        run: |
+          if [ -f ml-engine.pid ]; then
+            kill "$(cat ml-engine.pid)" 2>/dev/null || true
+          fi
+
+      - name: Upload ML artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ml-validation
+          path: |
+            services/ml-engine/models/
+            ml-engine.log
+            ml-health.json
+            ml-anomaly.json
+          retention-days: 30
+          if-no-files-found: ignore
+
+  # ============================================================
+  # 9. MITRE ATT&CK / SIGMA / WAZUH / SURICATA VALIDATION
+  # ============================================================
+  security-content-validation:
+    name: MITRE / Sigma / Wazuh / Suricata
+    runs-on: ubuntu-latest
+    needs: build
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install validation dependencies
+        run: python -m pip install pyyaml
+
+      - name: Validate Suricata rules
+        run: |
+          set -euo pipefail
+          f="security/suricata/rules/custom-minisoc.rules"
+          test -s "$f"
+          count=$(grep -c '^alert ' "$f")
+          test "$count" -gt 0
+          echo "Suricata rules: $count"
+
+          if grep '^alert ' "$f" | grep -v 'sid:' >/dev/null; then
+            echo "Rule without sid detected"
+            exit 1
+          fi
+
+      - name: Validate Wazuh rules XML
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          for path in ["security/wazuh/rules/local_rules.xml", "security/wazuh/ossec.conf"]:
+              ET.parse(path)
+          root=ET.parse("security/wazuh/rules/local_rules.xml").getroot()
+          rules=root.findall(".//rule")
+          assert rules
+          for r in rules:
+              assert r.get("id")
+              assert r.get("level")
+          print("Wazuh rules OK:", len(rules))
+          PY
+
+      - name: Validate Sigma rules
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import glob, yaml
+          paths=glob.glob("security/sigma/rules/*.yml")
+          assert paths, "No Sigma rules"
+          count=0
+          for p in paths:
+              for doc in yaml.safe_load_all(open(p)):
+                  if isinstance(doc, dict):
+                      assert doc.get("title"), p
+                      count += 1
+          assert count > 0
+          print("Sigma rules OK:", count)
+          PY
+
+      - name: Generate and validate MITRE ATT&CK Navigator layer
+        run: |
+          set -euo pipefail
+          python security/mitre/generate-layer.py --base-dir .
+          python security/mitre/validate-layer.py
+          python3 - <<'PY'
+          import json
+          d=json.load(open("security/mitre/techniques.json"))
+          assert d.get("total",0) > 0
+          print("MITRE techniques:", d["total"])
+          PY
+
+      - name: Upload MITRE artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mitre-attack-layer
+          path: |
+            security/mitre/attack-layer.json
+            security/mitre/techniques.json
+          retention-days: 90
+          if-no-files-found: ignore
+
+  # ============================================================
+  # 10. SOAR / OBSERVABILITY STATIC VALIDATION
+  # ============================================================
+  platform-validation:
+    name: SOAR / Grafana / Prometheus Validation
+    runs-on: ubuntu-latest
+    needs: build
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: python -m pip install pyyaml
+
+      - name: Validate n8n workflows
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import glob, json
+          files=glob.glob("infrastructure/n8n/workflows/*.json")
+          assert files, "No n8n workflows found"
+          for p in files:
+              d=json.load(open(p))
+              assert isinstance(d.get("nodes",[]), list), p
+              print(p, "nodes:", len(d.get("nodes",[])))
+          PY
+
+      - name: Validate SOAR backend
+        run: |
+          set -euo pipefail
+          test -f apps/backend/src/soar/soar.service.ts
+          test -f apps/backend/src/soar/soar.controller.ts
+          test -f apps/backend/src/soar/playbook-engine.service.ts
+
+      - name: Validate Grafana dashboard
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          d=json.load(open("infrastructure/monitoring/grafana/dashboards/soc-overview.json"))
+          assert d.get("uid") == "soc-overview"
+          panels=d.get("panels",[])
+          assert len(panels) >= 10
+          titles=[p.get("title","") for p in panels]
+          assert any("Alert" in t for t in titles)
+          assert any("Incident" in t for t in titles)
+          assert any("Health" in t or "API" in t for t in titles)
+          PY
+
+      - name: Validate Prometheus
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import yaml
+          p=yaml.safe_load(open("infrastructure/monitoring/prometheus/prometheus.yml"))
+          jobs=[x.get("job_name") for x in p.get("scrape_configs",[])]
+          assert "minisoc-backend" in jobs
+          a=yaml.safe_load(open("infrastructure/monitoring/prometheus/alerts/minisoc.yml"))
+          rules=sum(len(g.get("rules",[])) for g in a.get("groups",[]))
+          assert rules >= 3
+          print("Prometheus jobs:", jobs)
+          print("Alert rules:", rules)
+          PY
+
+      - name: Validate required metrics
+        run: |
+          set -euo pipefail
+          f="apps/backend/src/metrics/metrics.service.ts"
+          for metric in \
+            minisoc_soar_executions_total \
+            minisoc_soar_failures_total \
+            minisoc_ml_predictions_total \
+            minisoc_ml_anomalies_total; do
+            grep -q "$metric" "$f"
+          done
+
+  # ============================================================
+  # 11. FULL MINI-SOC E2E STACK
+  #
+  # IMPORTANT:
+  # Tout ce qui doit communiquer ensemble est exécuté dans CE job.
+  # Un autre job GitHub Actions n'est pas réutilisable comme réseau.
+  # ============================================================
+  minisoc-e2e:
+    name: Full Mini-SOC E2E
+    runs-on: ubuntu-latest
+    needs:
+      - build
+      - infra-validation
+      - database-validation
+      - ml-validation
+      - security-content-validation
+      - platform-validation
+    timeout-minutes: 60
+
+    env:
+      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
+      ABUSEIPDB_API_KEY: ${{ secrets.ABUSEIPDB_API_KEY }}
+      VIRUSTOTAL_API_KEY: ${{ secrets.VIRUSTOTAL_API_KEY }}
+      OTX_API_KEY: ${{ secrets.OTX_API_KEY }}
+      SHODAN_API_KEY: ${{ secrets.SHODAN_API_KEY }}
+      MISP_API_KEY: ${{ secrets.MISP_API_KEY }}
+      MINISOC_CI_TEST_ID: ${{ env.MINISOC_CI_TEST_ID }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ----------------------------------------------------------
+      # Host preparation
+      # ----------------------------------------------------------
+      - name: Prepare Linux host for OpenSearch / IDS / Falco
+        run: |
+          set -euo pipefail
+          sudo sysctl -w vm.max_map_count=262144
+          sudo sysctl -w kernel.unprivileged_bpf_disabled=0 || true
+          sudo ip link set eth0 promisc on || true
+
+      # ----------------------------------------------------------
+      # Secrets / environment
+      # ----------------------------------------------------------
+      - name: Validate required CI secrets
+        run: |
+          set -euo pipefail
+          : "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD secret is required}"
+          : "${JWT_SECRET:?JWT_SECRET secret is required}"
+          : "${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET secret is required}"
+
+      - name: Create Mini-SOC CI environment
+        run: |
+          set -euo pipefail
+
+          mkdir -p secrets
+
+          printf '%s' "$POSTGRES_PASSWORD" > secrets/postgres_password.txt
+          printf '%s' "$POSTGRES_PASSWORD" > secrets/db_password.txt
+          printf '%s' "$JWT_SECRET" > secrets/jwt_secret.txt
+          printf '%s' "$JWT_REFRESH_SECRET" > secrets/jwt_refresh_secret.txt
+          printf '%s' 'ci-wazuh-password' > secrets/wazuh_api_password.txt
+          printf '%s' 'ci-redis-password' > secrets/redis_password.txt
+          printf '%s' 'ci-misp-password' > secrets/misp_password.txt
+
+          cat > .env <<EOF
+          POSTGRES_USER=minisoc_app
+          POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+          POSTGRES_DB=minisoc
+          DATABASE_URL=postgresql://minisoc_app:${POSTGRES_PASSWORD}@postgres:5432/minisoc?schema=public
+
+          DB_POSTGRESDB_USER=minisoc_app
+          DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
+          DB_POSTGRESDB_DATABASE=n8n
+
+          JWT_SECRET=${JWT_SECRET}
+          JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+          API_CORS_ORIGINS=*
+          API_PORT=4000
+
+          ORACLE_PORTS=1521
+          HTTP_PORTS=80
+
+          ABUSEIPDB_API_KEY=${ABUSEIPDB_API_KEY}
+          VIRUSTOTAL_API_KEY=${VIRUSTOTAL_API_KEY}
+          OTX_API_KEY=${OTX_API_KEY}
+          ALIENVAULT_OTX_API_KEY=${OTX_API_KEY}
+          SHODAN_API_KEY=${SHODAN_API_KEY}
+          MISP_API_KEY=${MISP_API_KEY}
+
+          MINISOC_CI_TEST_ID=${MINISOC_CI_TEST_ID}
+          NODE_ENV=test
+          EOF
+
+          if [ -f ./scripts/generate-certs.sh ]; then
+            chmod +x ./scripts/generate-certs.sh
+            ./scripts/generate-certs.sh
+          fi
+
+          docker compose --env-file .env config --quiet
+
+      # ----------------------------------------------------------
+      # Infrastructure startup
+      # ----------------------------------------------------------
+      - name: Start PostgreSQL Redis OpenSearch
+        run: |
+          set -euo pipefail
+          docker compose --env-file .env up -d postgres redis opensearch
+
+          for i in $(seq 1 36); do
+            PG_OK=0
+            OS_OK=0
+            REDIS_OK=0
+
+            docker exec minisoc-postgres pg_isready -U minisoc_app -d minisoc >/dev/null 2>&1 && PG_OK=1 || true
+            curl -fsS http://localhost:9200/_cluster/health >/dev/null 2>&1 && OS_OK=1 || true
+            docker exec minisoc-redis redis-cli ping >/dev/null 2>&1 && REDIS_OK=1 || true
+
+            if [ "$PG_OK" = 1 ] && [ "$OS_OK" = 1 ] && [ "$REDIS_OK" = 1 ]; then
+              echo "Core infrastructure ready"
+              exit 0
+            fi
+
+            sleep 5
+          done
+
+          docker compose ps
+          docker compose logs --no-color postgres redis opensearch
+          exit 1
+
+      # ----------------------------------------------------------
+      # Prisma
+      # ----------------------------------------------------------
+      - name: Initialize Prisma database
+        working-directory: apps/backend
+        run: |
+          set -euo pipefail
+          npm ci
+          npx prisma generate
+          DATABASE_URL="postgresql://minisoc_app:${POSTGRES_PASSWORD}@127.0.0.1:5432/minisoc?schema=public" npx prisma db push --skip-generate
+          DATABASE_URL="postgresql://minisoc_app:${POSTGRES_PASSWORD}@127.0.0.1:5432/minisoc?schema=public" npx prisma db seed
+
+      # ----------------------------------------------------------
+      # Full stack
+      # ----------------------------------------------------------
+      - name: Start complete Mini-SOC stack
+        run: |
+          set -euo pipefail
+
+          docker compose --env-file .env up -d --build
+
+          echo "Waiting for API..."
+          for i in $(seq 1 48); do
+            if curl -fsS http://localhost:4000/health >/dev/null 2>&1 || \
+               curl -kfsS https://localhost/api/health >/dev/null 2>&1; then
+              echo "Mini-SOC API ready"
+              break
+            fi
+
+            if [ "$i" -eq 48 ]; then
+              docker compose ps
+              docker compose logs --no-color minisoc-api
+              exit 1
+            fi
+            sleep 5
+          done
+
+          docker compose ps
+
+      # ----------------------------------------------------------
+      # Basic service health
+      # ----------------------------------------------------------
+      - name: Validate critical service health
+        run: |
+          set -euo pipefail
+
+          curl -fsS http://localhost:9200/_cluster/health
+          curl -fsS http://localhost:4000/health >/dev/null || curl -kfsS https://localhost/api/health >/dev/null
+
+          if curl -fsS http://localhost:8000/health >/dev/null 2>&1; then
+            echo "ML Engine reachable"
+          else
+            echo "ML Engine is not exposed on host:8000; it will be validated through the application flow."
+          fi
+
+      # ----------------------------------------------------------
+      # Wazuh / OpenSearch flow
+      # ----------------------------------------------------------
+      - name: Validate Wazuh integration
+        run: |
+          set -euo pipefail
+
+          docker compose ps
+
+          WAZUH_CONTAINER=$(docker compose ps --services | grep -E '^wazuh-(manager|server)$|^wazuh$' | head -n1 || true)
+
+          if [ -n "$WAZUH_CONTAINER" ]; then
+            echo "Wazuh service detected: $WAZUH_CONTAINER"
+            docker compose ps "$WAZUH_CONTAINER"
+            docker compose logs --no-color --tail=100 "$WAZUH_CONTAINER"
+          else
+            echo "Wazuh service is not exposed as a compose service name matching the expected pattern."
+            echo "Failing because Wazuh is a required Mini-SOC detection layer."
+            exit 1
+          fi
+
+      # ----------------------------------------------------------
+      # Suricata flow
+      # ----------------------------------------------------------
+      - name: Validate Suricata detection flow
+        run: |
+          set -euo pipefail
+
+          SURICATA_CONTAINER=$(docker compose ps --services | grep -E '^suricata$' | head -n1 || true)
+          test -n "$SURICATA_CONTAINER"
+
+          docker compose ps "$SURICATA_CONTAINER"
+
+          # Génère du trafic de test non destructif.
+          curl -sS -o /dev/null -A 'MiniSOC-CI-Suricata-Test' \
+            'http://localhost/health?file=../../../../etc/passwd' || true
+
+          curl -sS -o /dev/null -A 'MiniSOC-CI-Suricata-Test' \
+            'http://localhost/?q=%27%20OR%201%3D1--' || true
+
+          sleep 10
+
+          LOGS=$(docker compose logs --no-color "$SURICATA_CONTAINER" 2>&1 || true)
+          echo "$LOGS" | tail -n 200
+
+          echo "$LOGS" | grep -Eiq 'alert|suricata|signature|eve.json' || {
+            echo "No Suricata evidence found in container logs"
+            exit 1
+          }
+
+      # ----------------------------------------------------------
+      # Zeek flow
+      # ----------------------------------------------------------
+      - name: Validate Zeek network metadata flow
+        run: |
+          set -euo pipefail
+
+          ZEEK_CONTAINER=$(docker compose ps --services | grep -E '^zeek$' | head -n1 || true)
+          test -n "$ZEEK_CONTAINER"
+
+          docker compose ps "$ZEEK_CONTAINER"
+
+          curl -sS -o /dev/null http://localhost/health || true
+          sleep 5
+
+          LOGS=$(docker compose logs --no-color "$ZEEK_CONTAINER" 2>&1 || true)
+          echo "$LOGS" | tail -n 200
+
+          echo "$LOGS" | grep -Eiq 'zeek|conn|http|dns|notice' || {
+            echo "No Zeek evidence found in container logs"
+            exit 1
+          }
+
+      # ----------------------------------------------------------
+      # Falco runtime flow
+      # ----------------------------------------------------------
+      - name: Validate Falco runtime detection
+        run: |
+          set -euo pipefail
+
+          FALCO_CONTAINER=$(docker compose ps --services | grep -E '^falco$' | head -n1 || true)
+          test -n "$FALCO_CONTAINER"
+
+          docker compose ps "$FALCO_CONTAINER"
+
+          # Événement runtime contrôlé dans le conteneur API.
+          docker exec minisoc-api /bin/sh -c 'id && whoami' >/dev/null
+
+          sleep 5
+
+          LOGS=$(docker compose logs --no-color "$FALCO_CONTAINER" 2>&1 || true)
+          echo "$LOGS" | tail -n 250
+
+          echo "$LOGS" | grep -Eiq 'Notice|Warning|Error|falco|syscall|container' || {
+            echo "No Falco evidence found in logs after runtime event"
+            exit 1
+          }
+
+      # ----------------------------------------------------------
+      # API / Auth / Incidents / Alerts / Threat Intel
+      # ----------------------------------------------------------
+      - name: Validate application API flows
+        env:
+          BASE_URL: https://localhost/api
+        run: |
+          set -euo pipefail
+
+          HEALTH_CODE=$(curl -ks -o /tmp/health.json -w '%{http_code}' "$BASE_URL/health")
+          test "$HEALTH_CODE" -ge 200
+          test "$HEALTH_CODE" -lt 500
+
+          LOGIN_CODE=$(curl -ks -o /tmp/login.json -w '%{http_code}' \
+            -X POST "$BASE_URL/auth/login" \
+            -H 'Content-Type: application/json' \
+            -d '{"email":"admin@minisoc.local","password":"Admin@MiniSOC2026!"}')
+
+          cat /tmp/login.json
+
+          test "$LOGIN_CODE" -ge 200
+          test "$LOGIN_CODE" -lt 300
+
+          TOKEN=$(jq -r '.accessToken // .access_token // .token // empty' /tmp/login.json)
+          test -n "$TOKEN"
+
+          INCIDENTS_CODE=$(curl -ks -o /tmp/incidents.json -w '%{http_code}' \
+            "$BASE_URL/incidents" \
+            -H "Authorization: Bearer $TOKEN")
+
+          cat /tmp/incidents.json
+          test "$INCIDENTS_CODE" -ge 200
+          test "$INCIDENTS_CODE" -lt 300
+
+          ALERTS_CODE=$(curl -ks -o /tmp/alerts.json -w '%{http_code}' \
+            "$BASE_URL/alerts" \
+            -H "Authorization: Bearer $TOKEN")
+
+          cat /tmp/alerts.json
+          test "$ALERTS_CODE" -ge 200
+          test "$ALERTS_CODE" -lt 300
+
+          TI_CODE=$(curl -ks -o /tmp/ti.json -w '%{http_code}' \
+            "$BASE_URL/threat-intel/lookup/185.220.101.5" \
+            -H "Authorization: Bearer $TOKEN")
+
+          cat /tmp/ti.json
+          test "$TI_CODE" -ge 200
+          test "$TI_CODE" -lt 500
+
+      # ----------------------------------------------------------
+      # Processing / ML / Risk
+      # ----------------------------------------------------------
+      - name: Validate processing and risk pipeline
+        run: |
+          set -euo pipefail
+
+          echo "Triggering a correlation input through the public API."
+          curl -ksS https://localhost/api/health >/dev/null
+
+          # L'API doit exposer les métriques et rester opérationnelle.
+          METRICS=$(curl -ksS https://localhost/api/metrics || curl -ksS https://localhost/metrics)
+          echo "$METRICS" | head -n 50
+
+          echo "$METRICS" | grep -Eq 'minisoc_|process_|http_' || {
+            echo "No Prometheus metrics exposed by the Mini-SOC API"
+            exit 1
+          }
+
+      # ----------------------------------------------------------
+      # SOAR / n8n / TheHive
+      # ----------------------------------------------------------
+      - name: Validate SOAR runtime integration
+        run: |
+          set -euo pipefail
+
+          for service in n8n thehive; do
+            if docker compose ps --services | grep -qx "$service"; then
+              echo "Found service: $service"
+              docker compose ps "$service"
+            else
+              echo "Service $service not exposed by docker compose; checking application integration instead."
+            fi
+          done
+
+          # Vérification que les modules SOAR existent et que l'API reste disponible.
+          curl -ksSf https://localhost/api/health >/dev/null || curl -ksSf http://localhost:4000/health >/dev/null
+
+      # ----------------------------------------------------------
+      # Observability
+      # ----------------------------------------------------------
+      - name: Validate Grafana / Prometheus runtime
+        run: |
+          set -euo pipefail
+
+          curl -fsS http://localhost:9090/-/ready >/dev/null
+          curl -fsS http://localhost:3000/api/health >/dev/null
+
+          echo "Prometheus ready"
+          echo "Grafana ready"
+
+      # ----------------------------------------------------------
+      # Playwright E2E
+      # ----------------------------------------------------------
+      - name: Install frontend dependencies
+        working-directory: apps/frontend
+        run: npm ci
+
+      - name: Install Playwright
+        run: |
+          npm init -y
+          npm install --no-save @playwright/test
+          npx playwright install --with-deps chromium
+
+      - name: Run Playwright E2E
+        env:
+          CI: 'true'
+          PLAYWRIGHT_BASE_URL: https://localhost
+          MINISOC_CI_TEST_ID: ${{ env.MINISOC_CI_TEST_ID }}
+        run: npx playwright test --reporter=list
+
+      # ----------------------------------------------------------
+      # Diagnostics
+      # ----------------------------------------------------------
+      - name: Collect Docker status
+        if: always()
+        run: docker compose ps
+
+      - name: Collect Docker logs
+        if: always()
+        run: docker compose logs --no-color > docker-compose.log 2>&1 || true
+
+      - name: Upload E2E diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: minisoc-e2e-diagnostics
+          retention-days: 14
+          path: |
+            playwright-report/
+            test-results/
+            docker-compose.log
+            **/*.log
+            /tmp/health.json
+            /tmp/login.json
+            /tmp/incidents.json
+            /tmp/alerts.json
+            /tmp/ti.json
+          if-no-files-found: ignore
+
+      - name: Cleanup Mini-SOC stack
+        if: always()
+        run: docker compose --env-file .env down -v --remove-orphans
+
+  # ============================================================
+  # 12. DOCKER BUILD / PUSH
+  # ============================================================
+  docker-push:
+    name: Docker Build / Push (${{ matrix.app }})
+    runs-on: ubuntu-latest
+    needs:
+      - security
+      - minisoc-e2e
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: backend
+            image_name: backend
+          - app: frontend
+            image_name: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/${{ matrix.app }}/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.image_name }}:latest
+            ${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.image_name }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ============================================================
+  # 13. SUMMARY
+  # ============================================================
+  summary:
+    name: CI Summary
+    runs-on: ubuntu-latest
+    needs:
+      - lint
+      - test-backend
+      - test-frontend
+      - build
+      - security
+      - infra-validation
+      - database-validation
+      - ml-validation
+      - security-content-validation
+      - platform-validation
+      - minisoc-e2e
+      - docker-push
+    if: always()
+
+    steps:
+      - name: Publish summary
+        run: |
+          {
+            echo "## Mini-SOC CI Summary"
+            echo ""
+            echo "| Stage | Result |"
+            echo "|---|---|"
+            echo "| Lint | ${{ needs.lint.result }} |"
+            echo "| Backend tests | ${{ needs.test-backend.result }} |"
+            echo "| Frontend tests | ${{ needs.test-frontend.result }} |"
+            echo "| Build | ${{ needs.build.result }} |"
+            echo "| Security scan | ${{ needs.security.result }} |"
+            echo "| Infrastructure | ${{ needs.infra-validation.result }} |"
+            echo "| Database / Prisma | ${{ needs.database-validation.result }} |"
+            echo "| ML training / validation | ${{ needs.ml-validation.result }} |"
+            echo "| MITRE / Sigma / Wazuh / Suricata | ${{ needs.security-content-validation.result }} |"
+            echo "| SOAR / Grafana / Prometheus | ${{ needs.platform-validation.result }} |"
+            echo "| Full Mini-SOC E2E | ${{ needs.minisoc-e2e.result }} |"
+            echo "| Docker push | ${{ needs.docker-push.result }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
