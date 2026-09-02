@@ -5,6 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../../src/users/users.service';
 import { TotpService } from '../../src/auth/mfa/totp.service';
 import { AuditService } from '../../src/audit/audit.service';
+import { RedisService } from '../../src/redis/redis.service'; // Assurez-vous que le chemin vers RedisService est exact
 import { UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 
@@ -48,6 +49,16 @@ describe('AuthService', () => {
         },
         { provide: TotpService, useValue: { verify: jest.fn() } },
         { provide: AuditService, useValue: { log: jest.fn() } },
+        {
+          provide: RedisService,
+          useValue: {
+            get: jest.fn(),
+            set: jest.fn(),
+            del: jest.fn(),
+            onModuleInit: jest.fn(),
+            onModuleDestroy: jest.fn(),
+          },
+        },
       ],
     }).compile();
 

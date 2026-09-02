@@ -8,6 +8,7 @@ import { PlaybookActionType } from '../../src/soar/dto/create-playbook.dto';
 
 describe('SoarService', () => {
   let service: SoarService;
+  let module: TestingModule;
   let mockPrisma: any;
   let mockPlaybookEngine: any;
 
@@ -31,7 +32,7 @@ describe('SoarService', () => {
       }),
     };
 
-    const module: TestingModule = await Test.createTestingModule({
+    module = await Test.createTestingModule({
       providers: [
         SoarService,
         { provide: PrismaService, useValue: mockPrisma },
@@ -41,6 +42,28 @@ describe('SoarService', () => {
     }).compile();
 
     service = module.get<SoarService>(SoarService);
+  });
+
+  afterEach(async () => {
+    jest.clearAllMocks();
+    if (module) {
+      await module.close();
+    }
+  });
+
+  describe('getPlaybooks', () => {
+    it('should return all playbooks ordered by creation date', async () => {
+      const mockPlaybooks = [{ id: 'pb-1', name: 'Test Playbook' }];
+      mockPrisma.playbook.findMany.mockResolvedValue(mockPlaybooks);
+
+      const result = await service.getPlaybooks();
+
+      expect(result).toEqual(mockPlaybooks);
+      expect(mockPrisma.playbook.findMany).toHaveBeenCalledWith({
+        orderBy: { createdAt: 'desc' },
+        include: { createdBy: { select: { id: true, name: true } } },
+      });
+    });
   });
 
   describe('createPlaybook', () => {
@@ -95,7 +118,7 @@ describe('SoarService', () => {
         actions: [],
       });
 
-      const result = await service.executeManually('pb-1', { testData: { level: 12 }, dryRun: true }, 'user-1');
+      await service.executeManually('pb-1', { testData: { level: 12 }, dryRun: true }, 'user-1');
 
       expect(mockPlaybookEngine.executePlaybook).toHaveBeenCalledWith(
         expect.any(Object),
@@ -112,6 +135,17 @@ describe('SoarService', () => {
 
       const result = await service.togglePlaybook('pb-1', 'user-1');
       expect(result.isActive).toBe(false);
+    });
+  });
+
+  describe('getDefaultPlaybooks', () => {
+    it('should return array of predefined default playbooks', async () => {
+      const result = await service.getDefaultPlaybooks();
+
+      expect(Array.isArray(result)).toBe(true);
+      expect(result.length).toBeGreaterThan(0);
+      expect(result[0]).toHaveProperty('name');
+      expect(result[0]).toHaveProperty('actions');
     });
   });
 });

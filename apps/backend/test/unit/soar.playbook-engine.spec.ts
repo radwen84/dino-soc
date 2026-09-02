@@ -11,6 +11,7 @@ import { PlaybookActionType, PlaybookActionDto, PlaybookRiskLevel, ConditionOper
 
 describe('PlaybookEngine', () => {
   let engine: PlaybookEngine;
+  let module: TestingModule;
   let mockPrisma: any;
   let mockRedis: any;
   let mockWazuh: any;
@@ -18,6 +19,9 @@ describe('PlaybookEngine', () => {
   let mockThreatIntel: any;
 
   beforeEach(async () => {
+    // Activer les fakes timers pour intercepter les setTimeout pendant l'exécution
+    jest.useFakeTimers();
+
     mockPrisma = {
       playbook: {
         findMany: jest.fn().mockResolvedValue([]),
@@ -47,7 +51,7 @@ describe('PlaybookEngine', () => {
       lookup: jest.fn().mockResolvedValue({ knownIoc: true, riskLevel: 'high' }),
     };
 
-    const module: TestingModule = await Test.createTestingModule({
+    module = await Test.createTestingModule({
       providers: [
         PlaybookEngine,
         { provide: PrismaService, useValue: mockPrisma },
@@ -61,6 +65,17 @@ describe('PlaybookEngine', () => {
     }).compile();
 
     engine = module.get<PlaybookEngine>(PlaybookEngine);
+  });
+
+  afterEach(async () => {
+    // Nettoyer les timers en attente puis réinitialiser vers les vrais timers
+    jest.clearAllTimers();
+    jest.useRealTimers();
+
+    jest.clearAllMocks();
+    if (module) {
+      await module.close();
+    }
   });
 
   // ─────────────────────────────────────────────────────────
@@ -243,7 +258,6 @@ describe('PlaybookEngine', () => {
 
       expect(result.status).toBe('failed');
       expect(result.executedActions[0].status).toBe('failed');
-      // Second action should not execute after failure
       expect(result.executedActions.length).toBeLessThanOrEqual(2);
     });
   });

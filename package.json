@@ -9,5 +9,8 @@
     "test": "npm run test --workspaces",
     "test:frontend": "npm run test --workspace=apps/frontend",
     "test:backend": "npm run test --workspace=apps/backend"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0"
   }
 }
