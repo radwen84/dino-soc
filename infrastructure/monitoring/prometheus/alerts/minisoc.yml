@@ -1,0 +1,101 @@
+groups:
+
+  - name: minisoc-availability
+
+    rules:
+
+      - alert: BackendDown
+
+        expr: up{job="minisoc-backend"} == 0
+
+        for: 1m
+
+        labels:
+
+          severity: critical
+
+          team: soc
+
+        annotations:
+
+          summary: "Backend API is down"
+
+          description: "MiniSOC backend has been unreachable for more than 1 minute."
+
+
+
+      - alert: HighErrorRate
+
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.05
+
+        for: 5m
+
+        labels:
+
+          severity: high
+
+          team: soc
+
+        annotations:
+
+          summary: "High error rate detected (>5%)"
+
+          description: "Error rate is {{ $value | humanizePercentage }} over the last 5 minutes."
+
+
+
+  - name: minisoc-security
+
+    rules:
+
+      - alert: HighFailedLogins
+
+        expr: rate(auth_login_failures_total[5m]) > 10
+
+        for: 2m
+
+        labels:
+
+          severity: high
+
+          team: soc
+
+        annotations:
+
+          summary: "High rate of failed login attempts"
+
+          description: "More than 10 failed logins/min - possible brute force attack."
+
+
+
+      - alert: CriticalIncidentCreated
+
+        expr: increase(incidents_created_total{severity="critical"}[5m]) > 0
+
+        labels:
+
+          severity: critical
+
+          team: soc
+
+        annotations:
+
+          summary: "New critical incident detected"
+
+
+
+      - alert: MLAnomalyBurst
+
+        expr: increase(minisoc_ml_anomalies_total[10m]) > 5
+
+        labels:
+
+          severity: high
+
+          team: soc
+
+        annotations:
+
+          summary: "Burst of ML-detected anomalies"
+
+          description: "More than 5 ML anomalies detected in 10 minutes."
