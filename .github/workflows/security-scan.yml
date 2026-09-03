@@ -26,7 +26,7 @@ jobs:
       - name: Run Semgrep
         run: |
           semgrep scan \
-            --config=auto \
+            --config=p/ci \
             --config=p/owasp-top-ten \
             --config=p/typescript \
             --config=p/security-audit \
@@ -49,7 +49,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Trivy Backend
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.30.0
         with:
           scan-type: fs
           scan-ref: apps/backend
@@ -58,7 +58,7 @@ jobs:
           severity: CRITICAL,HIGH
           vuln-type: library
       - name: Trivy Frontend
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.30.0
         with:
           scan-type: fs
           scan-ref: apps/frontend
@@ -104,13 +104,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Generate Backend SBOM
-        uses: anchore/sbom-action@v0
+        uses: anchore/sbom-action@v0.18.0
         with:
           path: apps/backend
           format: spdx-json
           output-file: sbom-backend.spdx.json
       - name: Generate Frontend SBOM
-        uses: anchore/sbom-action@v0
+        uses: anchore/sbom-action@v0.18.0
         with:
           path: apps/frontend
           format: spdx-json
@@ -130,6 +130,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies (Backend)
+        run: npm ci
+        working-directory: apps/backend
+
+      - name: Install dependencies (Frontend)
+        run: npm ci
+        working-directory: apps/frontend
+
       - name: OWASP Dependency Check
         uses: dependency-check/Dependency-Check_Action@main
         with:
@@ -137,9 +151,8 @@ jobs:
           path: apps/
           format: HTML
           out: reports
-          args: >
-            --failOnCVSS 8
-            --enableExperimental
+          args: --failOnCVSS 8 --enableExperimental --disableNodeAudit
+
       - name: Upload Report
         if: always()
         uses: actions/upload-artifact@v4

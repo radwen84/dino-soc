@@ -1,218 +1,146 @@
 name: ML Model Retraining
 
-
-
 on:
-
   schedule:
-
     - cron: '0 3 * * 1'
-
-  push: 
+  push:
     branches: [main, develop]
   pull_request:
     branches: [main]
-
   workflow_dispatch:
-
     inputs:
-
       reason:
-
         description: 'Reason for manual retraining'
-
         required: false
-
         default: 'manual trigger'
 
-
-
 permissions:
-
   contents: read
 
-
-
 concurrency:
-
   group: ml-retraining-${{ github.ref }}
-
   cancel-in-progress: false
 
-
-
 env:
-
   PYTHON_VERSION: '3.12'
 
-
-
 jobs:
-
   retrain:
-
     name: Retrain / Evaluate / Validate ML Model
-
     runs-on: ubuntu-latest
-
     timeout-minutes: 30
 
-
-
     steps:
-
       - uses: actions/checkout@v4
 
-
-
       - uses: actions/setup-python@v5
-
         with:
-
           python-version: ${{ env.PYTHON_VERSION }}
-
           cache: pip
-
           cache-dependency-path: services/ml-engine/requirements.txt
 
-
-
       - name: Install ML dependencies
-
         run: python -m pip install -r services/ml-engine/requirements.txt pyyaml
 
-
-
       - name: Generate training data
-
         run: python services/ml-engine/training/generate_synthetic_data.py
 
-
-
       - name: Train model
-
         run: python services/ml-engine/training/train.py
 
-
-
       - name: Evaluate model
-
         run: python services/ml-engine/training/evaluate.py
 
-
-
       - name: Regression validation
-
         run: python services/ml-engine/training/validate_model.py
 
-
-
       - name: Verify model artifacts exist
-
         run: |
-
           set -euo pipefail
-
           test -f services/ml-engine/models/anomaly_model.joblib
-
           test -f services/ml-engine/models/scaler.joblib
-
           test -f services/ml-engine/models/metadata.json
-
           test -f services/ml-engine/models/metrics.json
-
           echo "All ML artifacts present."
 
-
-
       - name: Smoke-test ML API with retrained model
-
         run: |
-
           set -euo pipefail
-
           cd services/ml-engine
-
+          
+          # Démarrage d'Uvicorn
           uvicorn main:app --host 127.0.0.1 --port 8000 > ../../ml-retrain.log 2>&1 &
-
           echo $! > ../../ml-retrain.pid
 
-
-
+          # Healthcheck résilient (sans -f pour éviter le crash prématuré avec set -e)
+          echo "Waiting for ML Engine to respond..."
+          READY=0
           for i in $(seq 1 30); do
-
-            if curl -fsS http://127.0.0.1:8000/health >/dev/null; then
-
+            if curl -s http://127.0.0.1:8000/health | grep -q "healthy"; then
+              echo "ML Engine is up and running after ${i}s!"
+              READY=1
               break
-
             fi
-
-            [ "$i" -eq 30 ] && { cat ../../ml-retrain.log; exit 1; }
-
             sleep 1
-
           done
 
-
-
-          curl -fsS -X POST http://127.0.0.1:8000/detect-anomaly \
-
-            -H 'Content-Type: application/json' \
-
-            -d '{"hour_of_day":3,"day_of_week":6,"alert_level":14,"src_port":31337,"dst_port":4444,"bytes_transferred":5000000,"connection_duration":120,"failed_attempts":50,"unique_destinations":30,"is_internal_src":false}' \
-
-            | tee ../../ml-retrain-anomaly.json
-
-
-
-          python3 - <<'PY'
-
-          import json
-
-          d = json.load(open("ml-retrain-anomaly.json"))
-
-          assert isinstance(d.get("anomaly_score"), (int, float)), d
-
-          assert "is_anomaly" in d, d
-
-          print("ML API smoke test OK:", d)
-
-          PY
-
-
-
-      - name: Stop ML API
-
-        if: always()
-
-        run: |
-
-          if [ -f ml-retrain.pid ]; then
-
-            kill "$(cat ml-retrain.pid)" 2>/dev/null || true
-
+          if [ "$READY" -eq 0 ]; then
+            echo "::error::ML Engine failed to start within 30 seconds."
+            cat ../../ml-retrain.log
+            exit 1
           fi
 
+          # Requête de test d'anomalie
+          HTTP_STATUS=$(curl -s -o ../../ml-retrain-anomaly.json -w "%{http_code}" -X POST http://127.0.0.1:8000/detect-anomaly \
+            -H 'Content-Type: application/json' \
+            -d '{
+              "hour_of_day": 3,
+              "day_of_week": 6,
+              "alert_level": 14,
+              "src_port": 31337,
+              "dst_port": 4444,
+              "bytes_transferred": 5000000,
+              "connection_duration": 120,
+              "failed_attempts": 50,
+              "unique_destinations": 30,
+              "is_internal_src": false
+            }')
 
+          if [ "$HTTP_STATUS" -ne 200 ]; then
+            echo "::error::API request failed with HTTP status $HTTP_STATUS"
+            echo "--- Server Response ---"
+            cat ../../ml-retrain-anomaly.json
+            echo -e "\n--- Server Logs ---"
+            cat ../../ml-retrain.log
+            exit 1
+          fi
+
+          # Validation Python de la réponse
+          python3 - <<'PY'
+          import json
+          with open("../../ml-retrain-anomaly.json") as f:
+              d = json.load(f)
+          assert isinstance(d.get("anomaly_score"), (int, float)), f"Bad anomaly_score: {d}"
+          assert "is_anomaly" in d, f"Missing is_anomaly: {d}"
+          print("ML API smoke test OK:", d)
+          PY
+
+      - name: Stop ML API
+        if: always()
+        run: |
+          if [ -f ml-retrain.pid ]; then
+            kill "$(cat ml-retrain.pid)" 2>/dev/null || true
+            rm -f ml-retrain.pid
+          fi
 
       - name: Upload retrained model artifacts
-
         uses: actions/upload-artifact@v4
-
+        if: always()
         with:
-
           name: retrained-model-${{ github.run_id }}
-
           path: |
-
             services/ml-engine/models/
-
-            services/ml-engine/training/metrics.json
-
             ml-retrain.log
-
             ml-retrain-anomaly.json
-
           retention-days: 90
-
           if-no-files-found: warn

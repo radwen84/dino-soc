@@ -159,7 +159,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Trivy - Backend
-        uses: aquasecurity/trivy-action@0.29.0
+        uses: aquasecurity/trivy-action@0.30.0
         with:
           scan-type: 'fs'
           scan-ref: 'apps/backend'
@@ -673,8 +673,8 @@ jobs:
           "
       - name: Validate Grafana provisioning
         run: |
-          test -f infrastructure/monitoring/grafana/dashboards/dashboard.yml
-          test -f infrastructure/monitoring/grafana/datasources/datasource.yml
+          test -f infrastructure/monitoring/grafana/dashboards/dashboards.yml
+          test -f infrastructure/monitoring/grafana/datasources/datasources.yml
           echo "Grafana provisioning files present"
       - name: Validate Prometheus config and alerts
         run: |
