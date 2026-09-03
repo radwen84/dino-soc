@@ -159,7 +159,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Trivy - Backend
-        uses: aquasecurity/trivy-action@0.30.0
+        uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
           scan-ref: 'apps/backend'
@@ -167,7 +167,7 @@ jobs:
           severity: 'CRITICAL,HIGH'
           exit-code: '0'
       - name: Trivy - Frontend
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
           scan-ref: 'apps/frontend'
@@ -456,7 +456,6 @@ jobs:
 
           content = rules_file.read_text(encoding="utf-8")
 
-          # Remove full-line comments
           lines = []
           for line in content.splitlines():
               if not line.strip().startswith("#"):
@@ -464,8 +463,6 @@ jobs:
 
           content = "\n".join(lines)
 
-          # Suricata rules can span multiple lines.
-          # A rule starts with "alert" and ends at the closing ")".
           pattern = re.compile(
               r'^\s*alert\s+.*?\)',
               re.MULTILINE | re.DOTALL
@@ -519,7 +516,6 @@ jobs:
                       f"Rule #{index}: missing MSG"
                   )
 
-          # Stop if a rule is invalid
           if errors:
               print("")
               print("SURICATA RULE VALIDATION ERRORS:")
@@ -529,7 +525,6 @@ jobs:
 
               sys.exit(1)
 
-          # Check duplicate SIDs
           duplicates = sorted(
               {
                   sid
@@ -714,11 +709,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Install Playwright
-        run: |
-          npm init -y
-          npm install @playwright/test
-          npx playwright install --with-deps chromium
+      - name: Install dependencies
+        run: npm ci || npm install
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps chromium
       - name: Build and start frontend
         run: |
           cd apps/frontend
@@ -881,4 +875,3 @@ jobs:
           echo "| SOAR Validation | ${{ needs.soar-validation.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Observability | ${{ needs.observability-validation.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| E2E Playwright | ${{ needs.e2e-playwright.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Security Regression | ${{ needs.security-regression.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY

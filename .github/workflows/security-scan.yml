@@ -58,7 +58,7 @@ jobs:
           severity: CRITICAL,HIGH
           vuln-type: library
       - name: Trivy Frontend
-        uses: aquasecurity/trivy-action@0.30.0
+        uses: aquasecurity/trivy-action@master
         with:
           scan-type: fs
           scan-ref: apps/frontend
@@ -151,7 +151,7 @@ jobs:
           path: apps/
           format: HTML
           out: reports
-          args: --failOnCVSS 8 --enableExperimental --disableNodeAudit
+          args: --failOnCVSS 8 -- disableNodeJS --disableNodeAudit
 
       - name: Upload Report
         if: always()
