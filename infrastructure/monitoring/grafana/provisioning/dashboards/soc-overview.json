@@ -1,0 +1,20 @@
+{
+  "title": "SOC Overview",
+  "uid": "soc-overview",
+  "editable": true,
+  "timezone": "browser",
+  "schemaVersion": 36,
+  "version": 1,
+  "panels": [
+    { "id": 1, "title": "Total Alerts", "type": "stat" },
+    { "id": 2, "title": "Active Incidents", "type": "stat" },
+    { "id": 3, "title": "Critical Alerts Rate", "type": "timeseries" },
+    { "id": 4, "title": "API Health", "type": "stat" },
+    { "id": 5, "title": "Wazuh Events Rate", "type": "timeseries" },
+    { "id": 6, "title": "Suricata Detections", "type": "timeseries" },
+    { "id": 7, "title": "Zeek Network Traffic", "type": "timeseries" },
+    { "id": 8, "title": "Falco Runtime Violations", "type": "timeseries" },
+    { "id": 9, "title": "SOAR Playbook Executions", "type": "stat" },
+    { "id": 10, "title": "ML Engine Predictions", "type": "timeseries" }
+  ]
+}
