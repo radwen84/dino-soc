@@ -1,21 +1,47 @@
+# ==============================================================================
+# IDENTIFIANTS RESEAU
+# ==============================================================================
+
 output "vpc_id" {
-  value = module.vpc.vpc_id
+  description = "ID du VPC Mini-SOC"
+  value       = huaweicloud_vpc.soc_vpc.id
 }
 
-output "eks_cluster_endpoint" {
-  value = module.eks.cluster_endpoint
+output "nat_gateway_ip" {
+  description = "Adresse IP publique de la NAT Gateway (EIP)"
+  value       = huaweicloud_vpc_eip.eip_soc.publicip[0].address
 }
 
-output "eks_cluster_name" {
-  value = module.eks.cluster_name
+# ==============================================================================
+# KUBERNETES (CCE CLUSTER)
+# ==============================================================================
+
+output "cce_cluster_id" {
+  description = "ID du cluster Kubernetes CCE"
+  value       = huaweicloud_cce_cluster.soc_cluster.id
 }
 
-output "rds_endpoint" {
-  value     = module.rds.db_instance_endpoint
-  sensitive = true
+output "cce_cluster_name" {
+  description = "Nom du cluster Kubernetes CCE"
+  value       = huaweicloud_cce_cluster.soc_cluster.name
 }
+
+# ==============================================================================
+# CACHE REDIS (DCS)
+# ==============================================================================
 
 output "redis_endpoint" {
-  value     = aws_elasticache_replication_group.redis.primary_endpoint_address
-  sensitive = true
+  description = "Point d'accès privé (IP/FQDN) de la base Redis DCS"
+  value       = huaweicloud_dcs_instance.redis.ip
+}
+
+output "redis_port" {
+  description = "Port de connexion au service Redis DCS"
+  value       = huaweicloud_dcs_instance.redis.port
+}
+
+output "redis_password_secret" {
+  description = "Mot de passe généré pour le serveur Redis DCS"
+  value       = random_password.redis_password.result
+  sensitive   = true
 }

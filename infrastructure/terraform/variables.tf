@@ -1,53 +1,75 @@
-variable "aws_region" {
-  description = "AWS region"
+# ==============================================================================
+# PROJET ET ENVIRONNEMENT
+# ==============================================================================
+
+variable "project_name" {
+  description = "Nom du projet utilisé comme préfixe pour toutes les ressources"
   type        = string
-  default     = "eu-west-3"
+  default     = "minisoc"
 }
 
 variable "environment" {
-  description = "Environment name"
+  description = "Environnement de déploiement (dev, staging, production)"
   type        = string
   default     = "production"
 }
 
-variable "project_name" {
-  description = "Project name"
+variable "region" {
+  description = "Région Huawei Cloud / MESRS Cloud"
   type        = string
-  default     = "minisoc"
+  default     = "mesrscloud_tunis"
 }
+
+# ==============================================================================
+# RESEAU (VPC)
+# ==============================================================================
 
 variable "vpc_cidr" {
-  description = "VPC CIDR block"
+  description = "Plage CIDR globale pour le VPC"
   type        = string
-  default     = "10.0.0.0/16"
+  default     = "164.160.99.0/24"
 }
 
-variable "eks_cluster_version" {
-  description = "EKS Kubernetes version"
+variable "subnet_nodes_cidr" {
+  description = "Plage CIDR pour le sous-réseau des nœuds CCE"
   type        = string
-  default     = "1.30"
+  default     = "164.160.99.0/25"
 }
 
-variable "eks_node_instance_type" {
-  description = "EC2 instance type for EKS nodes"
+variable "subnet_data_cidr" {
+  description = "Plage CIDR pour le sous-réseau des bases de données et du Redis (DCS)"
   type        = string
-  default     = "t3.medium"
+  default     = "164.160.99.128/25"
 }
 
-variable "eks_desired_capacity" {
-  description = "Desired number of EKS nodes"
+# ==============================================================================
+# COMPUTE (CCE CLUSTER)
+# ==============================================================================
+
+variable "cce_node_count" {
+  description = "Nombre initial de nœuds de travail Kubernetes dans le pool"
   type        = number
-  default     = 3
+  default     = 2
 }
 
-variable "db_instance_class" {
-  description = "RDS instance class"
+variable "cce_node_flavor" {
+  description = "Type d'instance pour les nœuds CCE (ex: s6.xlarge.2 = 4 vCPUs / 8GB RAM)"
   type        = string
-  default     = "db.t3.medium"
+  default     = "s6.xlarge.2"
 }
 
-variable "db_name" {
-  description = "Database name"
-  type        = string
-  default     = "minisoc"
+variable "cce_node_disk_size" {
+  description = "Taille du disque de stockage EVS additionnel en Go pour la rétention des logs"
+  type        = number
+  default     = 100
+}
+
+# ==============================================================================
+# CACHE (DCS REDIS)
+# ==============================================================================
+
+variable "dcs_redis_capacity" {
+  description = "Capacité du cache Redis DCS en Go"
+  type        = number
+  default     = 2
 }
