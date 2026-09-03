@@ -656,6 +656,9 @@ services:
     image: grafana/grafana:11.1.0
     container_name: minisoc-grafana
     restart: unless-stopped
+    ports: 
+      - "3000:3000"
+
     networks:
       - monitoring
       - frontend
@@ -666,8 +669,8 @@ services:
       - GF_SERVER_SERVE_FROM_SUB_PATH=true
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./infrastructure/monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
-      - ./infrastructure/monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./infrastructure/monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./infrastructure/monitoring/grafana/dashboards:/var/lib/grafana/dashboards
     deploy:
       resources:
         limits:
