@@ -420,19 +420,141 @@ jobs:
     needs: build
     steps:
       - uses: actions/checkout@v4
+
       - name: Validate Suricata rules syntax
         run: |
           RULES_FILE="security/suricata/rules/custom-minisoc.rules"
-          RULE_COUNT=$(grep -c "^alert " "$RULES_FILE")
-          echo "Suricata rules: $RULE_COUNT rules found"
-          test "$RULE_COUNT" -gt 0
 
-          MISSING_SID=$(grep "^alert " "$RULES_FILE" | grep -cv "sid:")
-          if [ "$MISSING_SID" -gt 0 ]; then
-            echo "ERROR: $MISSING_SID rules missing sid" >&2
+          echo "=========================================="
+          echo "SURICATA RULE VALIDATION"
+          echo "=========================================="
+
+          if [ ! -f "$RULES_FILE" ]; then
+            echo "ERROR: Rules file not found: $RULES_FILE"
             exit 1
           fi
-          echo "All Suricata rules have valid sids"
+
+          RULE_COUNT=$(grep -Ec '^[[:space:]]*alert[[:space:]]' "$RULES_FILE" || true)
+
+          echo "Suricata rules: $RULE_COUNT rules found"
+
+          if [ "$RULE_COUNT" -eq 0 ]; then
+            echo "ERROR: No Suricata alert rules found"
+            exit 1
+          fi
+
+          python3 - "$RULES_FILE" <<'PYTHON'
+          import re
+          import sys
+          from pathlib import Path
+
+          rules_file = Path(sys.argv[1])
+
+          if not rules_file.exists():
+              print(f"ERROR: File not found: {rules_file}")
+              sys.exit(1)
+
+          content = rules_file.read_text(encoding="utf-8")
+
+          # Remove full-line comments
+          lines = []
+          for line in content.splitlines():
+              if not line.strip().startswith("#"):
+                  lines.append(line)
+
+          content = "\n".join(lines)
+
+          # Suricata rules can span multiple lines.
+          # A rule starts with "alert" and ends at the closing ")".
+          pattern = re.compile(
+              r'^\s*alert\s+.*?\)',
+              re.MULTILINE | re.DOTALL
+          )
+
+          rules = pattern.findall(content)
+
+          print(f"Parsed Suricata rules: {len(rules)}")
+
+          if not rules:
+              print("ERROR: No complete Suricata rules parsed")
+              sys.exit(1)
+
+          errors = []
+          sids = []
+
+          for index, rule in enumerate(rules, start=1):
+
+              sid_match = re.search(
+                  r'\bsid\s*:\s*(\d+)\s*;',
+                  rule,
+                  re.IGNORECASE
+              )
+
+              rev_match = re.search(
+                  r'\brev\s*:\s*(\d+)\s*;',
+                  rule,
+                  re.IGNORECASE
+              )
+
+              msg_match = re.search(
+                  r'\bmsg\s*:\s*"[^"]+"',
+                  rule,
+                  re.IGNORECASE
+              )
+
+              if not sid_match:
+                  errors.append(
+                      f"Rule #{index}: missing valid numeric SID"
+                  )
+              else:
+                  sids.append(sid_match.group(1))
+
+              if not rev_match:
+                  errors.append(
+                      f"Rule #{index}: missing valid numeric REV"
+                  )
+
+              if not msg_match:
+                  errors.append(
+                      f"Rule #{index}: missing MSG"
+                  )
+
+          # Stop if a rule is invalid
+          if errors:
+              print("")
+              print("SURICATA RULE VALIDATION ERRORS:")
+
+              for error in errors:
+                  print(f" - {error}")
+
+              sys.exit(1)
+
+          # Check duplicate SIDs
+          duplicates = sorted(
+              {
+                  sid
+                  for sid in sids
+                  if sids.count(sid) > 1
+              },
+              key=int
+          )
+
+          if duplicates:
+              print("")
+              print(
+                  "ERROR: Duplicate Suricata SID(s): "
+                  + ", ".join(duplicates)
+              )
+              sys.exit(1)
+
+          print("")
+          print("All rules have valid numeric SIDs")
+          print("All rules have valid numeric REVs")
+          print("All rules have MSG fields")
+          print("No duplicate SIDs")
+          print("")
+          print("SURICATA RULE VALIDATION PASSED")
+          PYTHON
 
       - name: Validate Wazuh rules XML
         run: |
@@ -450,7 +572,7 @@ jobs:
 
       - name: Validate Sigma rules
         run: |
-          pip install pyyaml
+          pip install --quiet pyyaml
           python3 -c "
           import yaml, glob, sys
           count = 0
@@ -464,7 +586,7 @@ jobs:
                   if not isinstance(data, dict): continue
                   title = data.get('title', 'untitled')
                   tags = data.get('tags', [])
-                  mitre_tags = [t for t in tags if t.startswith('attack.t')]
+                  mitre_tags = [t for t in tags if isinstance(t, str) and t.startswith('attack.t')]
                   print(f'  {title}: {len(mitre_tags)} MITRE tags')
                   count += 1
           assert count > 0, 'No Sigma rules found'
@@ -493,8 +615,6 @@ jobs:
           os_svc = dc['services'].get('opensearch')
           assert os_svc, 'OpenSearch service not found'
           assert 'healthcheck' in os_svc, 'OpenSearch missing healthcheck'
-          env = {e.split('=')[0]: e.split('=',1)[1] for e in os_svc.get('environment',{}) if '=' in str(e)}
-          assert 'plugins.security.disabled' in env or True, 'ok'
           print('OpenSearch config validated in docker-compose')
           "
 
