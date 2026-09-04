@@ -727,7 +727,7 @@ jobs:
           VITE_API_URL: http://localhost:4000/api
 
       - name: Run Playwright tests
-        run: npx playwright test --reporter=list
+        run: npx playwright test --config=playwright.config.ts --reporter=list
         working-directory: apps/frontend
         env:
           CI: true
