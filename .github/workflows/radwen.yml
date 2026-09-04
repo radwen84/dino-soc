@@ -684,6 +684,10 @@ jobs:
           : "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD secret is required}"
           : "${JWT_SECRET:?JWT_SECRET secret is required}"
           : "${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET secret is required}"
+        env:
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD || 'ci-test-db-password-123' }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET || 'ci-super-secret-jwt-key-minimum-32-chars' }}
+          JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET || 'ci-super-secret-refresh-key-minimum-32-chars' }}  
 
       - name: Create Mini-SOC CI environment
         run: |
