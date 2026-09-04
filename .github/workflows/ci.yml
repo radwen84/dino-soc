@@ -422,7 +422,10 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Validate Suricata rules syntax
+        shell: bash
         run: |
+          set -Eeuo pipefail
+
           RULES_FILE="security/suricata/rules/custom-minisoc.rules"
 
           echo "=========================================="
@@ -434,52 +437,46 @@ jobs:
             exit 1
           fi
 
-          RULE_COUNT=$(grep -Ec '^[[:space:]]*alert[[:space:]]' "$RULES_FILE" || true)
-
-          echo "Suricata rules: $RULE_COUNT rules found"
-
-          if [ "$RULE_COUNT" -eq 0 ]; then
-            echo "ERROR: No Suricata alert rules found"
-            exit 1
-          fi
+          echo "File: $RULES_FILE"
+          echo "Commit: $GITHUB_SHA"
+          echo ""
 
           python3 - "$RULES_FILE" <<'PYTHON'
           import re
           import sys
           from pathlib import Path
 
-          rules_file = Path(sys.argv[1])
+          path = Path(sys.argv[1])
+          content = path.read_text(encoding="utf-8")
 
-          if not rules_file.exists():
-              print(f"ERROR: File not found: {rules_file}")
-              sys.exit(1)
+          rules = []
 
-          content = rules_file.read_text(encoding="utf-8")
+          for line_no, line in enumerate(content.splitlines(), start=1):
+              line = line.strip()
 
-          lines = []
-          for line in content.splitlines():
-              if not line.strip().startswith("#"):
-                  lines.append(line)
+              if not line or line.startswith("#"):
+                  continue
 
-          content = "\n".join(lines)
+              if line.startswith("alert "):
+                  rules.append((line_no, line))
 
-          pattern = re.compile(
-              r'^\s*alert\s+.*?\)',
-              re.MULTILINE | re.DOTALL
-          )
-
-          rules = pattern.findall(content)
-
-          print(f"Parsed Suricata rules: {len(rules)}")
+          print(f"Suricata rules: {len(rules)} rules found")
 
           if not rules:
-              print("ERROR: No complete Suricata rules parsed")
-              sys.exit(1)
+              raise SystemExit(
+                  "ERROR: No Suricata alert rules found"
+              )
 
           errors = []
-          sids = []
+          sids = set()
 
-          for index, rule in enumerate(rules, start=1):
+          for index, (line_no, rule) in enumerate(rules, start=1):
+
+              msg_match = re.search(
+                  r'\bmsg\s*:\s*"([^"]+)"\s*;',
+                  rule,
+                  re.IGNORECASE
+              )
 
               sid_match = re.search(
                   r'\bsid\s*:\s*(\d+)\s*;',
@@ -493,56 +490,49 @@ jobs:
                   re.IGNORECASE
               )
 
-              msg_match = re.search(
-                  r'\bmsg\s*:\s*"[^"]+"',
-                  rule,
-                  re.IGNORECASE
-              )
+              if not msg_match:
+                  errors.append(
+                      f"Rule #{index} line {line_no}: missing MSG"
+                  )
 
               if not sid_match:
                   errors.append(
-                      f"Rule #{index}: missing valid numeric SID"
+                      f"Rule #{index} line {line_no}: missing numeric SID"
                   )
               else:
-                  sids.append(sid_match.group(1))
+                  sid = sid_match.group(1)
+
+                  if sid in sids:
+                      errors.append(
+                          f"Rule #{index} line {line_no}: "
+                          f"duplicate SID {sid}"
+                      )
+
+                  sids.add(sid)
 
               if not rev_match:
                   errors.append(
-                      f"Rule #{index}: missing valid numeric REV"
+                      f"Rule #{index} line {line_no}: missing numeric REV"
                   )
 
-              if not msg_match:
-                  errors.append(
-                      f"Rule #{index}: missing MSG"
-                  )
+              print(
+                  f"Rule #{index}: "
+                  f"SID={sid_match.group(1) if sid_match else 'MISSING'} "
+                  f"REV={rev_match.group(1) if rev_match else 'MISSING'} "
+                  f"MSG={'OK' if msg_match else 'MISSING'}"
+              )
+
+          print("")
 
           if errors:
+              print("SURICATA RULE VALIDATION FAILED")
               print("")
-              print("SURICATA RULE VALIDATION ERRORS:")
 
               for error in errors:
                   print(f" - {error}")
 
               sys.exit(1)
 
-          duplicates = sorted(
-              {
-                  sid
-                  for sid in sids
-                  if sids.count(sid) > 1
-              },
-              key=int
-          )
-
-          if duplicates:
-              print("")
-              print(
-                  "ERROR: Duplicate Suricata SID(s): "
-                  + ", ".join(duplicates)
-              )
-              sys.exit(1)
-
-          print("")
           print("All rules have valid numeric SIDs")
           print("All rules have valid numeric REVs")
           print("All rules have MSG fields")
@@ -709,14 +699,20 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Install dependencies
-        run: npm install -D @playwright/test
+          cache: 'npm'
+          cache-dependency-path: apps/frontend/package-lock.json
+
+      # Installation propre du frontend avec dépendances Playwright
+      - name: Install Frontend Dependencies
+        run: npm ci
+        working-directory: apps/frontend
+
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps chromium
+        working-directory: apps/frontend
+
       - name: Build and start frontend
         run: |
-          cd apps/frontend
-          npm ci
           npm run build
           npx vite preview --port 5173 &
           for i in $(seq 1 30); do
@@ -726,21 +722,25 @@ jobs:
             fi
             sleep 1
           done
+        working-directory: apps/frontend
         env:
           VITE_API_URL: http://localhost:4000/api
+
       - name: Run Playwright tests
         run: npx playwright test --reporter=list
+        working-directory: apps/frontend
         env:
           CI: true
           PLAYWRIGHT_BASE_URL: http://localhost:5173
+
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
           path: |
-            playwright-report/
-            test-results/
+            apps/frontend/playwright-report/
+            apps/frontend/test-results/
           retention-days: 14
 
   # ==========================================

@@ -151,7 +151,7 @@ jobs:
           path: apps/
           format: HTML
           out: reports
-          args: --failOnCVSS 8 -- disableNodeJS --disableNodeAudit
+          args: --failOnCVSS 8 --disableNodeJS --disableNodeAudit
 
       - name: Upload Report
         if: always()
