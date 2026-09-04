@@ -228,7 +228,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Trivy backend
-        uses: aquasecurity/trivy-action@0.29.0
+        uses: aquasecurity/trivy-action@master
         with:
           scan-type: fs
           scan-ref: apps/backend
@@ -237,7 +237,7 @@ jobs:
           exit-code: '0'
 
       - name: Trivy frontend
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@master
         with:
           scan-type: fs
           scan-ref: apps/frontend
@@ -420,10 +420,14 @@ jobs:
           echo $! > ../../ml-engine.pid
 
           for i in $(seq 1 30); do
-            if curl -fsS http://127.0.0.1:8000/health >/dev/null; then
+            if curl -fsS http://127.0.0.1:8000/health >/dev/null 2>&1 ; then
               break
             fi
-            [ "$i" -eq 30 ] && { cat ../../ml-engine.log; exit 1; }
+            [ "$i" -eq 30 ], then 
+            echo "::error::ML Engine failed to start"
+            cat ../../ml-engine.log
+            exit 1
+            fi
             sleep 1
           done
 
@@ -436,8 +440,9 @@ jobs:
 
           python3 - <<'PY'
           import json
-          d=json.load(open("ml-anomaly.json"))
-          assert isinstance(d.get("anomaly_score"), (int,float)), d
+          data = json.load(open("../../ml-anomaly.json"))
+          assert isinstance(data.get("anomaly_score"), (int, float)), f"Invalid anomaly_score: {data}"
+          print("Anomaly check passed successfully.")
           PY
 
       - name: Stop ML API

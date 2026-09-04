@@ -19,7 +19,7 @@ alert tls $HOME_NET any -> $EXTERNAL_NET any (msg:"MINISOC - TLS to Known Mining
 alert tcp $HOME_NET any -> $EXTERNAL_NET 3333 (msg:"MINISOC - Connection to Stratum Mining Port"; flow:to_server,established; content:"mining.subscribe"; classtype:policy-violation; sid:1000041; rev:1;)
 
 # --- Web Attacks ---
-alert http $EXTERNAL_NET any -> $HOME_NET $HTTP_PORTS (msg:"MINISOC - SQL Injection Attempt"; flow:to_server,established; http_uri; pcre:"/(\%27)|(\')|(\-\-)|(\%23)|(#)/i"; classtype:web-application-attack; sid:1000050; rev:1; metadata:mitre_technique_id T1190;)
+alert http $EXTERNAL_NET any -> $HOME_NET $HTTP_PORTS (msg:"MINISOC - SQL Injection Attempt"; flow:to_server,established; http_uri; pcre:"/(\%27|\'|\-\-|\%23|#)/i"; classtype:web-application-attack; sid:1000050; rev:1; metadata:mitre_technique_id T1190;)
 alert http $EXTERNAL_NET any -> $HOME_NET $HTTP_PORTS (msg:"MINISOC - XSS Attempt"; flow:to_server,established; http_uri; content:"<script"; nocase; classtype:web-application-attack; sid:1000051; rev:1;)
 
 # --- Reverse Shell Detection ---
