@@ -94,6 +94,13 @@ services:
       - DB_PORT=5432
       - DB_NAME=minisoc
       - DB_USER=minisoc_app
+      # =========================================================
+      # FIX CI / NestJS Config Validation (Variables obligatoires)
+      # =========================================================
+      - DATABASE_URL=${DATABASE_URL:-postgresql://minisoc_app:ci-test-db-password-123@postgres:5432/minisoc?schema=public}
+      - JWT_SECRET=${JWT_SECRET:-ci-super-secret-jwt-key-minimum-32-chars}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-ci-super-secret-refresh-key-minimum-32-chars}
+      # =========================================================
       - OPENSEARCH_HOST=opensearch
       - OPENSEARCH_PORT=9200
       - OPENSEARCH_PROTOCOL=http
