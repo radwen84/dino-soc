@@ -25,7 +25,7 @@ RUN apk add --no-cache openssl libc6-compat
 COPY apps/backend/package.json apps/backend/package-lock.json ./
 COPY apps/backend/prisma ./prisma/
 
-RUN npm ci --only=production && npx prisma generate
+RUN npm ci --omit=dev && npx prisma generate
 
 
 # Stage 3
