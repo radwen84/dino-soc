@@ -794,8 +794,8 @@ jobs:
           echo "=== Attente de l'accès à l'API Vault (HTTPS) ==="
           VAULT_READY=0
           for i in $(seq 1 20); do
-            $VAULT_EXEC status > /dev/null 2>&1
-            STATUS_EXIT=$?
+            $VAULT_EXEC status > /dev/null 2>&1 || STATUS_EXIT=$?
+            
             if [ "$STATUS_EXIT" -eq 0 ] || [ "$STATUS_EXIT" -eq 2 ]; then
               VAULT_READY=1
               break
