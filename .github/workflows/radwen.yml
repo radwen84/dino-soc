@@ -937,8 +937,14 @@ jobs:
 
           echo "API is UP. Starting full stack services..."
           docker compose --env-file .env up -d
-
+          echo "===================="
+          echo "STACK STATUS"
           docker compose ps
+          echo "EXITED CONTAINERS"
+          docker ps -a --filter status=exited
+ 
+
+          
 
       # ----------------------------------------------------------
       # Basic service health
