@@ -742,67 +742,47 @@ jobs:
           echo "Started services:"
           docker compose ps
 
-          READY=0
-
           for i in $(seq 1 60); do
 
             PG_OK=0
-            OS_OK=0
             REDIS_OK=0
+            OS_OK=0
 
-            docker exec minisoc-postgres \
-              pg_isready -U minisoc_app -d minisoc \
-              >/dev/null 2>&1 && PG_OK=1 || true
+            docker inspect \
+              --format='{{.State.Health.Status}}' \
+              minisoc-postgres \
+              2>/dev/null | grep -q healthy \
+              && PG_OK=1 || true
 
-            docker exec minisoc-redis \
-              sh -c 'redis-cli -a "$(cat /run/secrets/redis_password)" ping' \
-              >/dev/null 2>&1 && REDIS_OK=1 || true
+            docker inspect \
+              --format='{{.State.Health.Status}}' \
+              minisoc-redis \
+              2>/dev/null | grep -q healthy \
+              && REDIS_OK=1 || true
 
-            curl -s http://localhost:9200/_cluster/health \
-              | grep -qE '"status":"(green|yellow)"' \
+            docker inspect \
+              --format='{{.State.Health.Status}}' \
+              minisoc-opensearch \
+              2>/dev/null | grep -q healthy \
               && OS_OK=1 || true
 
-            echo "PG_OK=$PG_OK"
-            echo "REDIS_OK=$REDIS_OK"
-            echo "OS_OK=$OS_OK"
+            echo "PG_OK=$PG_OK REDIS_OK=$REDIS_OK OS_OK=$OS_OK"
 
             if [ "$PG_OK" -eq 1 ] &&
                [ "$REDIS_OK" -eq 1 ] &&
                [ "$OS_OK" -eq 1 ]; then
-              READY=1
-              echo "Core infrastructure ready"
-              break
+                echo "Core infrastructure ready"
+                break
+            fi
+
+            if [ "$i" -eq 60 ]; then
+                echo "::error::Infrastructure failed to start in time"
+                docker compose ps
+                exit 1
             fi
 
             sleep 5
           done
-
-          if [ "$READY" -ne 1 ]; then
-
-            echo "::error::Infrastructure failed to start in time"
-
-            echo "=============================="
-            echo "DOCKER COMPOSE PS"
-            echo "=============================="
-            docker compose ps
-
-            echo "=============================="
-            echo "POSTGRES LOGS"
-            echo "=============================="
-            docker compose logs --tail=200 postgres || true
-
-            echo "=============================="
-            echo "REDIS LOGS"
-            echo "=============================="
-            docker compose logs --tail=200 redis || true
-
-            echo "=============================="
-            echo "OPENSEARCH LOGS"
-            echo "=============================="
-            docker compose logs --tail=200 opensearch || true
-
-            exit 1
-          fi
 
       # ----------------------------------------------------------
       # Prisma
