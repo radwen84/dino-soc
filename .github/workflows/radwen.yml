@@ -711,6 +711,11 @@ jobs:
           ORACLE_PORTS=1521
           HTTP_PORTS=80
 
+          # Force network interface for runner compatibility
+          IFACE=eth0
+          SURICATA_OPTIONS="-i eth0"
+          ZEEK_INTERFACE=eth0
+
           ABUSEIPDB_API_KEY=${ABUSEIPDB_API_KEY}
           VIRUSTOTAL_API_KEY=${VIRUSTOTAL_API_KEY}
           OTX_API_KEY=${OTX_API_KEY}
@@ -811,18 +816,21 @@ jobs:
 
           docker compose --env-file .env up -d --build
 
-          echo "Waiting for API..."
-          for i in $(seq 1 48); do
-            if curl -fsS http://localhost:4000/health >/dev/null 2>&1 || \
-               curl -kfsS https://localhost/api/health >/dev/null 2>&1; then
-              echo "Mini-SOC API ready"
+          echo "Waiting for API to become healthy..."
+          for i in $(seq 1 60); do
+            API_STATUS=$(docker inspect --format='{{.State.Health.Status}}' minisoc-api 2>/dev/null || echo "unknown")
+
+            if [ "$API_STATUS" = "healthy" ] || curl -fsS http://localhost:4000/health >/dev/null 2>&1; then
+              echo "Mini-SOC API ready and healthy!"
               break
             fi
 
-            if [ "$i" -eq 48 ]; then
-              echo "::error::API failed to start in time."
+            if [ "$API_STATUS" = "unhealthy" ] || [ "$i" -eq 60 ]; then
+              echo "::error::API failed to start or became unhealthy."
+              echo "=== LOGS MINISOC-API ==="
+              docker compose logs --no-color nestjs-api || docker logs minisoc-api
+              echo "=== DOCKER PS ==="
               docker compose ps
-              docker compose logs --no-color
               exit 1
             fi
             sleep 5
