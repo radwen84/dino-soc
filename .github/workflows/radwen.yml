@@ -789,7 +789,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          VAULT_EXEC="docker exec -e VAULT_ADDR=https://127.0.0.1:8200 -e VAULT_SKIP_VERIFY=true minisoc-vault vault"
+          VAULT_EXEC="docker exec -e VAULT_ADDR=http://127.0.0.1:8200 -e VAULT_SKIP_VERIFY=true minisoc-vault vault"
 
           echo "=== Attente de l'accès à l'API Vault (HTTPS) ==="
           TIMEOUT=20
