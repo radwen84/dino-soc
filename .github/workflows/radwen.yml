@@ -786,37 +786,65 @@ jobs:
           DATABASE_URL="postgresql://minisoc_app:${POSTGRES_PASSWORD}@${PG_IP}:5432/minisoc?schema=public" npx prisma db seed
 
       # ----------------------------------------------------------
-      # Full stack startup
+      # Full stack pre-build and startup
       # ----------------------------------------------------------
+      - name: Pre-build and Pull stack images
+        run: |
+          set -euo pipefail
+          echo "Pre-fetching images and building containers before healthcheck timer..."
+          docker compose --env-file .env pull --quiet || true
+          docker compose --env-file .env build
+
       - name: Start complete Mini-SOC stack
         run: |
           set -euo pipefail
 
-          docker compose --env-file .env up -d --build
+          docker compose --env-file .env up -d
 
-          echo "Waiting for API service to become healthy..."
-          for i in $(seq 1 60); do
-            API_STATUS=$(docker inspect --format='{{.State.Health.Status}}' minisoc-api 2>/dev/null || echo "unknown")
+          echo "Waiting for Mini-SOC API service to become available..."
+          for i in $(seq 1 90); do
+            API_HEALTH_DOCKER=$(docker inspect --format='{{.State.Health.Status}}' minisoc-api 2>/dev/null || echo "unknown")
 
-            if [ "$API_STATUS" = "healthy" ] || curl -fsS http://localhost:4000/health >/dev/null 2>&1; then
-              echo "Mini-SOC API ready and healthy!"
+            if [ "$API_HEALTH_DOCKER" = "healthy" ] || curl -fsS http://localhost:4000/health >/dev/null 2>&1; then
+              echo "Mini-SOC API is UP and healthy! (Attempt $i)"
               break
             fi
 
-            if [ "$API_STATUS" = "unhealthy" ] || [ "$i" -eq 60 ]; then
-              echo "::error::API or service failed to start properly."
-              echo "=== LOGS MINISOC-API ==="
-              docker logs minisoc-api || docker compose logs --no-color nestjs-api
-              echo "=== LOGS SURICATA ==="
-              docker logs minisoc-suricata || true
-              echo "=== LOGS ZEEK ==="
-              docker logs minisoc-zeek || true
-              echo "=== DOCKER PS ==="
-              docker compose ps
-              exit 1
+            if [ "$API_HEALTH_DOCKER" = "unhealthy" ] && [ "$i" -gt 30 ]; then
+              echo "::error::API marked unhealthy by Docker healthcheck."
+              break
             fi
+
+            if [ "$i" -eq 90 ]; then
+              echo "::error::Timeout waiting for API startup."
+              break
+            fi
+
             sleep 5
           done
+
+          if ! curl -fsS http://localhost:4000/health >/dev/null 2>&1; then
+            echo "=========================================="
+            echo "=== LOGS CRITIQUES : MINISOC-API ==="
+            echo "=========================================="
+            docker logs --tail 200 minisoc-api || docker compose logs --no-color nestjs-api
+            
+            echo "=========================================="
+            echo "=== LOGS SURICATA ==="
+            echo "=========================================="
+            docker logs --tail 50 minisoc-suricata || true
+            
+            echo "=========================================="
+            echo "=== LOGS ZEEK ==="
+            echo "=========================================="
+            docker logs --tail 50 minisoc-zeek || true
+
+            echo "=========================================="
+            echo "=== ETAT DE LA STACK DOCKER ==="
+            echo "=========================================="
+            docker compose ps
+            exit 1
+          fi
 
           docker compose ps
 
