@@ -886,7 +886,7 @@ jobs:
 
       - name: Start complete Mini-SOC stack
         env:
-          -DOCKER_BUILDKIT: 1
+          DOCKER_BUILDKIT: 1
         run: |
           set -euo pipefail
 
@@ -907,7 +907,7 @@ jobs:
           for i in $(seq 1 90); do
             API_HEALTH_DOCKER=$(docker inspect --format='{{.State.Health.Status}}' minisoc-api 2>/dev/null || echo "unknown")
 
-            if [ "$API_HEALTH_DOCKER" = "healthy" ] || curl -fsS http://localhost:4000/api/health >/dev/null 2>&1; then
+            if [ "$API_HEALTH_DOCKER" = "healthy" ] || docker exec minisoc-api curl -fsS http://localhost:4000/api/health >/dev/null 2>&1 || curl -fsS http://localhost:4000/api/health >/dev/null 2>&1; then
               echo "Mini-SOC API is UP and healthy! (Attempt $i)"
               break
             fi
@@ -927,7 +927,7 @@ jobs:
             sleep 3
           done
 
-          if ! curl -fsS http://localhost:4000/api/health >/dev/null 2>&1; then
+          if ! (docker exec minisoc-api curl -fsS http://localhost:4000/api/health >/dev/null 2>&1 || curl -fsS http://localhost:4000/api/health >/dev/null 2>&1); then
             echo "=========================================="
             echo "=== CRITICAL LOGS: MINISOC-API ==="
             echo "=========================================="
@@ -942,9 +942,6 @@ jobs:
           docker compose ps
           echo "EXITED CONTAINERS"
           docker ps -a --filter status=exited
- 
-
-          
 
       # ----------------------------------------------------------
       # Basic service health
@@ -954,7 +951,7 @@ jobs:
           set -euo pipefail
 
           curl -s -k http://localhost:9200/_cluster/health || curl -s -k -u admin:Admin123456789! https://localhost:9200/_cluster/health
-          curl -fsS http://localhost:4000/api/health >/dev/null || curl -kfsS https://localhost/api/health >/dev/null
+          docker exec minisoc-api curl -fsS http://localhost:4000/api/health >/dev/null || curl -kfsS https://localhost/api/health >/dev/null
 
           if curl -fsS http://localhost:8000/health >/dev/null 2>&1; then
             echo "ML Engine reachable"
@@ -1142,7 +1139,7 @@ jobs:
             fi
           done
 
-          curl -ksSf https://localhost/api/health >/dev/null || curl -ksSf http://localhost:4000/api/health >/dev/null
+          curl -ksSf https://localhost/api/health >/dev/null || docker exec minisoc-api curl -fsS http://localhost:4000/api/health >/dev/null
 
       # ----------------------------------------------------------
       # Observability
