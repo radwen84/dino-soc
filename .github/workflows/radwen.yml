@@ -844,7 +844,7 @@ jobs:
           fi
 
           echo "=== Attente de la validation Healthcheck de Vault ==="
-          HEALTH_TIMEOUT=15
+          HEALTH_TIMEOUT=60
           until [ "$(docker inspect --format='{{.State.Health.Status}}' minisoc-vault 2>/dev/null)" = "healthy" ] || [ $HEALTH_TIMEOUT -eq 0 ]; do
             echo "Attente du statut 'healthy' pour minisoc-vault... Status actuel: $(docker inspect --format='{{.State.Health.Status}}' minisoc-vault 2>/dev/null)"
             sleep 2
@@ -885,6 +885,8 @@ jobs:
           docker compose --env-file .env build
 
       - name: Start complete Mini-SOC stack
+        env:
+          -DOCKER_BUILDKIT: 1
         run: |
           set -euo pipefail
 
