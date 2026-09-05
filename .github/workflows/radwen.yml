@@ -785,7 +785,7 @@ jobs:
           done
 
       # ----------------------------------------------------------
-      # Prisma
+      # Prisma (Fix avec extraction de l'IP du conteneur)
       # ----------------------------------------------------------
       - name: Initialize Prisma database
         working-directory: apps/backend
@@ -793,21 +793,14 @@ jobs:
           set -euo pipefail
           npm ci
           npx prisma generate
-          
-          # Run prisma db push and seed inside the container via internal network socket
-          docker exec \
-            -e DATABASE_URL="postgresql://minisoc_app:${POSTGRES_PASSWORD}@localhost:5432/minisoc?schema=public" \
-            minisoc-postgres npx prisma db push --skip-generate || \
-          docker compose exec -T postgres \
-            npx prisma db push --skip-generate || \
-          DATABASE_URL="postgresql://minisoc_app:${POSTGRES_PASSWORD}@localhost:5432/minisoc?schema=public" npx prisma db push --skip-generate
 
-          docker exec \
-            -e DATABASE_URL="postgresql://minisoc_app:${POSTGRES_PASSWORD}@localhost:5432/minisoc?schema=public" \
-            minisoc-postgres npx prisma db seed || \
-          docker compose exec -T postgres \
-            npx prisma db seed || \
-          DATABASE_URL="postgresql://minisoc_app:${POSTGRES_PASSWORD}@localhost:5432/minisoc?schema=public" npx prisma db seed
+          # Récupération dynamique de l'IP du conteneur dans le réseau Docker
+          PG_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' minisoc-postgres)
+          echo "PostgreSQL Container IP: ${PG_IP}"
+
+          # Exécution de Prisma depuis le runner CI via l'IP directe du conteneur
+          DATABASE_URL="postgresql://minisoc_app:${POSTGRES_PASSWORD}@${PG_IP}:5432/minisoc?schema=public" npx prisma db push --skip-generate
+          DATABASE_URL="postgresql://minisoc_app:${POSTGRES_PASSWORD}@${PG_IP}:5432/minisoc?schema=public" npx prisma db seed
 
       # ----------------------------------------------------------
       # Full stack
