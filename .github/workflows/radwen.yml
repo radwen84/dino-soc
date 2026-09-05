@@ -785,30 +785,6 @@ jobs:
           done
 
       # ----------------------------------------------------------
-      # Debug Connectivity
-      # ----------------------------------------------------------
-      - name: Debug PostgreSQL connectivity
-        run: |
-          echo "=== DOCKER PS ==="
-          docker ps
-
-          echo "=== PORT 5432 ==="
-          ss -lntp | grep 5432 || true
-
-          echo "=== PG_ISREADY ==="
-          docker exec minisoc-postgres pg_isready -U minisoc_app -d minisoc || true
-
-          echo "=== TCP TEST ==="
-          nc -zv 127.0.0.1 5432 || true
-
-          echo "=== SQL TEST ==="
-          PGPASSWORD="${POSTGRES_PASSWORD}" \
-            psql -h 127.0.0.1 \
-            -U minisoc_app \
-            -d minisoc \
-            -c "select version();" || true
-
-      # ----------------------------------------------------------
       # Prisma
       # ----------------------------------------------------------
       - name: Initialize Prisma database
@@ -817,8 +793,21 @@ jobs:
           set -euo pipefail
           npm ci
           npx prisma generate
-          DATABASE_URL="postgresql://minisoc_app:${POSTGRES_PASSWORD}@127.0.0.1:5432/minisoc?schema=public" npx prisma db push --skip-generate
-          DATABASE_URL="postgresql://minisoc_app:${POSTGRES_PASSWORD}@127.0.0.1:5432/minisoc?schema=public" npx prisma db seed
+          
+          # Run prisma db push and seed inside the container via internal network socket
+          docker exec \
+            -e DATABASE_URL="postgresql://minisoc_app:${POSTGRES_PASSWORD}@localhost:5432/minisoc?schema=public" \
+            minisoc-postgres npx prisma db push --skip-generate || \
+          docker compose exec -T postgres \
+            npx prisma db push --skip-generate || \
+          DATABASE_URL="postgresql://minisoc_app:${POSTGRES_PASSWORD}@localhost:5432/minisoc?schema=public" npx prisma db push --skip-generate
+
+          docker exec \
+            -e DATABASE_URL="postgresql://minisoc_app:${POSTGRES_PASSWORD}@localhost:5432/minisoc?schema=public" \
+            minisoc-postgres npx prisma db seed || \
+          docker compose exec -T postgres \
+            npx prisma db seed || \
+          DATABASE_URL="postgresql://minisoc_app:${POSTGRES_PASSWORD}@localhost:5432/minisoc?schema=public" npx prisma db seed
 
       # ----------------------------------------------------------
       # Full stack
