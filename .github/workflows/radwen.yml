@@ -747,30 +747,27 @@ jobs:
           for i in $(seq 1 60); do
 
             PG_OK=0
-            REDIS_OK=0
             OS_OK=0
+            REDIS_OK=0
 
-            # PostgreSQL
             docker exec minisoc-postgres \
               pg_isready -U minisoc_app -d minisoc \
-              > /dev/null 2>&1 && PG_OK=1 || true
+              >/dev/null 2>&1 && PG_OK=1 || true
 
-            # Redis (password protected)
-            docker exec minisoc-redis sh -c '
-              redis-cli -a "$(cat /run/secrets/redis_password)" ping
-            ' 2>/dev/null | grep -q PONG && REDIS_OK=1 || true
+            docker exec minisoc-redis \
+              sh -c 'redis-cli -a "$(cat /run/secrets/redis_password)" ping' \
+              >/dev/null 2>&1 && REDIS_OK=1 || true
 
-            # OpenSearch
-            curl -fsS http://localhost:9200/_cluster/health \
-              2>/dev/null \
+            curl -s http://localhost:9200/_cluster/health \
               | grep -qE '"status":"(green|yellow)"' \
               && OS_OK=1 || true
 
-            echo "Attempt $i/60"
-            echo "PG_OK=$PG_OK REDIS_OK=$REDIS_OK OS_OK=$OS_OK"
+            echo "PG_OK=$PG_OK"
+            echo "REDIS_OK=$REDIS_OK"
+            echo "OS_OK=$OS_OK"
 
-            if [ "$PG_OK" -eq 1 ] && \
-               [ "$REDIS_OK" -eq 1 ] && \
+            if [ "$PG_OK" -eq 1 ] &&
+               [ "$REDIS_OK" -eq 1 ] &&
                [ "$OS_OK" -eq 1 ]; then
               READY=1
               echo "Core infrastructure ready"
