@@ -799,7 +799,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          docker compose --env-file .env up -d
+          docker compose --env-file .env up 
 
           echo "Waiting for Mini-SOC API service to become available..."
           for i in $(seq 1 90); do
