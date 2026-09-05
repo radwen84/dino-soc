@@ -785,6 +785,30 @@ jobs:
           done
 
       # ----------------------------------------------------------
+      # Debug Connectivity
+      # ----------------------------------------------------------
+      - name: Debug PostgreSQL connectivity
+        run: |
+          echo "=== DOCKER PS ==="
+          docker ps
+
+          echo "=== PORT 5432 ==="
+          ss -lntp | grep 5432 || true
+
+          echo "=== PG_ISREADY ==="
+          docker exec minisoc-postgres pg_isready -U minisoc_app -d minisoc || true
+
+          echo "=== TCP TEST ==="
+          nc -zv 127.0.0.1 5432 || true
+
+          echo "=== SQL TEST ==="
+          PGPASSWORD="${POSTGRES_PASSWORD}" \
+            psql -h 127.0.0.1 \
+            -U minisoc_app \
+            -d minisoc \
+            -c "select version();" || true
+
+      # ----------------------------------------------------------
       # Prisma
       # ----------------------------------------------------------
       - name: Initialize Prisma database
