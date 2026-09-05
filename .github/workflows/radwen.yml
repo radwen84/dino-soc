@@ -117,7 +117,7 @@ jobs:
           DATABASE_URL: ${{ env.POSTGRES_TEST_URL }}
         run: |
           set -euo pipefail
-          npx prisma db push --skip-generate
+          npx prisma db push --skip-generate --accept-data-loss
           npx prisma validate
 
       - name: Seed test database
@@ -363,7 +363,7 @@ jobs:
           set -euo pipefail
           npx prisma generate
           npx prisma validate
-          npx prisma db push --skip-generate
+          npx prisma db push --skip-generate --accept-data-loss
 
       - name: Seed
         working-directory: apps/backend
@@ -785,7 +785,7 @@ jobs:
           done
 
       # ----------------------------------------------------------
-      # Prisma (Fix avec extraction de l'IP du conteneur)
+      # Prisma (Fix IP + accept-data-loss)
       # ----------------------------------------------------------
       - name: Initialize Prisma database
         working-directory: apps/backend
@@ -798,8 +798,8 @@ jobs:
           PG_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' minisoc-postgres)
           echo "PostgreSQL Container IP: ${PG_IP}"
 
-          # Exécution de Prisma depuis le runner CI via l'IP directe du conteneur
-          DATABASE_URL="postgresql://minisoc_app:${POSTGRES_PASSWORD}@${PG_IP}:5432/minisoc?schema=public" npx prisma db push --skip-generate
+          # Exécution de Prisma avec accept-data-loss
+          DATABASE_URL="postgresql://minisoc_app:${POSTGRES_PASSWORD}@${PG_IP}:5432/minisoc?schema=public" npx prisma db push --skip-generate --accept-data-loss
           DATABASE_URL="postgresql://minisoc_app:${POSTGRES_PASSWORD}@${PG_IP}:5432/minisoc?schema=public" npx prisma db seed
 
       # ----------------------------------------------------------
