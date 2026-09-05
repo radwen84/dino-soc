@@ -683,51 +683,57 @@ jobs:
         run: |
           set -euo pipefail
 
+          PG_PASS="${POSTGRES_PASSWORD:-ci-test-db-password-123}"
+          JWT_SEC="${JWT_SECRET:-ci-super-secret-jwt-key-minimum-32-chars}"
+          JWT_REF_SEC="${JWT_REFRESH_SECRET:-ci-super-secret-refresh-key-minimum-32-chars}"
+
           mkdir -p secrets
 
-          printf '%s' "$POSTGRES_PASSWORD" > secrets/postgres_password.txt
-          printf '%s' "$POSTGRES_PASSWORD" > secrets/db_password.txt
-          printf '%s' "$JWT_SECRET" > secrets/jwt_secret.txt
-          printf '%s' "$JWT_REFRESH_SECRET" > secrets/jwt_refresh_secret.txt
+          printf '%s' "$PG_PASS" > secrets/postgres_password.txt
+          printf '%s' "$PG_PASS" > secrets/db_password.txt
+          printf '%s' "$JWT_SEC" > secrets/jwt_secret.txt
+          printf '%s' "$JWT_REF_SEC" > secrets/jwt_refresh_secret.txt
           printf '%s' 'ci-wazuh-password' > secrets/wazuh_api_password.txt
           printf '%s' 'ci-redis-password' > secrets/redis_password.txt
           printf '%s' 'ci-misp-password' > secrets/misp_password.txt
 
-          cat > .env <<EOF
+          cat << EOF > .env
           POSTGRES_USER=minisoc_app
-          POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+          POSTGRES_PASSWORD=${PG_PASS}
           POSTGRES_DB=minisoc
-          DATABASE_URL=postgresql://minisoc_app:${POSTGRES_PASSWORD}@postgres:5432/minisoc?schema=public
+          DATABASE_URL=postgresql://minisoc_app:${PG_PASS}@postgres:5432/minisoc?schema=public
 
           DB_POSTGRESDB_USER=minisoc_app
-          DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
+          DB_POSTGRESDB_PASSWORD=${PG_PASS}
           DB_POSTGRESDB_DATABASE=n8n
 
-          JWT_SECRET=${JWT_SECRET}
-          JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+          JWT_SECRET=${JWT_SEC}
+          JWT_REFRESH_SECRET=${JWT_REF_SEC}
           API_CORS_ORIGINS=*
           API_PORT=4000
 
           ORACLE_PORTS=1521
           HTTP_PORTS=80
 
-          # Network interfaces for GitHub Runner compatibility
           IFACE=eth0
           SURICATA_OPTIONS="-i eth0"
           SURICATA_INTERFACE=eth0
           ZEEK_INTERFACE=eth0
 
-          ABUSEIPDB_API_KEY=${ABUSEIPDB_API_KEY}
-          VIRUSTOTAL_API_KEY=${VIRUSTOTAL_API_KEY}
-          OTX_API_KEY=${OTX_API_KEY}
-          ALIENVAULT_OTX_API_KEY=${OTX_API_KEY}
-          SHODAN_API_KEY=${SHODAN_API_KEY}
-          MISP_API_KEY=${MISP_API_KEY}
+          ABUSEIPDB_API_KEY=${ABUSEIPDB_API_KEY:-}
+          VIRUSTOTAL_API_KEY=${VIRUSTOTAL_API_KEY:-}
+          OTX_API_KEY=${OTX_API_KEY:-}
+          ALIENVAULT_OTX_API_KEY=${OTX_API_KEY:-}
+          SHODAN_API_KEY=${SHODAN_API_KEY:-}
+          MISP_API_KEY=${MISP_API_KEY:-}
 
           MINISOC_CI_TEST_ID=${MINISOC_CI_TEST_ID}
           NODE_ENV=test
           OPENSEARCH_INITIAL_ADMIN_PASSWORD=Admin123456789!
           EOF
+
+          echo "=== Environment variables verified ==="
+          grep -E "^(DATABASE_URL|JWT_SECRET|JWT_REFRESH_SECRET)=" .env
 
           if [ -f ./scripts/generate-certs.sh ]; then
             chmod +x ./scripts/generate-certs.sh
@@ -739,11 +745,11 @@ jobs:
       # ----------------------------------------------------------
       # Infrastructure startup
       # ----------------------------------------------------------
-      - name: Start PostgreSQL Redis OpenSearch
+      - name: Start PostgreSQL Redis OpenSearch Vault
         run: |
           set -euo pipefail
 
-          docker compose --env-file .env up -d postgres redis opensearch
+          docker compose --env-file .env up -d postgres redis opensearch vault
 
           echo "Waiting for core infrastructure to become healthy..."
           for i in $(seq 1 60); do
@@ -768,6 +774,76 @@ jobs:
 
             sleep 5
           done
+
+      # ----------------------------------------------------------
+      # 5b. Initialisation & Déverrouillage Automatique de Vault (Unseal)
+      # ----------------------------------------------------------
+      - name: Initialisation & Déverrouillage Automatique de Vault (Unseal)
+        run: |
+          set -euo pipefail
+
+          echo "=== Attente de l'accès à l'API Vault (Timeout: 30s) ==="
+          TIMEOUT=10
+          until docker exec -e VAULT_ADDR='http://127.0.0.1:8200' minisoc-vault vault status > /dev/null 2>&1 || [ $TIMEOUT -eq 0 ]; do
+            echo "En attente du service Vault... ($TIMEOUT essais restants)"
+            sleep 3
+            TIMEOUT=$((TIMEOUT-1))
+          done
+
+          if [ $TIMEOUT -eq 0 ]; then
+            echo "::error::Le conteneur minisoc-vault ne répond pas sur l'API HTTP."
+            docker logs --tail 50 minisoc-vault
+            exit 1
+          fi
+
+          echo "=== Vérification de l'état de Vault ==="
+          STATUS_JSON=$(docker exec -e VAULT_ADDR='http://127.0.0.1:8200' minisoc-vault vault status -format=json || true)
+          IS_INIT=$(echo "$STATUS_JSON" | jq -r '.initialized // false')
+          IS_SEALED=$(echo "$STATUS_JSON" | jq -r '.sealed // true')
+
+          if [ "$IS_INIT" = "true" ] && [ "$IS_SEALED" = "false" ]; then
+            echo "ℹ️ Vault est déjà initialisé et déverrouillé."
+          elif [ "$IS_INIT" = "false" ]; then
+            echo "⚡ Initialisation d'une nouvelle instance Vault (3 key shares, threshold 2)..."
+            INIT_JSON=$(docker exec -e VAULT_ADDR='http://127.0.0.1:8200' minisoc-vault vault operator init -key-shares=3 -key-threshold=2 -format=json)
+
+            KEY1=$(echo "$INIT_JSON" | jq -r '.unseal_keys_b64[0]')
+            KEY2=$(echo "$INIT_JSON" | jq -r '.unseal_keys_b64[1]')
+            KEY3=$(echo "$INIT_JSON" | jq -r '.unseal_keys_b64[2]')
+            ROOT_TOKEN=$(echo "$INIT_JSON" | jq -r '.root_token')
+
+            echo "::add-mask::$KEY1"
+            echo "::add-mask::$KEY2"
+            echo "::add-mask::$KEY3"
+            echo "::add-mask::$ROOT_TOKEN"
+
+            echo "🔓 Déverrouillage avec la Clé 1/2..."
+            docker exec -e VAULT_ADDR='http://127.0.0.1:8200' minisoc-vault vault operator unseal "$KEY1" > /dev/null
+            
+            echo "🔓 Déverrouillage avec la Clé 2/2..."
+            docker exec -e VAULT_ADDR='http://127.0.0.1:8200' minisoc-vault vault operator unseal "$KEY2" > /dev/null
+
+            echo "✅ Vault déverrouillé avec succès !"
+          else
+            echo "⚠️ Vault est déjà initialisé mais verrouillé. Tentative de redémarrage..."
+            docker restart minisoc-vault
+            sleep 5
+          fi
+
+          echo "=== Attente de la validation Healthcheck de Vault ==="
+          HEALTH_TIMEOUT=12
+          until [ "$(docker inspect --format='{{.State.Health.Status}}' minisoc-vault 2>/dev/null)" = "healthy" ] || [ $HEALTH_TIMEOUT -eq 0 ]; do
+            echo "Attente du statut 'healthy' pour minisoc-vault... Status actuel: $(docker inspect --format='{{.State.Health.Status}}' minisoc-vault 2>/dev/null)"
+            sleep 2
+            HEALTH_TIMEOUT=$((HEALTH_TIMEOUT-1))
+          done
+
+          if [ $HEALTH_TIMEOUT -eq 0 ]; then
+            echo "::warning::Vault est déverrouillé mais le healthcheck Docker n'a pas basculé en 'healthy' à temps."
+            docker inspect minisoc-vault --format='{{json .State.Health}}'
+          else
+            echo "🚀 Conteneur minisoc-vault est 'healthy' et prêt pour l'API !"
+          fi
 
       # ----------------------------------------------------------
       # Prisma Database Setup
@@ -799,7 +875,8 @@ jobs:
         run: |
           set -euo pipefail
 
-          docker compose --env-file .env up 
+          echo "Starting API service individually..."
+          docker compose --env-file .env up -d api || docker compose --env-file .env up -d nestjs-api
 
           echo "Waiting for Mini-SOC API service to become available..."
           for i in $(seq 1 90); do
@@ -810,8 +887,9 @@ jobs:
               break
             fi
 
-            if [ "$API_HEALTH_DOCKER" = "unhealthy" ] && [ "$i" -gt 30 ]; then
-              echo "::error::API marked unhealthy by Docker healthcheck."
+            API_STATE=$(docker inspect --format='{{.State.Status}}' minisoc-api 2>/dev/null || echo "exited")
+            if [ "$API_STATE" = "exited" ] || [ "$API_STATE" = "dead" ]; then
+              echo "::error::API container crashed."
               break
             fi
 
@@ -825,26 +903,14 @@ jobs:
 
           if ! curl -fsS http://localhost:4000/health >/dev/null 2>&1; then
             echo "=========================================="
-            echo "=== LOGS CRITIQUES : MINISOC-API ==="
+            echo "=== CRITICAL LOGS: MINISOC-API ==="
             echo "=========================================="
-            docker logs --tail 200 minisoc-api || docker compose logs --no-color nestjs-api
-            
-            echo "=========================================="
-            echo "=== LOGS SURICATA ==="
-            echo "=========================================="
-            docker logs --tail 50 minisoc-suricata || true
-            
-            echo "=========================================="
-            echo "=== LOGS ZEEK ==="
-            echo "=========================================="
-            docker logs --tail 50 minisoc-zeek || true
-
-            echo "=========================================="
-            echo "=== ETAT DE LA STACK DOCKER ==="
-            echo "=========================================="
-            docker compose ps
+            docker logs --tail 200 minisoc-api || docker compose logs --no-color api
             exit 1
           fi
+
+          echo "API is UP. Starting full stack services..."
+          docker compose --env-file .env up -d
 
           docker compose ps
 
