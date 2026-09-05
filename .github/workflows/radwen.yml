@@ -783,7 +783,7 @@ jobs:
           done
 
       # ----------------------------------------------------------
-      # Initialisation & Déverrouillage Automatique de Vault (Unseal HTTPS)
+      # Vault Initialization & Auto-unseal
       # ----------------------------------------------------------
       - name: Initialisation & Déverrouillage Automatique de Vault (Unseal)
         run: |
@@ -815,9 +815,9 @@ jobs:
           IS_SEALED=$(echo "$STATUS_JSON" | jq -r '.sealed // true')
 
           if [ "$IS_INIT" = "true" ] && [ "$IS_SEALED" = "false" ]; then
-            echo "ℹ️ Vault est déjà initialisé et déverrouillé."
+            echo "Vault est déjà initialisé et déverrouillé."
           elif [ "$IS_INIT" = "false" ]; then
-            echo "⚡ Initialisation d'une nouvelle instance Vault (3 key shares, threshold 2)..."
+            echo "Initialisation d'une nouvelle instance Vault (3 key shares, threshold 2)..."
             INIT_JSON=$($VAULT_EXEC operator init -key-shares=3 -key-threshold=2 -format=json)
 
             KEY1=$(echo "$INIT_JSON" | jq -r '.unseal_keys_b64[0]')
@@ -830,15 +830,15 @@ jobs:
             echo "::add-mask::$KEY3"
             echo "::add-mask::$ROOT_TOKEN"
 
-            echo "🔓 Déverrouillage avec la Clé 1/2..."
+            echo "Déverrouillage avec la Clé 1/2..."
             $VAULT_EXEC operator unseal "$KEY1" > /dev/null
             
-            echo "🔓 Déverrouillage avec la Clé 2/2..."
+            echo "Déverrouillage avec la Clé 2/2..."
             $VAULT_EXEC operator unseal "$KEY2" > /dev/null
 
-            echo "✅ Vault déverrouillé avec succès !"
+            echo "Vault déverrouillé avec succès !"
           else
-            echo "⚠️ Vault est déjà initialisé mais verrouillé. Tentative de redémarrage..."
+            echo "Vault est déjà initialisé mais verrouillé. Tentative de redémarrage..."
             docker restart minisoc-vault
             sleep 5
           fi
@@ -855,7 +855,7 @@ jobs:
             echo "::warning::Vault est déverrouillé mais le healthcheck Docker n'a pas basculé en 'healthy' à temps."
             docker inspect minisoc-vault --format='{{json .State.Health}}'
           else
-            echo "🚀 Conteneur minisoc-vault est 'healthy' et prêt pour l'API !"
+            echo "Conteneur minisoc-vault est 'healthy' et prêt pour l'API !"
           fi
 
       # ----------------------------------------------------------
@@ -907,7 +907,7 @@ jobs:
           for i in $(seq 1 90); do
             API_HEALTH_DOCKER=$(docker inspect --format='{{.State.Health.Status}}' minisoc-api 2>/dev/null || echo "unknown")
 
-            if [ "$API_HEALTH_DOCKER" = "healthy" ] || docker exec minisoc-api curl -fsS http://localhost:4000/api/health >/dev/null 2>&1 || curl -fsS http://localhost:4000/api/health >/dev/null 2>&1; then
+            if [ "$API_HEALTH_DOCKER" = "healthy" ] || docker exec minisoc-api node -e "require('http').get('http://localhost:4000/api/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1); })" >/dev/null 2>&1; then
               echo "Mini-SOC API is UP and healthy! (Attempt $i)"
               break
             fi
@@ -927,14 +927,6 @@ jobs:
             sleep 3
           done
 
-          if ! (docker exec minisoc-api curl -fsS http://localhost:4000/api/health >/dev/null 2>&1 || curl -fsS http://localhost:4000/api/health >/dev/null 2>&1); then
-            echo "=========================================="
-            echo "=== CRITICAL LOGS: MINISOC-API ==="
-            echo "=========================================="
-            docker logs --tail 200 minisoc-api || docker compose logs --no-color nestjs-api
-            exit 1
-          fi
-
           echo "API is UP. Starting full stack services..."
           docker compose --env-file .env up -d
           echo "===================="
@@ -944,14 +936,33 @@ jobs:
           docker ps -a --filter status=exited
 
       # ----------------------------------------------------------
-      # Basic service health
+      # Basic service health (CORRIGÉ POUR ÉVITER EXIT CODE 7)
       # ----------------------------------------------------------
       - name: Validate critical service health
         run: |
           set -euo pipefail
 
+          echo "Checking OpenSearch..."
           curl -s -k http://localhost:9200/_cluster/health || curl -s -k -u admin:Admin123456789! https://localhost:9200/_cluster/health
-          docker exec minisoc-api curl -fsS http://localhost:4000/api/health >/dev/null || curl -kfsS https://localhost/api/health >/dev/null
+
+          echo "Waiting for API endpoint via Nginx / Localhost..."
+          READY=0
+          for i in $(seq 1 30); do
+            if curl -kfsS https://localhost/api/health >/dev/null 2>&1 || docker exec minisoc-api node -e "require('http').get('http://localhost:4000/api/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1); })" >/dev/null 2>&1; then
+              echo "API is healthy and responding!"
+              READY=1
+              break
+            fi
+            echo "Waiting for API health endpoint... ($i/30)"
+            sleep 2
+          done
+
+          if [ "$READY" -eq 0 ]; then
+            echo "::error::API failed to become responsive on https://localhost/api/health"
+            docker logs --tail 100 minisoc-nginx || true
+            docker logs --tail 100 minisoc-api || true
+            exit 1
+          fi
 
           if curl -fsS http://localhost:8000/health >/dev/null 2>&1; then
             echo "ML Engine reachable"
@@ -1139,7 +1150,7 @@ jobs:
             fi
           done
 
-          curl -ksSf https://localhost/api/health >/dev/null || docker exec minisoc-api curl -fsS http://localhost:4000/api/health >/dev/null
+          curl -ksSf https://localhost/api/health >/dev/null || docker exec minisoc-api node -e "require('http').get('http://localhost:4000/api/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1); })"
 
       # ----------------------------------------------------------
       # Observability
