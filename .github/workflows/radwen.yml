@@ -792,18 +792,24 @@ jobs:
           VAULT_EXEC="docker exec -e VAULT_ADDR=http://127.0.0.1:8200 -e VAULT_SKIP_VERIFY=true minisoc-vault vault"
 
           echo "=== Attente de l'accès à l'API Vault (HTTPS) ==="
-          TIMEOUT=20
-          until $VAULT_EXEC status > /dev/null 2>&1 || [ $TIMEOUT -eq 0 ]; do
-            echo "En attente du service Vault... ($TIMEOUT essais restants)"
+          VAULT_READY=0
+          for i in $(seq 1 20); do
+            $VAULT_EXEC status > /dev/null 2>&1
+            STATUS_EXIT=$?
+            if [ "$STATUS_EXIT" -eq 0 ] || [ "$STATUS_EXIT" -eq 2 ]; then
+              VAULT_READY=1
+              break
+            fi
+            echo "En attente du service Vault... ($((20 - i)) essais restants)"
             sleep 2
-            TIMEOUT=$((TIMEOUT-1))
           done
-
-          if [ $TIMEOUT -eq 0 ]; then
-            echo "::error::Le conteneur minisoc-vault ne répond pas sur l'API HTTPS."
-            docker logs --tail 50 minisoc-vault
-            exit 1
+          if [ "$VAULT_READY" -eq 0 ]; then
+           echo "::error::Le conteneur minisoc-vault ne répond pas sur l'API HTTPS."
+           docker logs --tail 50 minisoc-vault
+           exit 1
           fi
+          
+            
 
           echo "=== Vérification de l'état de Vault ==="
           STATUS_JSON=$($VAULT_EXEC status -format=json || true)
