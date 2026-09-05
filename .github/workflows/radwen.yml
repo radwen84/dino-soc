@@ -889,6 +889,9 @@ jobs:
       - name: Start complete Mini-SOC stack
         run: |
           set -euo pipefail
+          export DATABASE_URL="postgresql://minisoc_app:${POSTGRES_PASSWORD}@postgres:5432/minisoc?schema=public"
+          export JWT_SECRET="${JWT_SECRET:-ci-super-secret-jwt-key-minimum-32-chars}"
+          export JWT_REFRESH_SECRET="${JWT_REFRESH_SECRET:-ci-super-secret-refresh-key-minimum-32-chars}"
 
           echo "Starting API service individually..."
           docker compose --env-file .env up -d api || docker compose --env-file .env up -d nestjs-api
