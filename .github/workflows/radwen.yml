@@ -672,6 +672,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo sysctl -w vm.max_map_count=262144
+          sudo sysctl -w vm.overcommit_memory=1 || true
           sudo sysctl -w kernel.unprivileged_bpf_disabled=0 || true
           sudo ip link set eth0 promisc on || true
 
@@ -719,6 +720,7 @@ jobs:
 
           MINISOC_CI_TEST_ID=${MINISOC_CI_TEST_ID}
           NODE_ENV=test
+          OPENSEARCH_INITIAL_ADMIN_PASSWORD=Admin123456789!
           EOF
 
           if [ -f ./scripts/generate-certs.sh ]; then
@@ -737,21 +739,26 @@ jobs:
           docker compose --env-file .env up -d postgres redis opensearch
 
           echo "Waiting for core infrastructure (PostgreSQL, Redis, OpenSearch)..."
-          for i in $(seq 1 40); do
+          for i in $(seq 1 60); do
             PG_OK=0
             OS_OK=0
             REDIS_OK=0
 
             docker exec minisoc-postgres pg_isready -U minisoc_app -d minisoc >/dev/null 2>&1 && PG_OK=1 || true
-            curl -s http://localhost:9200/_cluster/health | grep -qE '"status":"(green|yellow)"' && OS_OK=1 || true
             docker exec minisoc-redis redis-cli ping >/dev/null 2>&1 && REDIS_OK=1 || true
+            
+            # Acceptance HTTP or HTTPS response for OpenSearch
+            if curl -k -s http://localhost:9200/_cluster/health | grep -qE '"status":"(green|yellow)"' || \
+               curl -k -s -u admin:Admin123456789! https://localhost:9200/_cluster/health | grep -qE '"status":"(green|yellow)"'; then
+              OS_OK=1
+            fi
 
             if [ "$PG_OK" = 1 ] && [ "$OS_OK" = 1 ] && [ "$REDIS_OK" = 1 ]; then
               echo "Core infrastructure ready!"
               exit 0
             fi
 
-            echo "Waiting for services... (Attempt $i/40)"
+            echo "Waiting for services... (Attempt $i/60)"
             sleep 5
           done
 
@@ -807,7 +814,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          curl -s -k http://localhost:9200/_cluster/health
+          curl -s -k http://localhost:9200/_cluster/health || curl -s -k -u admin:Admin123456789! https://localhost:9200/_cluster/health
           curl -fsS http://localhost:4000/health >/dev/null || curl -kfsS https://localhost/api/health >/dev/null
 
           if curl -fsS http://localhost:8000/health >/dev/null 2>&1; then
