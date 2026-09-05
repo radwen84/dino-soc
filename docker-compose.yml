@@ -352,7 +352,7 @@ services:
       dockerfile: Dockerfile
     container_name: minisoc-zeek
     restart: unless-stopped
-    command: -i enp0s3 local
+    
     network_mode: host
     cap_add:
       - NET_RAW

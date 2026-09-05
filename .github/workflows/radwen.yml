@@ -935,7 +935,17 @@ jobs:
           docker ps -a --filter status=exited
 
       # ----------------------------------------------------------
-      # Basic service health (CORRECTION DE C'UTILISATION DE CURL)
+      # Neutralize Internal Wazuh Filebeat
+      # ----------------------------------------------------------
+      - name: Stop internal Filebeat on Wazuh container
+        run: |
+          set -euo pipefail
+          echo "Disabling internal Filebeat inside minisoc-wazuh to prevent wazuh.indexer lookup failures..."
+          docker exec minisoc-wazuh service filebeat stop || true
+          docker exec minisoc-wazuh rm -rf /etc/s6-overlay/s6-rc.d/user/contents.d/filebeat /run/s6/services/filebeat || true
+
+      # ----------------------------------------------------------
+      # Basic service health
       # ----------------------------------------------------------
       - name: Validate critical service health
         run: |
