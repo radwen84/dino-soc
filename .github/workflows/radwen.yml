@@ -1182,10 +1182,12 @@ jobs:
         run: |
           set -euo pipefail
 
-          curl -fsS http://localhost:9090/-/ready >/dev/null
-          curl -fsS http://localhost:3000/api/health >/dev/null
-
+          echo "Waiting for Prometheus availability..."
+          timeout 60s bash -c 'until curl -fsS http://localhost:9090/-/ready >/dev/null 2>&1; do sleep 2; done'
           echo "Prometheus ready"
+
+          echo "Waiting for Grafana availability..."
+          timeout 60s bash -c 'until curl -fsS http://localhost:3000/api/health >/dev/null 2>&1; do sleep 2; done'
           echo "Grafana ready"
 
       # ----------------------------------------------------------
@@ -1208,22 +1210,28 @@ jobs:
         run: npx playwright test --config=playwright.config.ts --reporter=list || echo "::warning::E2E Playwright bypass"
 
       # ----------------------------------------------------------
-      # Diagnostics & Logging (Inclus ML Engine Logs)
+      # Diagnostics & Logging
       # ----------------------------------------------------------
       - name: Collect Docker status
         if: always()
         run: docker compose ps
 
-      - name: Collect Docker logs (Including ML Engine)
+      - name: Collect Docker logs
         if: always()
         run: |
           set -euo pipefail
-          echo "=== Generating global Docker Compose logs ==="
+          mkdir -p docker-logs
+
+          echo "=== Capturing global Docker Compose logs ==="
           docker compose logs --no-color > docker-compose.log 2>&1 || true
 
-          echo "=== Generating specific logs for ML Engine ==="
-          docker logs minisoc-ml-engine > ml-engine-container.log 2>&1 || true
-          docker compose logs --no-color ml-engine > ml-engine-compose.log 2>&1 || true
+          echo "=== Capturing logs for each individual service container ==="
+          CONTAINERS=$(docker ps -a --format '{{.Names}}')
+
+          for container in $CONTAINERS; do
+            echo "Exporting logs for container: $container"
+            docker logs --tail 2000 "$container" > "docker-logs/${container}.log" 2>&1 || true
+          done
 
       - name: Upload E2E diagnostics
         if: always()
@@ -1235,8 +1243,7 @@ jobs:
             playwright-report/
             test-results/
             docker-compose.log
-            ml-engine-container.log
-            ml-engine-compose.log
+            docker-logs/
             **/*.log
             /tmp/health.json
             /tmp/login.json

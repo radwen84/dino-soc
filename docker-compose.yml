@@ -428,6 +428,7 @@ services:
       - MYSQL_PASSWORD=${MISP_DB_PASSWORD:-MispDbPassword2026}
       - REDIS_HOST=misp-redis
       - REDIS_PORT=6379
+      - REDIS_PASSWORD=${MISP_REDIS_PASSWORD:-MispRedisPassword2026}
     volumes:
       - misp_data:/var/www/MISP/app/files
       - misp_config:/var/www/MISP/app/Config
@@ -479,7 +480,7 @@ services:
     restart: unless-stopped
     networks:
       - backend
-    command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru
+    command: redis-server --requirepass "${MISP_REDIS_PASSWORD:-MispRedisPassword2026}" --maxmemory 128mb --maxmemory-policy allkeys-lru
     volumes:
       - misp_redis_data:/data
     deploy:
@@ -531,6 +532,9 @@ services:
     image: thehiveproject/cortex:3.1.8
     container_name: minisoc-cortex
     restart: unless-stopped
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     networks:
       - backend
     environment:
@@ -611,6 +615,7 @@ services:
       - DB_POSTGRESDB_PORT=5432
       - DB_POSTGRESDB_DATABASE=n8n
       - DB_POSTGRESDB_USER=minisoc_app
+      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD:-changeme}
     volumes:
       - n8n_data:/home/node/.n8n
       - ./infrastructure/n8n/workflows:/home/node/workflows:ro
@@ -636,6 +641,8 @@ services:
     image: prom/prometheus:v2.53.0
     container_name: minisoc-prometheus
     restart: unless-stopped
+    ports:
+      - 9090:9090
     networks:
       - monitoring
       - backend

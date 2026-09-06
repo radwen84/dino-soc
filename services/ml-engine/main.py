@@ -9,6 +9,7 @@ Features:
 """
 
 from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel, ConfigDict, Field
 from pydantic import BaseModel, Field
 from typing import Optional, List
 import numpy as np
@@ -117,6 +118,7 @@ class RiskScoreResponse(BaseModel):
 
 
 class ModelStatusResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
     model_loaded: bool
     model_version: str
     trained_at: Optional[str]
