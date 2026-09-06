@@ -1,4 +1,4 @@
-name: Mini-SOC CI Pipeline
+name: LOULOU*DINO CI Pipeline
 
 on:
   push:
@@ -731,6 +731,7 @@ jobs:
           OTX_API_KEY=${OTX_API_KEY:-}
           ALIENVAULT_OTX_API_KEY=${OTX_API_KEY:-}
           SHODAN_API_KEY=${SHODAN_API_KEY:-}
+          MISP_URL=https://minisoc-misp
           MISP_API_KEY=${MISP_API_KEY:-}
 
           MINISOC_CI_TEST_ID=${MINISOC_CI_TEST_ID}
@@ -906,7 +907,7 @@ jobs:
           export JWT_REFRESH_SECRET="${JWT_REFRESH_SECRET:-ci-super-secret-refresh-key-minimum-32-chars}"
 
           echo "Starting API service (nestjs-api)..."
-          docker compose --env-file .env up -d nestjs-api
+          docker compose --env-file .env up -d nestjs-api misp
 
           echo "Waiting for Mini-SOC API service to become available..."
           for i in $(seq 1 90); do
@@ -939,6 +940,37 @@ jobs:
           docker compose ps
           echo "EXITED CONTAINERS"
           docker ps -a --filter status=exited
+
+      # ----------------------------------------------------------
+      # Connect MiniSOC API to MISP Dynamically
+      # ----------------------------------------------------------
+      - name: Configure MISP integration dynamically
+        run: |
+          set -euo pipefail
+          echo "=== Attente de l'initialisation de MISP et extraction de la clé Authkey ==="
+          
+          MISP_KEY=""
+          for i in $(seq 1 30); do
+            MISP_KEY=$(docker exec minisoc-misp cake Admin getAuthkey admin@admin.test 2>/dev/null | grep -E '^[a-zA-Z0-9]{40}$' || true)
+            if [ -n "$MISP_KEY" ]; then
+              echo "Jeton MISP extrait avec succès après ${i} essais."
+              break
+            fi
+            echo "En attente du démarrage complet de MISP... ($i/30)"
+            sleep 3
+          done
+
+          if [ -n "$MISP_KEY" ]; then
+            echo "::add-mask::$MISP_KEY"
+            echo "MISP_API_KEY=$MISP_KEY" >> .env
+            echo "MISP_URL=https://minisoc-misp" >> .env
+            
+            echo "Mise à jour du conteneur API avec les variables MISP..."
+            docker compose --env-file .env up -d --force-recreate nestjs-api
+            sleep 5
+          else
+            echo "::warning::Impossible d'extraire la clé MISP dynamique. Utilisation des clés par défaut."
+          fi
 
       # ----------------------------------------------------------
       # Neutralize Internal Wazuh Filebeat
@@ -1213,14 +1245,12 @@ jobs:
         run: npm ci
 
       - name: Install Playwright
-        working-directory: apps/frontend
         run: |
           npm init -y
           npm install --no-save @playwright/test
           npx playwright install --with-deps chromium
 
       - name: Run Playwright E2E
-        working-directory: apps/frontend
         env:
           CI: 'true'
           PLAYWRIGHT_BASE_URL: https://localhost

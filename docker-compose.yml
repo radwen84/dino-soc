@@ -247,15 +247,13 @@ services:
       - "55000:55000/tcp"
     volumes:
       - wazuh_data:/var/ossec/data
-      - wazuh_logs:/var/ossec/logs
-      - wazuh_etc:/var/ossec/etc
+      - wazuh_api_config:/var/ossec/api/configuration
       - ./security/wazuh/rules:/var/ossec/etc/rules:ro
       - ./security/wazuh/decoders:/var/ossec/etc/decoders:ro
       - ./security/wazuh/sync-api-password.sh:/docker-entrypoint-init.d/sync-api-password.sh:ro
       - suricata_logs:/var/log/suricata:ro
       - zeek_logs:/var/log/zeek:ro
       - falco_logs:/var/log/falco:ro
-      - wazuh_etc_shared:/var/ossec/etc/shared
     deploy:
       resources:
         limits:
@@ -369,7 +367,7 @@ services:
       - NET_ADMIN
     volumes:
       - zeek_logs:/var/log/zeek
-    command: /usr/local/zeek/bin/zeek -i eth0 -C  
+     
 
   # ============================================
   # FALCO - Runtime Security
@@ -389,7 +387,7 @@ services:
       memlock:
         soft: -1
         hard: -1
-    command: ["/usr/bin/falco", "-o", "-o", "grpc.enabled=false", "-o", "metrics.enabled=false"]
+    command: ["/usr/bin/falco", "-o", "grpc.enabled=false", "-o", "metrics.enabled=false"]
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /var/run/docker.sock:/host/var/run/docker.sock:ro
