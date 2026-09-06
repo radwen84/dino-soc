@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { PrometheusModule } from '@willsoto/nestjs-prometheus';
 import { ConfigModule } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -37,6 +38,13 @@ import { validate } from './config/env.validation';
       expandVariables: true,
       envFilePath: [`.env.${process.env.NODE_ENV || 'development'}`, '.env'],
     }),
+    // Exposition des métriques Prometheus
+    PrometheusModule.register({
+      path: '/metrics', // Sera automatiquement préfixé par /api si vous utilisez app.setGlobalPrefix('api') dans main.ts
+      defaultMetrics: {
+        enabled: true,
+      },
+      }),
 
     // Event system
     EventEmitterModule.forRoot({
