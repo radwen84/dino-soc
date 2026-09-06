@@ -178,6 +178,8 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./infrastructure/docker/postgres/init:/docker-entrypoint-initdb.d:ro
       - ./infrastructure/docker/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+      - ./infrastructure/docker/postgres/init-n8n-db.sql:/docker-entrypoint-initdb.d/init-n8n-db.sql:ro
+
     command: postgres -c config_file=/etc/postgresql/postgresql.conf
     deploy:
       resources:
@@ -352,21 +354,25 @@ services:
           memory: 1G
           cpus: "2.0"
 
+  # ============================================
+  # ZEEK - Network Security Monitoring
+  # ============================================
   zeek:
     build:
       context: ./security/zeek
       dockerfile: Dockerfile
     container_name: minisoc-zeek
     restart: unless-stopped
-    
     network_mode: host
-    command: ["zeek", "-C", "-i", "eth0", "/usr/local/zeek/share/zeek/site/local.zeek"]
     cap_add:
       - NET_RAW
       - NET_ADMIN
     volumes:
       - zeek_logs:/var/log/zeek
 
+  # ============================================
+  # FALCO - Runtime Security
+  # ============================================
   falco:
     build:
       context: ./security/falco
@@ -374,6 +380,12 @@ services:
     container_name: minisoc-falco
     restart: unless-stopped
     privileged: true
+    pid: host
+    ipc: host
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
     command: ["/usr/bin/falco", "-o", "engine.kind=modern_ebpf", "-o", "grpc.enabled=false", "-o", "metrics.enabled=false"]
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -539,6 +551,7 @@ services:
     image: thehiveproject/cortex:3.1.8
     container_name: minisoc-cortex
     restart: unless-stopped
+    privileged: true
     dns:
       - 8.8.8.8
       - 1.1.1.1
@@ -547,9 +560,10 @@ services:
     environment:
       - JVM_OPTS=-Xms256m -Xmx512m
       - job_directory=/opt/cortex/jobs
+      - ELASTICSEARCH_HOST=opensearch
     volumes:
       - cortex_data:/opt/cortex/data
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/run/docker.sock:/var/run/docker.sock:rw
     ports:
       - "9001:9001"
     deploy:
@@ -681,7 +695,6 @@ services:
     restart: unless-stopped
     ports: 
       - "3000:3000"
-
     networks:
       - monitoring
       - frontend

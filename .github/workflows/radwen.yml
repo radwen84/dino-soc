@@ -941,7 +941,6 @@ jobs:
         run: |
           set -euo pipefail
           echo "Disabling internal Filebeat inside minisoc-wazuh to prevent wazuh.indexer lookup failures..."
-          # Fix: Remplace 'service filebeat stop' par pkill pour éviter 'service: executable file not found'
           docker exec minisoc-wazuh pkill -f filebeat || true
           docker exec minisoc-wazuh rm -rf /etc/s6-overlay/s6-rc.d/user/contents.d/filebeat /etc/s6/services/filebeat /run/s6/services/filebeat || true
 
@@ -952,20 +951,21 @@ jobs:
         run: |
           set -euo pipefail
 
-          echo "Checking OpenSearch..."
+          echo "Checking OpenSearch internally via Docker network..."
           OS_READY=0
-          for i in $(seq 1 100); do
-            if docker exec minisoc-opensearch curl -s -k -u admin:Admin123456789! https://localhost:9200/_cluster/health >/dev/null 2>&1 || curl -s -k http://localhost:9200/_cluster/health >/dev/null 2>&1; then
-              echo "OpenSearch cluster is healthy!"
+          for i in $(seq 1 60); do
+            if docker exec minisoc-opensearch curl -s http://localhost:9200/_cluster/health >/dev/null 2>&1 || \
+               docker exec minisoc-api node -e "require('http').get('http://minisoc-opensearch:9200/_cluster/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1); })" >/dev/null 2>&1; then
+              echo "OpenSearch cluster is healthy and reachable internally!"
               OS_READY=1
               break
             fi
-            echo "Waiting for OpenSearch... ($i/100)"
+            echo "Waiting for internal OpenSearch... ($i/60)"
             sleep 2
           done
 
           if [ "$OS_READY" -eq 0 ]; then
-            echo "::warning::OpenSearch endpoint not reachable on host, continuing with container checks..."
+            echo "::warning::OpenSearch endpoint not reachable internally, continuing with container checks..."
             docker logs --tail 50 minisoc-opensearch || true
           fi
 
@@ -1116,7 +1116,6 @@ jobs:
           TOKEN=$(jq -r '.accessToken // .access_token // .token // empty' /tmp/login.json)
           test -n "$TOKEN"
 
-          # Fix: Ajout du schéma 'Bearer' devant $TOKEN
           INCIDENTS_CODE=$(curl -ks -o /tmp/incidents.json -w '%{http_code}' \
             "$BASE_URL/incidents" \
             -H "Authorization: Bearer $TOKEN")
@@ -1125,7 +1124,6 @@ jobs:
           test "$INCIDENTS_CODE" -ge 200
           test "$INCIDENTS_CODE" -lt 300
 
-          # Fix: Ajout du schéma 'Bearer' devant $TOKEN
           ALERTS_CODE=$(curl -ks -o /tmp/alerts.json -w '%{http_code}' \
             "$BASE_URL/alerts" \
             -H "Authorization: Bearer $TOKEN")
@@ -1134,13 +1132,11 @@ jobs:
           test "$ALERTS_CODE" -ge 200
           test "$ALERTS_CODE" -lt 300
 
-          # Fix: Ajout du schéma 'Bearer' devant $TOKEN
           TI_CODE=$(curl -ks -o /tmp/ti.json -w '%{http_code}' \
             "$BASE_URL/threat-intel/lookup/185.220.101.5" \
             -H "Authorization: Bearer $TOKEN")
 
           cat /tmp/ti.json
-          # Fix: Accepte les erreurs 500/502/504 en CI si la résolution DNS/Internet externe échoue
           test "$TI_CODE" -ge 200
           test "$TI_CODE" -le 504
 
