@@ -108,7 +108,7 @@ services:
       - OPENSEARCH_PORT=9200
       - OPENSEARCH_PROTOCOL=http
       - OPENSEARCH_URL=http://opensearch:9200
-      - API_CORS_ORIGINS=${API_CORS_ORIGINS}
+      - API_CORS_ORIGINS=${API_CORS_ORIGINS:-*}
       - WAZUH_HOST=${WAZUH_HOST:-wazuh-manager}
       - WAZUH_API_PORT=${WAZUH_API_PORT:-55000}
       - WAZUH_API_USER=${WAZUH_API_USER:-wazuh-wui}
@@ -812,4 +812,6 @@ volumes:
   thehive_index:
     driver: local
   cortex_data:
+    driver: local
+  wazuh_etc:
     driver: local
