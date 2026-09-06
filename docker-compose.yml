@@ -82,6 +82,9 @@ services:
     restart: unless-stopped
     networks:
       - backend
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     secrets:
       - db_password
       - jwt_secret
@@ -274,6 +277,9 @@ services:
     image: opensearchproject/opensearch:2.14.0
     container_name: minisoc-opensearch
     restart: unless-stopped
+    ports:
+      - "9200:9200"
+      - "9600:9600"
     networks:
       - siem
       - backend
@@ -354,6 +360,7 @@ services:
     restart: unless-stopped
     
     network_mode: host
+    command: ["zeek", "-C", "-i", "eth0", "/usr/local/zeek/share/zeek/site/local.zeek"]
     cap_add:
       - NET_RAW
       - NET_ADMIN
@@ -367,7 +374,7 @@ services:
     container_name: minisoc-falco
     restart: unless-stopped
     privileged: true
-    command: ["/usr/bin/falco", "-o", "engine.kind=nodriver", "-o", "grpc.enabled=false"]
+    command: ["/usr/bin/falco", "-o", "engine.kind=modern_ebpf", "-o", "grpc.enabled=false", "-o", "metrics.enabled=false"]
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /dev:/host/dev:ro
@@ -516,7 +523,7 @@ services:
           memory: 1536M
           cpus: "1.0"
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:9000/api/v1/status || exit 1"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:9000/api/v1/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
