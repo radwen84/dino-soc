@@ -12,8 +12,8 @@ filebeat.inputs:
       - ndjson:
           target: ""
           add_error_key: true
-    # Permet de lire depuis le début si le fichier est nouveau
-    prospector.scanner.check_interval: 10s
+    # Forcer la lecture depuis le début du fichier (très important en CI)
+    prospector.scanner.check_interval: 2s
 
 processors:
   - add_host_metadata: ~
@@ -31,7 +31,8 @@ setup.template.pattern: "wazuh-alerts-*"
 # ============================================================
 output.elasticsearch:
   hosts: ["http://opensearch:9200"]
-  index: "wazuh-alerts-%{+YYYY.MM.dd}"
+  # Correction : yyyy en minuscules (requis par Go/Beats)
+  index: "wazuh-alerts-%{+yyyy.MM.dd}"
   allow_older_versions: true
 
 # ============================================================

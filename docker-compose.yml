@@ -248,7 +248,7 @@ services:
     volumes:
       - wazuh_data:/var/ossec/data
       - wazuh_logs:/var/ossec/logs
-      - ./security/wazuh/ossec.conf:/var/ossec/etc/ossec.conf:ro
+      - wazuh_etc:/var/ossec/etc
       - ./security/wazuh/rules:/var/ossec/etc/rules:ro
       - ./security/wazuh/decoders:/var/ossec/etc/decoders:ro
       - ./security/wazuh/sync-api-password.sh:/docker-entrypoint-init.d/sync-api-password.sh:ro
@@ -369,6 +369,7 @@ services:
       - NET_ADMIN
     volumes:
       - zeek_logs:/var/log/zeek
+    command: /usr/local/zeek/bin/zeek -i eth0 -C  
 
   # ============================================
   # FALCO - Runtime Security
@@ -380,20 +381,25 @@ services:
     container_name: minisoc-falco
     restart: unless-stopped
     privileged: true
+    environment:
+     - FALCO_DRIVER_CHOICE=modern_ebpf
     pid: host
     ipc: host
     ulimits:
       memlock:
         soft: -1
         hard: -1
-    command: ["/usr/bin/falco", "-o", "engine.kind=modern_ebpf", "-o", "grpc.enabled=false", "-o", "metrics.enabled=false"]
+    command: ["/usr/bin/falco", "-o", "-o", "grpc.enabled=false", "-o", "metrics.enabled=false"]
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/run/docker.sock:/host/var/run/docker.sock:ro
       - /dev:/host/dev:ro
       - /proc:/host/proc:ro
       - /boot:/host/boot:ro
       - /lib/modules:/host/lib/modules:ro
       - /sys:/host/sys:ro
+      - /sys/kernel/debug:/sys/kernel/debug:ro
+      - /etc/bpf:/etc/bpf:ro
       - falco_logs:/var/log/falco
 
   # ============================================
@@ -558,11 +564,12 @@ services:
     networks:
       - backend
     environment:
-      - JVM_OPTS=-Xms256m -Xmx512m
+      - JVM_OPTS=-Xms256m -Xmx512m -Dsearch.host.0=opensearch:9200
       - job_directory=/opt/cortex/jobs
-      - ELASTICSEARCH_HOST=opensearch
+      
     volumes:
       - cortex_data:/opt/cortex/data
+      - ./security/cortex/application.conf:/etc/cortex/application.conf:ro
       - /var/run/docker.sock:/var/run/docker.sock:rw
     ports:
       - "9001:9001"

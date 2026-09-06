@@ -55,6 +55,10 @@ af-packet:
     defrag: yes
     use-mmap: yes
     tpacket-v3: yes
+  - interface: eth0
+    cluster-id: 99
+    cluster-type: cluster_flow
+    defrag: yes  
 
 app-layer:
   protocols:
