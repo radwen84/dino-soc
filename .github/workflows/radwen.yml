@@ -953,13 +953,13 @@ jobs:
 
           echo "Checking OpenSearch..."
           OS_READY=0
-          for i in $(seq 1 35); do
+          for i in $(seq 1 50); do
             if docker exec minisoc-opensearch curl -s -k -u admin:Admin123456789! https://localhost:9200/_cluster/health >/dev/null 2>&1 || curl -s -k http://localhost:9200/_cluster/health >/dev/null 2>&1; then
               echo "OpenSearch cluster is healthy!"
               OS_READY=1
               break
             fi
-            echo "Waiting for OpenSearch... ($i/35)"
+            echo "Waiting for OpenSearch... ($i/50)"
             sleep 2
           done
 
@@ -1208,15 +1208,22 @@ jobs:
         run: npx playwright test --config=playwright.config.ts --reporter=list || echo "::warning::E2E Playwright bypass"
 
       # ----------------------------------------------------------
-      # Diagnostics
+      # Diagnostics & Logging (Inclus ML Engine Logs)
       # ----------------------------------------------------------
       - name: Collect Docker status
         if: always()
         run: docker compose ps
 
-      - name: Collect Docker logs
+      - name: Collect Docker logs (Including ML Engine)
         if: always()
-        run: docker compose logs --no-color > docker-compose.log 2>&1 || true
+        run: |
+          set -euo pipefail
+          echo "=== Generating global Docker Compose logs ==="
+          docker compose logs --no-color > docker-compose.log 2>&1 || true
+
+          echo "=== Generating specific logs for ML Engine ==="
+          docker logs minisoc-ml-engine > ml-engine-container.log 2>&1 || true
+          docker compose logs --no-color ml-engine > ml-engine-compose.log 2>&1 || true
 
       - name: Upload E2E diagnostics
         if: always()
@@ -1228,6 +1235,8 @@ jobs:
             playwright-report/
             test-results/
             docker-compose.log
+            ml-engine-container.log
+            ml-engine-compose.log
             **/*.log
             /tmp/health.json
             /tmp/login.json
