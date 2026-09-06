@@ -178,7 +178,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./infrastructure/docker/postgres/init:/docker-entrypoint-initdb.d:ro
       - ./infrastructure/docker/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
-      - ./infrastructure/docker/postgres/init-n8n-db.sql:/docker-entrypoint-initdb.d/init-n8n-db.sql:ro
+      - ./infrastructure/docker/postgres/init/init-n8n-db.sql:/docker-entrypoint-initdb.d/init-n8n-db.sql:ro
 
     command: postgres -c config_file=/etc/postgresql/postgresql.conf
     deploy:
