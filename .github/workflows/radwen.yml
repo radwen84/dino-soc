@@ -953,18 +953,19 @@ jobs:
 
           echo "Checking OpenSearch..."
           OS_READY=0
-          for i in $(seq 1 20); do
+          for i in $(seq 1 35); do
             if docker exec minisoc-opensearch curl -s -k -u admin:Admin123456789! https://localhost:9200/_cluster/health >/dev/null 2>&1 || curl -s -k http://localhost:9200/_cluster/health >/dev/null 2>&1; then
               echo "OpenSearch cluster is healthy!"
               OS_READY=1
               break
             fi
-            echo "Waiting for OpenSearch... ($i/20)"
+            echo "Waiting for OpenSearch... ($i/35)"
             sleep 2
           done
 
           if [ "$OS_READY" -eq 0 ]; then
             echo "::warning::OpenSearch endpoint not reachable on host, continuing with container checks..."
+            docker logs --tail 50 minisoc-opensearch || true
           fi
 
           echo "Waiting for API endpoint via Nginx / Localhost..."
