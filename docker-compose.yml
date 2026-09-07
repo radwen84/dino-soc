@@ -246,6 +246,7 @@ services:
       - "1515:1515/tcp"
       - "55000:55000/tcp"
     volumes:
+      - ./security/wazuh/ossec.conf:/var/ossec/etc/ossec.conf:ro
       - wazuh_data:/var/ossec/data
       - wazuh_api_config:/var/ossec/api/configuration
       - ./security/wazuh/rules:/var/ossec/etc/rules:ro
@@ -655,10 +656,10 @@ services:
           cpus: "0.5"
     healthcheck:
       test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:5678/healthz || exit 1"]
-      interval: 30s
+      interval: 10s
       timeout: 10s
-      retries: 3
-      start_period: 30s
+      retries: 5
+      start_period: 90s
     depends_on:
       postgres:
         condition: service_healthy

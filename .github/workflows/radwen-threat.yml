@@ -1027,7 +1027,6 @@ jobs:
           MISP_KEY=""
           CMD_OUTPUT=""
 
-          # Tentative 1 : Via commande Cake native 'authkey' ou 'createAuthkey'
           CMD_OUTPUT=$(docker exec -u www-data minisoc-misp cake user authkey admin@admin.test 2>&1 || true)
           MISP_KEY=$(echo "$CMD_OUTPUT" | grep -oE '[a-zA-Z0-9]{40}' | tail -n1 || true)
 
@@ -1036,7 +1035,6 @@ jobs:
             MISP_KEY=$(echo "$CMD_OUTPUT" | grep -oE '[a-zA-Z0-9]{40}' | tail -n1 || true)
           fi
 
-          # Tentative 2 : Bascule sur la génération directe en BDD si la CLI Cake échoue
           if [ -z "$MISP_KEY" ]; then
             echo "Commande CLI Cake non compatible, bascule sur la génération directe en BDD..."
             GENERATED_KEY=$(openssl rand -hex 20)
@@ -1312,9 +1310,15 @@ jobs:
               echo "=== Service trouvé : $service ==="
               
               count=0
+              # Augmentation de la fenêtre d'attente à 4 minutes (48 * 5s) pour n8n / TheHive
               until [ "$(docker inspect --format='{{.State.Health.Status}}' "minisoc-$service" 2>/dev/null || echo "starting")" = "healthy" ]; do
-                if [ $count -gt 18 ]; then
-                  echo "::error::Le service $service n'est pas passé au statut healthy dans les délais impartis."
+                if [ $count -gt 48 ]; then
+                  # Verification de secours pour n8n avant d'échouer
+                  if [ "$service" = "n8n" ] && docker exec minisoc-n8n curl -fsS http://localhost:5678/healthz >/dev/null 2>&1; then
+                    echo "n8n est opérationnel sur /healthz malgré le healthcheck Docker."
+                    break
+                  fi
+                  echo "::error::Le service $service n'est pas passé au statut healthy dans les délais."
                   docker compose logs "$service" | tail -n 50
                   exit 1
                 fi
