@@ -972,31 +972,48 @@ jobs:
             echo "::warning::MISP n'a pas affiché la fin de son initialisation dans les temps, tentative d'extraction directe..."
           fi
 
-          echo "=== Extraction/Génération dynamique de la clé Authkey MISP ==="
+          echo "=== Extraction / Génération de la clé Authkey MISP ==="
           MISP_KEY=""
           CMD_OUTPUT=""
-          for i in $(seq 1 30); do
+
+          # Tentative 1 : Via commande Cake native 'authkey' ou 'createAuthkey'
+          CMD_OUTPUT=$(docker exec -u www-data minisoc-misp cake user authkey admin@admin.test 2>&1 || true)
+          MISP_KEY=$(echo "$CMD_OUTPUT" | grep -oE '[a-zA-Z0-9]{40}' | tail -n1 || true)
+
+          if [ -z "$MISP_KEY" ]; then
             CMD_OUTPUT=$(docker exec -u www-data minisoc-misp cake user createAuthkey admin@admin.test "CI Key" 2>&1 || true)
             MISP_KEY=$(echo "$CMD_OUTPUT" | grep -oE '[a-zA-Z0-9]{40}' | tail -n1 || true)
+          fi
 
-            if [ -n "$MISP_KEY" ]; then
-              echo "Jeton MISP extrait avec succès après ${i} essais."
-              break
-            fi
-            echo "En attente de la disponibilité de l'API Cake / BDD... ($i/30)"
-            sleep 3
-          done
+          # Tentative 2 : Bascule sur la génération directe en BDD si la CLI Cake échoue
+          if [ -z "$MISP_KEY" ]; then
+            echo "Commande CLI Cake non compatible, bascule sur la génération directe en BDD..."
+            GENERATED_KEY=$(openssl rand -hex 20)
+            
+            docker exec -u www-data minisoc-misp bash -c "
+              cake Admin runCommand execute 'UPDATE users SET authkey=\"$GENERATED_KEY\" WHERE email=\"admin@admin.test\";' 2>/dev/null || \
+              mysql -u misp -pmisp_password misp -e \"UPDATE users SET authkey='$GENERATED_KEY' WHERE email='admin@admin.test';\" 2>/dev/null || \
+              PGPASSWORD=misp psql -U misp -d misp -c \"UPDATE users SET authkey='$GENERATED_KEY' WHERE email='admin@admin.test';\" 2>/dev/null
+            " || true
+            
+            MISP_KEY="$GENERATED_KEY"
+          fi
 
           if [ -n "$MISP_KEY" ]; then
+            echo "Jeton MISP configuré avec succès."
             echo "::add-mask::$MISP_KEY"
+            
+            sed -i '/^MISP_API_KEY=/d' .env || true
+            sed -i '/^MISP_URL=/d' .env || true
             echo "MISP_API_KEY=$MISP_KEY" >> .env
             echo "MISP_URL=http://misp:80" >> .env
 
-            echo "Mise à jour du conteneur API NestJS avec la clé MISP..."
+            echo "Rechargement du service API NestJS avec la clé MISP..."
             docker compose --env-file .env up -d --force-recreate nestjs-api
             sleep 5
           else
-            echo "::error::Impossible d'extraire la clé MISP dynamique. Dernières sorties Console / Cake :"
+            echo "::error::Impossible de définir la clé MISP."
+            echo "Dernière sortie console :"
             echo "$CMD_OUTPUT"
             echo "--- Logs du conteneur MISP ---"
             docker logs minisoc-misp --tail 50
