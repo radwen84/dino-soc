@@ -1233,6 +1233,11 @@ jobs:
       - name: Validate application API flows
         env:
           BASE_URL: https://localhost/api
+          ABUSEIPDB_API_KEY: ${{ secrets.ABUSEIPDB_API_KEY }}
+          VIRUSTOTAL_API_KEY: ${{ secrets.VIRUSTOTAL_API_KEY }}
+          OTX_API_KEY: ${{ secrets.OTX_API_KEY }}
+          ALIENVAULT_OTX_API_KEY: ${{ secrets.OTX_API_KEY }}
+          SHODAN_API_KEY: ${{ secrets.SHODAN_API_KEY }}
         run: |
           set -euo pipefail
 
@@ -1281,12 +1286,6 @@ jobs:
       # Processing / ML / Risk
       # ----------------------------------------------------------
       - name: Validate processing and risk pipeline
-        env:
-          ABUSEIPDB_API_KEY: ${{ secrets.ABUSEIPDB_API_KEY }}
-          VIRUSTOTAL_API_KEY: ${{ secrets.VIRUSTOTAL_API_KEY }}
-          OTX_API_KEY: ${{ secrets.OTX_API_KEY }}
-          ALIENVAULT_OTX_API_KEY: ${{ secrets.OTX_API_KEY }}
-          SHODAN_API_KEY: ${{ secrets.SHODAN_API_KEY }
         run: |
           set -euo pipefail
 
