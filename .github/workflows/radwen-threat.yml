@@ -956,15 +956,33 @@ jobs:
             rm -rf /var/www/MISP/app/tmp/cache/persistent/*
           " || echo "Note: Initialisation des répertoires du cache."
 
+          echo "=== Attente de l'initialisation complète du conteneur MISP ==="
+          MISP_READY=0
+          for i in $(seq 1 60); do
+            if docker logs minisoc-misp 2>&1 | grep -q "MISP | Start component updates"; then
+              echo "MISP a terminé son amorçage (Attempt $i) !"
+              MISP_READY=1
+              break
+            fi
+            echo "Initialisation de MISP en cours... ($i/60)"
+            sleep 5
+          done
+
+          if [ "$MISP_READY" -eq 0 ]; then
+            echo "::warning::MISP n'a pas affiché la fin de son initialisation dans les temps, tentative d'extraction directe..."
+          fi
+
           echo "=== Extraction dynamique de la clé Authkey MISP ==="
           MISP_KEY=""
           for i in $(seq 1 30); do
-            MISP_KEY=$(docker exec -u www-data minisoc-misp cake Admin getAuthkey admin@admin.test 2>/dev/null | grep -E '^[a-zA-Z0-9]{40}$' || true)
+            CMD_OUTPUT=$(docker exec -u www-data minisoc-misp cake Admin getAuthkey admin@admin.test 2>&1 || true)
+            MISP_KEY=$(echo "$CMD_OUTPUT" | grep -E '^[a-zA-Z0-9]{40}$' || true)
+
             if [ -n "$MISP_KEY" ]; then
               echo "Jeton MISP extrait avec succès après ${i} essais."
               break
             fi
-            echo "En attente du démarrage complet de MISP... ($i/30)"
+            echo "En attente de la disponibilité de l'API Cake / BDD... ($i/30)"
             sleep 3
           done
 
@@ -977,7 +995,9 @@ jobs:
             docker compose --env-file .env up -d --force-recreate nestjs-api
             sleep 5
           else
-            echo "::error::Impossible d'extraire la clé MISP dynamique. Vérifiez les logs du conteneur."
+            echo "::error::Impossible d'extraire la clé MISP dynamique. Dernières sorties Console / Cake :"
+            echo "$CMD_OUTPUT"
+            echo "--- Logs du conteneur MISP ---"
             docker logs minisoc-misp --tail 50
             exit 1
           fi
