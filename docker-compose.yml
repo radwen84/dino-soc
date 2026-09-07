@@ -818,3 +818,5 @@ volumes:
     driver: local
   wazuh_api_config:
     driver: local
+  misp_tmp_data:
+    driver: local  

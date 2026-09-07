@@ -104,13 +104,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Generate Backend SBOM
-        uses: anchore/sbom-action@v0.18.0
+        uses: anchore/sbom-action@v0.19.0
         with:
           path: apps/backend
           format: spdx-json
           output-file: sbom-backend.spdx.json
       - name: Generate Frontend SBOM
-        uses: anchore/sbom-action@v0.18.0
+        uses: anchore/sbom-action@v0.19.0
         with:
           path: apps/frontend
           format: spdx-json
