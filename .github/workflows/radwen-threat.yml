@@ -976,7 +976,7 @@ jobs:
           MISP_KEY=""
           CMD_OUTPUT=""
           for i in $(seq 1 30); do
-            CMD_OUTPUT=$(docker exec -u www-data minisoc-misp cake User createAuthkey admin@admin.test "CI Key" 2>&1 || true)
+            CMD_OUTPUT=$(docker exec -u www-data minisoc-misp cake user createAuthkey admin@admin.test "CI Key" 2>&1 || true)
             MISP_KEY=$(echo "$CMD_OUTPUT" | grep -oE '[a-zA-Z0-9]{40}' | tail -n1 || true)
 
             if [ -n "$MISP_KEY" ]; then
