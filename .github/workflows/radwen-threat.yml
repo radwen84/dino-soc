@@ -976,16 +976,8 @@ jobs:
           MISP_KEY=""
           CMD_OUTPUT=""
           for i in $(seq 1 30); do
-            # 1. Tentative avec la commande CLI native Advanced Authkeys
-            CMD_OUTPUT=$(docker exec -u www-data minisoc-misp cake User createAuthkey admin@admin.test 2>&1 || true)
-            MISP_KEY=$(echo "$CMD_OUTPUT" | grep -E '^[a-zA-Z0-9]{40}$' | tail -n1 || true)
-
-            # 2. Alternative si l'option legacy est requise
-            if [ -z "$MISP_KEY" ]; then
-              docker exec -u www-data minisoc-misp cake Admin setSetting "MISP.advanced_authkeys" false >/dev/null 2>&1 || true
-              CMD_OUTPUT=$(docker exec -u www-data minisoc-misp cake Admin getAuthkey admin@admin.test 2>&1 || true)
-              MISP_KEY=$(echo "$CMD_OUTPUT" | grep -E '^[a-zA-Z0-9]{40}$' | tail -n1 || true)
-            fi
+            CMD_OUTPUT=$(docker exec -u www-data minisoc-misp cake User createAuthkey admin@admin.test "CI Key" 2>&1 || true)
+            MISP_KEY=$(echo "$CMD_OUTPUT" | grep -oE '[a-zA-Z0-9]{40}' | tail -n1 || true)
 
             if [ -n "$MISP_KEY" ]; then
               echo "Jeton MISP extrait avec succès après ${i} essais."
