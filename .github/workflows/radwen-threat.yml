@@ -1309,10 +1309,24 @@ jobs:
 
           for service in n8n thehive; do
             if docker compose ps --services | grep -qx "$service"; then
-              echo "Found service: $service"
+              echo "=== Service trouvé : $service ==="
+              
+              count=0
+              until [ "$(docker inspect --format='{{.State.Health.Status}}' "minisoc-$service" 2>/dev/null || echo "starting")" = "healthy" ]; do
+                if [ $count -gt 18 ]; then
+                  echo "::error::Le service $service n'est pas passé au statut healthy dans les délais impartis."
+                  docker compose logs "$service" | tail -n 50
+                  exit 1
+                fi
+                echo "En attente du statut healthy pour $service (actuel : $(docker inspect --format='{{.State.Health.Status}}' "minisoc-$service" 2>/dev/null || echo "inconnu"))..."
+                sleep 5
+                count=$((count + 1))
+              done
+
+              echo "Service $service opérationnel et healthy !"
               docker compose ps "$service"
             else
-              echo "Service $service not exposed by docker compose; checking application integration instead."
+              echo "Service $service non exposé par docker compose; vérification de l'intégration applicative."
             fi
           done
 
