@@ -452,9 +452,12 @@ services:
       - REDIS_HOST=misp-redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${MISP_REDIS_PASSWORD:-MispRedisPassword2026}
+      - MISP_WORKERS=1
+      - MISP_RUN_WORKERS=true
     volumes:
       - misp_data:/var/www/MISP/app/files
       - misp_config:/var/www/MISP/app/Config
+      - misp_tmp_data:/var/www/MISP/app/tmp
     deploy:
       resources:
         limits:

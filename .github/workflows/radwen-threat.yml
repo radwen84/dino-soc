@@ -731,7 +731,7 @@ jobs:
           OTX_API_KEY=${OTX_API_KEY:-}
           ALIENVAULT_OTX_API_KEY=${OTX_API_KEY:-}
           SHODAN_API_KEY=${SHODAN_API_KEY:-}
-          MISP_URL=https://minisoc-misp
+          MISP_URL=http://misp:80
           MISP_API_KEY=${MISP_API_KEY:-}
 
           MINISOC_CI_TEST_ID=${MINISOC_CI_TEST_ID}
@@ -942,16 +942,24 @@ jobs:
           docker ps -a --filter status=exited
 
       # ----------------------------------------------------------
-      # Connect MiniSOC API to MISP Dynamically
+      # Fix MISP Permissions and Configure Integration
       # ----------------------------------------------------------
-      - name: Configure MISP integration dynamically
+      - name: Fix MISP Permissions and Configure Integration
         run: |
           set -euo pipefail
-          echo "=== Attente de l'initialisation de MISP et extraction de la clé Authkey ==="
-          
+
+          echo "=== Application du correctif de permissions sur MISP ==="
+          docker exec -u 0 minisoc-misp bash -c "
+            chown -R www-data:www-data /var/www/MISP/app/tmp
+            chmod -R 775 /var/www/MISP/app/tmp
+            rm -rf /var/www/MISP/app/tmp/cache/models/*
+            rm -rf /var/www/MISP/app/tmp/cache/persistent/*
+          " || echo "Note: Initialisation des répertoires du cache."
+
+          echo "=== Extraction dynamique de la clé Authkey MISP ==="
           MISP_KEY=""
           for i in $(seq 1 30); do
-            MISP_KEY=$(docker exec minisoc-misp cake Admin getAuthkey admin@admin.test 2>/dev/null | grep -E '^[a-zA-Z0-9]{40}$' || true)
+            MISP_KEY=$(docker exec -u www-data minisoc-misp cake Admin getAuthkey admin@admin.test 2>/dev/null | grep -E '^[a-zA-Z0-9]{40}$' || true)
             if [ -n "$MISP_KEY" ]; then
               echo "Jeton MISP extrait avec succès après ${i} essais."
               break
@@ -963,13 +971,15 @@ jobs:
           if [ -n "$MISP_KEY" ]; then
             echo "::add-mask::$MISP_KEY"
             echo "MISP_API_KEY=$MISP_KEY" >> .env
-            echo "MISP_URL=https://minisoc-misp" >> .env
-            
-            echo "Mise à jour du conteneur API avec les variables MISP..."
+            echo "MISP_URL=http://misp:80" >> .env
+
+            echo "Mise à jour du conteneur API NestJS avec la clé MISP..."
             docker compose --env-file .env up -d --force-recreate nestjs-api
             sleep 5
           else
-            echo "::warning::Impossible d'extraire la clé MISP dynamique. Utilisation des clés par défaut."
+            echo "::error::Impossible d'extraire la clé MISP dynamique. Vérifiez les logs du conteneur."
+            docker logs minisoc-misp --tail 50
+            exit 1
           fi
 
       # ----------------------------------------------------------
