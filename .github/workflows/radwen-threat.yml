@@ -668,11 +668,62 @@ jobs:
       # ----------------------------------------------------------
       # Host preparation & Docker DNS Configuration
       # ----------------------------------------------------------
-      - name: Configure Docker DNS for CI
+      - name: Configure Docker DNS for GitHub Actions
         run: |
-          set -euo pipefail
-          echo '{"dns": ["8.8.8.8", "1.1.1.1"]}' | sudo tee /etc/docker/daemon.json
+          set -Eeuo pipefail
+
+          echo "=== Host DNS ==="
+          cat /etc/resolv.conf
+
+          echo "=== Current Docker daemon configuration ==="
+          if [ -f /etc/docker/daemon.json ]; then
+            sudo cat /etc/docker/daemon.json
+          else
+            echo "No existing /etc/docker/daemon.json"
+          fi
+
+          echo "=== Configure reliable DNS for Docker containers ==="
+
+          sudo python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("/etc/docker/daemon.json")
+
+          if path.exists():
+              try:
+                  data = json.loads(path.read_text())
+              except Exception:
+                  data = {}
+          else:
+              data = {}
+
+          # Preserve existing Docker daemon settings.
+          data["dns"] = [
+              "1.1.1.1",
+              "8.8.8.8"
+          ]
+
+          path.write_text(
+              json.dumps(data, indent=2) + "\n"
+          )
+          PY
+
+          echo "=== New Docker daemon configuration ==="
+          sudo cat /etc/docker/daemon.json
+
           sudo systemctl restart docker
+
+          echo "=== Docker daemon DNS ==="
+          docker info | grep -i -A5 -B2 dns || true
+
+          echo "=== Host DNS resolution test ==="
+          getent hosts api.abuseipdb.com
+          getent hosts otx.alienvault.com
+          getent hosts www.virustotal.com
+          getent hosts api.shodan.io
+
+          echo "Host DNS resolution: OK"
 
       - name: Prepare Linux host for OpenSearch / IDS / Falco
         run: |
