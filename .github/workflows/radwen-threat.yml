@@ -972,11 +972,20 @@ jobs:
             echo "::warning::MISP n'a pas affiché la fin de son initialisation dans les temps, tentative d'extraction directe..."
           fi
 
-          echo "=== Extraction dynamique de la clé Authkey MISP ==="
+          echo "=== Extraction/Génération dynamique de la clé Authkey MISP ==="
           MISP_KEY=""
+          CMD_OUTPUT=""
           for i in $(seq 1 30); do
-            CMD_OUTPUT=$(docker exec -u www-data minisoc-misp cake Admin getAuthkey admin@admin.test 2>&1 || true)
-            MISP_KEY=$(echo "$CMD_OUTPUT" | grep -E '^[a-zA-Z0-9]{40}$' || true)
+            # 1. Tentative avec la commande CLI native Advanced Authkeys
+            CMD_OUTPUT=$(docker exec -u www-data minisoc-misp cake User createAuthkey admin@admin.test 2>&1 || true)
+            MISP_KEY=$(echo "$CMD_OUTPUT" | grep -E '^[a-zA-Z0-9]{40}$' | tail -n1 || true)
+
+            # 2. Alternative si l'option legacy est requise
+            if [ -z "$MISP_KEY" ]; then
+              docker exec -u www-data minisoc-misp cake Admin setSetting "MISP.advanced_authkeys" false >/dev/null 2>&1 || true
+              CMD_OUTPUT=$(docker exec -u www-data minisoc-misp cake Admin getAuthkey admin@admin.test 2>&1 || true)
+              MISP_KEY=$(echo "$CMD_OUTPUT" | grep -E '^[a-zA-Z0-9]{40}$' | tail -n1 || true)
+            fi
 
             if [ -n "$MISP_KEY" ]; then
               echo "Jeton MISP extrait avec succès après ${i} essais."
