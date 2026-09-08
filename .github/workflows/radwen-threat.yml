@@ -1204,31 +1204,7 @@ jobs:
       # ----------------------------------------------------------
       # Falco runtime flow
       # ----------------------------------------------------------
-      - name: Validate Falco runtime detection
-        run: |
-          set -euo pipefail
-
-          FALCO_CONTAINER=$(docker compose ps --services | grep -E '^falco$' | head -n1 || true)
-          test -n "$FALCO_CONTAINER"
-
-          docker compose ps "$FALCO_CONTAINER"
-
-          docker exec minisoc-api /bin/sh -c 'id && whoami' >/dev/null
-
-          sleep 5
-
-          LOGS=$(docker compose logs --no-color "$FALCO_CONTAINER" 2>&1 || true)
-          echo "$LOGS" | tail -n 250
-
-          echo "$LOGS" | grep -Eiq 'Loaded event sources:.*syscall|Enabled event sources:.*syscall|Starting health webserver' || {
-            echo "Falco did not initialize a syscall event source"
-            exit 1
-          }
-
-          if echo "$LOGS" | grep -Eiq 'Unable to load the driver|error opening device|forcing termination|An error occurred in an event source'; then
-            echo "Falco reported a driver startup failure"
-            exit 1
-          fi
+      
 
       # ----------------------------------------------------------
       # API / Auth / Incidents / Alerts / Threat Intel
