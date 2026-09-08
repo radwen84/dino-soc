@@ -377,6 +377,12 @@ services:
     container_name: minisoc-falco
     restart: unless-stopped
     privileged: true
+    cap_add:
+      - SYS_ADMIN
+      - SYS_RESOURCE
+      - SYS_PTRACE
+      - BPF        # Recommandé pour les sondes modern-ebpf
+      - PERFMON    # Recommandé pour la collecte d'événements
     environment:
       - FALCO_DRIVER_CHOICE=modern_ebpf
     volumes:
