@@ -1273,12 +1273,13 @@ jobs:
           test "$ALERTS_CODE" -lt 300
 
           TI_CODE=$(curl -ks -o /tmp/ti.json -w '%{http_code}' \
+            --connect-timeout 5 --max-time 25 \
             "$BASE_URL/threat-intel/lookup/185.220.101.5" \
             -H "Authorization: Bearer $TOKEN")
 
           cat /tmp/ti.json
           test "$TI_CODE" -ge 200
-          test "$TI_CODE" -le 504
+          test "$TI_CODE" -lt 300
 
       # ----------------------------------------------------------
       # Processing / ML / Risk

@@ -19,6 +19,7 @@ interface AbuseIpDbReport {
 export class AbuseIpDbService {
   private readonly logger = new Logger(AbuseIpDbService.name);
   private readonly baseUrl = 'https://api.abuseipdb.com/api/v2';
+  private readonly requestTimeoutMs = 10_000;
   private readonly apiKey: string;
 
   constructor(
@@ -45,6 +46,7 @@ export class AbuseIpDbService {
             Accept: 'application/json',
           },
           params: { ipAddress: ip, maxAgeInDays: 90 },
+          timeout: this.requestTimeoutMs,
         }),
       );
 
@@ -66,6 +68,7 @@ export class AbuseIpDbService {
         this.httpService.get(`${this.baseUrl}/blacklist`, {
           headers: { Key: this.apiKey, Accept: 'application/json' },
           params: { confidenceMinimum: 90, limit },
+          timeout: this.requestTimeoutMs,
         }),
       );
 

@@ -67,6 +67,7 @@ export enum TlpLevel {
 @Injectable()
 export class StixTaxiiService {
   private readonly logger = new Logger(StixTaxiiService.name);
+  private readonly requestTimeoutMs = 10_000;
 
   constructor(
     private readonly httpService: HttpService,
@@ -91,6 +92,7 @@ export class StixTaxiiService {
           auth: credentials
             ? { username: credentials.user, password: credentials.password }
             : undefined,
+          timeout: this.requestTimeoutMs,
         }),
       );
       return response.data;
@@ -115,6 +117,7 @@ export class StixTaxiiService {
           auth: credentials
             ? { username: credentials.user, password: credentials.password }
             : undefined,
+          timeout: this.requestTimeoutMs,
         }),
       );
       return response.data.collections || [];
@@ -151,6 +154,7 @@ export class StixTaxiiService {
           auth: options?.credentials
             ? { username: options.credentials.user, password: options.credentials.password }
             : undefined,
+          timeout: this.requestTimeoutMs,
         }),
       );
 
