@@ -538,7 +538,7 @@ services:
           memory: 1536M
           cpus: "1.0"
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:9000/api/v1/health || exit 1"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:9000/api/v1/status || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
