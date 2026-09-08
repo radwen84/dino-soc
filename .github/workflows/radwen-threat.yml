@@ -1351,8 +1351,6 @@ jobs:
 
       - name: Install Playwright
         run: |
-          npm init -y
-          npm install --no-save @playwright/test
           npx playwright install --with-deps chromium
 
       - name: Run Playwright E2E

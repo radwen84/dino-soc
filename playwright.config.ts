@@ -1,20 +1,21 @@
 import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
-  // Pointer directement vers le dossier e2e dans apps/frontend
   testDir: './apps/frontend/e2e',
+  testMatch: '**/*.spec.ts',
 
-  // Cibler les fichiers de test .spec.ts ou .e2e.ts
-  testMatch: '**/*.{spec,e2e}.{ts,js}',
-
-  // Exclure uniquement les tests unitaires (Vitest / React Testing Library)
   testIgnore: [
     '**/__tests__/**',
     '**/*.test.{ts,tsx}',
   ],
 
   use: {
-    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5173',
+    // Utilise la variable de la CI (https://localhost) ou http://localhost par défaut
+    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost',
+    
+    // INDISPENSABLE pour la CI avec Nginx / HTTPS (évite les erreurs de certificat SSL auto-signé)
+    ignoreHTTPSErrors: true,
+    
     trace: 'on-first-retry',
   },
 
