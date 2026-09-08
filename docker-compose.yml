@@ -82,9 +82,6 @@ services:
     restart: unless-stopped
     networks:
       - backend
-    dns:
-      - 8.8.8.8
-      - 1.1.1.1
     secrets:
       - db_password
       - jwt_secret
