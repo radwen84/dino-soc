@@ -13,6 +13,11 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-    setupFiles: './src/test/setup.ts', // Optionnel si vous avez un fichier de setup
+    setupFiles: './src/test/setup.ts',
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/e2e/**', // Empêche Vitest de tenter d'exécuter les tests Playwright
+    ],
   },
 });
