@@ -381,24 +381,19 @@ services:
     restart: unless-stopped
     privileged: true
     environment:
-      - FALCO_DRIVER_CHOICE=modern_ebpf
+      - SKIP_DRIVER_LOADER=true
     pid: host
     ipc: host
     ulimits:
       memlock:
         soft: -1
         hard: -1
-    command: ["-o", "engine.kind=modern_ebpf", "-o", "grpc.enabled=false", "-o", "metrics.enabled=false"]
+    command: ["-c", "/etc/falco/falco.yaml", "-o", "engine.kind=modern_ebpf", "-o", "grpc.enabled=false", "-o", "metrics.enabled=false"]
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
       - /var/run/docker.sock:/host/var/run/docker.sock:ro
-      - /dev:/host/dev:ro
       - /proc:/host/proc:ro
-      - /boot:/host/boot:ro
-      - /lib/modules:/host/lib/modules:ro
-      - /sys:/host/sys:ro
-      - /sys/kernel/debug:/sys/kernel/debug:ro
-      - /etc/bpf:/etc/bpf:ro
+      - /etc:/host/etc:ro
+      - /sys/kernel/tracing:/sys/kernel/tracing:ro
       - falco_logs:/var/log/falco
 
   # ============================================
