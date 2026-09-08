@@ -1,6 +1,9 @@
 ##! Mini-SOC Zeek Configuration
 ##! Network Security Monitoring
 
+# Disable checksum validation (Fix for NIC checksum offloading / Docker virtual interfaces)
+redef ignore_checksums = T;
+
 # Load standard scripts
 @load base/frameworks/logging
 @load base/frameworks/notice
@@ -23,8 +26,6 @@
 @load policy/protocols/ssh/detect-bruteforcing
 @load policy/protocols/ssl/validate-certs
 @load policy/protocols/ssl/log-hostcerts-only
-#@load policy/misc/detect-traceroute
-#@load policy/misc/scan
 
 # JSON output for Wazuh/OpenSearch integration
 @load policy/tuning/json-logs
@@ -37,14 +38,6 @@ redef Site::local_nets += { 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16 };
 
 # SSH brute force detection
 redef SSH::password_guesses_limit = 5;
-
-# Notice policy
-#redef Notice::policy += {
-#  [$action = Notice::ACTION_LOG,
-#   $pred(n: Notice::Info) = { return n$note == SSH::Password_Guessing; }],
-#  [$action = Notice::ACTION_LOG,
-#   $pred(n: Notice::Info) = { return n$note == Scan::Port_Scan; }],
-#};
 
 # Load custom scripts
 @load ./scripts/detect-dns-tunneling.zeek

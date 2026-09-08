@@ -80,6 +80,12 @@ services:
       target: production
     container_name: minisoc-api
     restart: unless-stopped
+    ports:
+      - "4000:4000"
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1 
+
     networks:
       - backend
     secrets:

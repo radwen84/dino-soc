@@ -22,7 +22,7 @@ route:
 receivers:
   - name: 'soc-critical'
     webhook_configs:
-      - url: 'http://backend:4000/api/webhooks/alertmanager'
+      - url: 'http://nestjs-api:4000/api/webhooks/alertmanager'
         send_resolved: true
     # email_configs:
     #   - to: 'soc-team@minisoc.local'
@@ -30,6 +30,6 @@ receivers:
 
   - name: 'soc-team'
     webhook_configs:
-      - url: 'http://backend:4000/api/webhooks/alertmanager'
+      - url: 'http://nestjs-api:4000/api/webhooks/alertmanager'
         send_resolved: true
 
