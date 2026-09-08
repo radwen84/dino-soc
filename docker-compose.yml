@@ -636,6 +636,8 @@ services:
       - N8N_DIAGNOSTICS_ENABLED=false
       - N8N_VERSION_NOTIFICATIONS_ENABLED=false
       - N8N_TEMPLATES_ENABLED=false
+      - N8N_HOST=0.0.0.0
+      - N8N_PORT=5678
       - WEBHOOK_URL=https://soc.local/n8n/
       - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-changeme}
       - DB_TYPE=postgresdb
@@ -653,11 +655,11 @@ services:
           memory: 512M
           cpus: "0.5"
     healthcheck:
-      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:5678/healthz || exit 1"]
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:5678/healthz',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
       interval: 10s
       timeout: 10s
-      retries: 5
-      start_period: 90s
+      retries: 12
+      start_period: 120s
     depends_on:
       postgres:
         condition: service_healthy

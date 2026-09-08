@@ -1296,11 +1296,12 @@ jobs:
               until [ "$(docker inspect --format='{{.State.Health.Status}}' "minisoc-$service" 2>/dev/null || echo "starting")" = "healthy" ]; do
                 if [ $count -gt 48 ]; then
                   # Verification de secours pour n8n avant d'échouer
-                  if [ "$service" = "n8n" ] && docker exec minisoc-n8n curl -fsS http://localhost:5678/healthz >/dev/null 2>&1; then
+                  if [ "$service" = "n8n" ] && docker exec minisoc-n8n node -e "require('http').get('http://127.0.0.1:5678/healthz',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"; then
                     echo "n8n est opérationnel sur /healthz malgré le healthcheck Docker."
                     break
                   fi
                   echo "::error::Le service $service n'est pas passé au statut healthy dans les délais."
+                  docker inspect "minisoc-$service" --format '{{json .State.Health}}' | jq . || true
                   docker compose logs "$service" | tail -n 50
                   exit 1
                 fi
