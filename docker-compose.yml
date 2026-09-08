@@ -82,6 +82,9 @@ services:
     restart: unless-stopped
     networks:
       - backend
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     secrets:
       - db_password
       - jwt_secret
@@ -378,14 +381,14 @@ services:
     restart: unless-stopped
     privileged: true
     environment:
-     - FALCO_DRIVER_CHOICE=modern_ebpf
+      - FALCO_DRIVER_CHOICE=modern_ebpf
     pid: host
     ipc: host
     ulimits:
       memlock:
         soft: -1
         hard: -1
-    command: ["/usr/bin/falco", "-o", "grpc.enabled=false", "-o", "metrics.enabled=false"]
+    command: ["-o", "engine.kind=modern_ebpf", "-o", "grpc.enabled=false", "-o", "metrics.enabled=false"]
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /var/run/docker.sock:/host/var/run/docker.sock:ro
@@ -635,6 +638,9 @@ services:
       - N8N_BASIC_AUTH_ACTIVE=true
       - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER:-admin}
       - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD:-changeme}
+      - N8N_DIAGNOSTICS_ENABLED=false
+      - N8N_VERSION_NOTIFICATIONS_ENABLED=false
+      - N8N_TEMPLATES_ENABLED=false
       - WEBHOOK_URL=https://soc.local/n8n/
       - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-changeme}
       - DB_TYPE=postgresdb
@@ -817,4 +823,4 @@ volumes:
   wazuh_api_config:
     driver: local
   misp_tmp_data:
-    driver: local  
+    driver: local
