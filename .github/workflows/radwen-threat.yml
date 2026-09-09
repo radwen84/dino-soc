@@ -1003,11 +1003,6 @@ jobs:
           # Laisser 5 secondes au script d'entrée s6-overlay pour poser la structure basique
           sleep 5
 
-          # Injecter la configuration ossec.conf sans créer de conflit sed avec l'hôte
-          if [ -f ./security/wazuh/ossec.conf ]; then
-            docker cp ./security/wazuh/ossec.conf minisoc-wazuh:/var/ossec/etc/ossec.conf
-          fi
-
           # Précréation du fichier ar.conf manquant pour débloquer wazuh-analysisd
           docker exec minisoc-wazuh touch /var/ossec/etc/shared/ar.conf
           docker exec minisoc-wazuh chown -R wazuh:wazuh /var/ossec/etc/shared /var/ossec/etc/ossec.conf
