@@ -1382,7 +1382,7 @@ jobs:
           test "$CRITICAL_ALERTS_CODE" -ge 200
           test "$CRITICAL_ALERTS_CODE" -lt 300
 
-          ALERT_ID=$(jq -r '.data[0]?.id // .[0].id // empty' /tmp/alerts.json)
+          ALERT_ID=$(jq -r '.data[0]?.id // .[0]?.id // empty' /tmp/alerts.json)
           if [ -n "$ALERT_ID" ]; then
             ALERT_STATUS_CODE=$(curl -ks -o /tmp/alert-status.json -w '%{http_code}' \
               -X PATCH "$BASE_URL/alerts/$ALERT_ID/status" \
