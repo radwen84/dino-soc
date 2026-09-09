@@ -993,6 +993,29 @@ jobs:
           docker ps -a --filter status=exited
 
       # ----------------------------------------------------------
+      # Fix Wazuh Mount & Config Issues (Device or resource busy fix)
+      # ----------------------------------------------------------
+      - name: Fix Wazuh initialization and ar.conf missing file
+        run: |
+          set -euo pipefail
+          echo "=== Correctif des points de montage et fichiers manquants Wazuh ==="
+          
+          # Laisser 5 secondes au script d'entrée s6-overlay pour poser la structure basique
+          sleep 5
+
+          # Injecter la configuration ossec.conf sans créer de conflit sed avec l'hôte
+          if [ -f ./security/wazuh/ossec.conf ]; then
+            docker cp ./security/wazuh/ossec.conf minisoc-wazuh:/var/ossec/etc/ossec.conf
+          fi
+
+          # Précréation du fichier ar.conf manquant pour débloquer wazuh-analysisd
+          docker exec minisoc-wazuh touch /var/ossec/etc/shared/ar.conf
+          docker exec minisoc-wazuh chown -R wazuh:wazuh /var/ossec/etc/shared /var/ossec/etc/ossec.conf
+          
+          # Redémarrer proprement le démon interne Wazuh
+          docker exec minisoc-wazuh /var/ossec/bin/wazuh-control restart || true
+
+      # ----------------------------------------------------------
       # Fix MISP Permissions and Configure Integration
       # ----------------------------------------------------------
       - name: Fix MISP Permissions and Configure Integration
