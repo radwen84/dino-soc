@@ -251,6 +251,7 @@ services:
     volumes:
      # Volumes de données persistantes
       - wazuh_data:/var/ossec/data
+      - wazuh_logs:/var/ossec/logs
       - wazuh_api_config:/var/ossec/api/configuration
       
       # Fichiers et règles de sécurité
@@ -330,6 +331,7 @@ services:
     command: ["filebeat", "-e", "--strict.perms=false"]
     networks:
       - siem
+      - backend
     volumes:
       - wazuh_logs:/var/ossec/logs:ro
       - ./security/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro

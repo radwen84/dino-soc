@@ -853,11 +853,11 @@ jobs:
           for i in $(seq 1 40); do
             $VAULT_EXEC status > /dev/null 2>&1 || STATUS_EXIT=$?
             
-            if [ "$STATUS_EXIT" -eq 0 ] || [ "$STATUS_EXIT" -eq 2 ]; then
+            if [ "${STATUS_EXIT:-1}" -eq 0 ] || [ "${STATUS_EXIT:-1}" -eq 2 ]; then
               VAULT_READY=1
               break
             fi
-            echo "En attente du service Vault... ($((20 - i)) essais restants)"
+            echo "En attente du service Vault... ($((40 - i)) essais restants)"
             sleep 2
           done
           if [ "$VAULT_READY" -eq 0 ]; then
@@ -993,23 +993,17 @@ jobs:
           docker ps -a --filter status=exited
 
       # ----------------------------------------------------------
-      # Fix Wazuh Mount & Config Issues (Device or resource busy fix)
+      # Fix Wazuh Mount & Config Issues
       # ----------------------------------------------------------
       - name: Fix Wazuh initialization and ar.conf missing file
         run: |
           set -euo pipefail
           echo "=== Correctif des points de montage et fichiers manquants Wazuh ==="
           
-          # Laisser 5 secondes au script d'entrée s6-overlay pour poser la structure basique
           sleep 5
-          # S'assurer que le dossier parent /var/ossec/etc/shared existe
           docker exec minisoc-wazuh mkdir -p /var/ossec/etc/shared
-
-          # Précréation du fichier ar.conf manquant pour débloquer wazuh-analysisd
           docker exec minisoc-wazuh touch /var/ossec/etc/shared/ar.conf
           docker exec minisoc-wazuh chown -R wazuh:wazuh /var/ossec/etc/shared
-          
-          # Redémarrer proprement le démon interne Wazuh
           docker exec minisoc-wazuh /var/ossec/bin/wazuh-control restart || true
 
       # ----------------------------------------------------------
@@ -1222,11 +1216,6 @@ jobs:
           }
 
       # ----------------------------------------------------------
-      # Falco runtime flow
-      # ----------------------------------------------------------
-      
-
-      # ----------------------------------------------------------
       # API / Auth / Incidents / Alerts / Threat Intel
       # ----------------------------------------------------------
       - name: Validate application API flows
@@ -1312,10 +1301,8 @@ jobs:
               echo "=== Service trouvé : $service ==="
               
               count=0
-              # Augmentation de la fenêtre d'attente à 4 minutes (48 * 5s) pour n8n / TheHive
               until [ "$(docker inspect --format='{{.State.Health.Status}}' "minisoc-$service" 2>/dev/null || echo "starting")" = "healthy" ]; do
                 if [ $count -gt 48 ]; then
-                  # Verification de secours pour n8n avant d'échouer
                   if [ "$service" = "n8n" ] && docker exec minisoc-n8n node -e "require('http').get('http://127.0.0.1:5678/healthz',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"; then
                     echo "n8n est opérationnel sur /healthz malgré le healthcheck Docker."
                     break

@@ -8,6 +8,8 @@ filebeat.inputs:
     enabled: true
     paths:
       - /var/ossec/logs/alerts/alerts.json
+    # Indique à Filebeat de lire le fichier depuis le début s'il est nouveau
+    take_over: true  
     parsers:
       - ndjson:
           target: ""
