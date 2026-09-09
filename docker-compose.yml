@@ -249,11 +249,12 @@ services:
       - "1515:1515/tcp"
       - "55000:55000/tcp"
     volumes:
-      - ./security/wazuh/ossec.conf:/var/ossec/etc/ossec.conf:ro
+      - wazuh_etc:/var/ossec/etc
+      - ./security/wazuh/ossec.conf:/var/ossec/etc/ossec.conf
       - wazuh_data:/var/ossec/data
       - wazuh_api_config:/var/ossec/api/configuration
-      - ./security/wazuh/rules:/var/ossec/etc/rules:ro
-      - ./security/wazuh/decoders:/var/ossec/etc/decoders:ro
+      - ./security/wazuh/rules:/var/ossec/etc/rules
+      - ./security/wazuh/decoders:/var/ossec/etc/decoders
       - ./security/wazuh/sync-api-password.sh:/docker-entrypoint-init.d/sync-api-password.sh:ro
       - suricata_logs:/var/log/suricata:ro
       - zeek_logs:/var/log/zeek:ro
