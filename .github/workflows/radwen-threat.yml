@@ -1007,7 +1007,7 @@ jobs:
 
           # Précréation du fichier ar.conf manquant pour débloquer wazuh-analysisd
           docker exec minisoc-wazuh touch /var/ossec/etc/shared/ar.conf
-          docker exec minisoc-wazuh chown -R wazuh:wazuh /var/ossec/etc/shared /var/ossec/etc/ossec.conf
+          docker exec minisoc-wazuh chown -R wazuh:wazuh /var/ossec/etc/shared
           
           # Redémarrer proprement le démon interne Wazuh
           docker exec minisoc-wazuh /var/ossec/bin/wazuh-control restart || true
