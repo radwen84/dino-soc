@@ -31,6 +31,7 @@ export class IncidentsService {
       category: dto.category,
       mitreTechniques: dto.mitreTechniques,
       affectedAssets: [],
+      confidence: dto.severity === 'critical' ? 95 : dto.severity === 'high' ? 85 : 70,
       alertCount: dto.sourceAlertIds?.length || 1,
     });
 
@@ -48,6 +49,8 @@ export class IncidentsService {
         category: dto.category,
         mitreTactics: dto.mitreTactics || [],
         mitreTechniques: dto.mitreTechniques || [],
+        affectedAssets: [],
+        affectedUsers: [],
         source: dto.source || 'manual',
         sourceAlertIds: dto.sourceAlertIds || [],
         riskScore,
