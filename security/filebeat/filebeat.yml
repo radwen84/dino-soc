@@ -36,6 +36,7 @@ output.elasticsearch:
   # Correction : yyyy en minuscules (requis par Go/Beats)
   index: "wazuh-alerts-%{+yyyy.MM.dd}"
   allow_older_versions: true
+  mapping.type: ""
 
 # ============================================================
 # LOGGING
