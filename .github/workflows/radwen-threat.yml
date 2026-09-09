@@ -1002,6 +1002,8 @@ jobs:
           
           # Laisser 5 secondes au script d'entrée s6-overlay pour poser la structure basique
           sleep 5
+          # S'assurer que le dossier parent /var/ossec/etc/shared existe
+          docker exec minisoc-wazuh mkdir -p /var/ossec/etc/shared
 
           # Précréation du fichier ar.conf manquant pour débloquer wazuh-analysisd
           docker exec minisoc-wazuh touch /var/ossec/etc/shared/ar.conf
