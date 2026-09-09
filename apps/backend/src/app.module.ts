@@ -19,6 +19,7 @@ import { IocModule } from './ioc/ioc.module';
 import { AssetsModule } from './assets/assets.module';
 import { ThreatIntelModule } from './threat-intel/threat-intel.module';
 import { ReportsModule } from './reports/reports.module';
+import { SoarModule } from './soar/soar.module';
 
 // Infrastructure modules
 import { OpenSearchModule } from './opensearch/opensearch.module';
@@ -78,6 +79,7 @@ import { validate } from './config/env.validation';
     AssetsModule,
     ThreatIntelModule,
     ReportsModule,
+    SoarModule,
 
     // Infrastructure
     OpenSearchModule,
