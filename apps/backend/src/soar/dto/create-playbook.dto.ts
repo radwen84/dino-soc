@@ -8,6 +8,8 @@ import {
   IsNumber,
   Min,
   Max,
+  IsObject,
+  Allow,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -56,6 +58,7 @@ export class PlaybookConditionDto {
   operator: ConditionOperator;
 
   @ApiProperty({ description: 'Value to compare against' })
+  @Allow()
   value: any;
 }
 
@@ -93,6 +96,8 @@ export class PlaybookActionDto {
 
   @ApiPropertyOptional({ description: 'Action parameters (supports {{variable}} interpolation)' })
   @IsOptional()
+  @IsObject()
+  @Allow()
   params?: Record<string, any>;
 
   @ApiPropertyOptional({ enum: PlaybookRiskLevel, default: PlaybookRiskLevel.LOW })
@@ -177,8 +182,17 @@ export class CreatePlaybookDto {
 }
 
 export class ExecutePlaybookDto {
-  @ApiProperty({ description: 'Test data to trigger the playbook with' })
-  testData: Record<string, any>;
+  @ApiPropertyOptional({ description: 'Test data to trigger the playbook with' })
+  @IsOptional()
+  @IsObject()
+  @Allow()
+  testData?: Record<string, any>;
+
+  @ApiPropertyOptional({ description: 'Trigger data alias' })
+  @IsOptional()
+  @IsObject()
+  @Allow()
+  triggerData?: Record<string, any>;
 
   @ApiPropertyOptional({ default: false, description: 'Dry-run mode (no real actions executed)' })
   @IsOptional()
