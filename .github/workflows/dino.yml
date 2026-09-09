@@ -661,6 +661,11 @@ jobs:
       OTX_API_KEY: ${{ secrets.OTX_API_KEY }}
       SHODAN_API_KEY: ${{ secrets.SHODAN_API_KEY }}
       MISP_API_KEY: ${{ secrets.MISP_API_KEY }}
+      TAXII_URL: ${{ secrets.TAXII_URL }}
+      TAXII_API_ROOT: ${{ secrets.TAXII_API_ROOT }}
+      TAXII_COLLECTION_ID: ${{ secrets.TAXII_COLLECTION_ID }}
+      TAXII_USERNAME: ${{ secrets.TAXII_USERNAME }}
+      TAXII_PASSWORD: ${{ secrets.TAXII_PASSWORD }}
 
     steps:
       - uses: actions/checkout@v4
@@ -737,6 +742,11 @@ jobs:
           SHODAN_API_KEY=${SHODAN_API_KEY:-}
           MISP_URL=http://misp:80
           MISP_API_KEY=${MISP_API_KEY:-}
+          TAXII_URL=${TAXII_URL:-}
+          TAXII_API_ROOT=${TAXII_API_ROOT:-}
+          TAXII_COLLECTION_ID=${TAXII_COLLECTION_ID:-}
+          TAXII_USERNAME=${TAXII_USERNAME:-}
+          TAXII_PASSWORD=${TAXII_PASSWORD:-}
 
           MINISOC_CI_TEST_ID=${MINISOC_CI_TEST_ID}
           NODE_ENV=test
@@ -821,6 +831,51 @@ jobs:
             fi
             sleep 2
           done
+
+      - name: Validate Threat Intel lookup
+        env:
+          BASE_URL: https://localhost/api
+        run: |
+          set -euo pipefail
+
+          LOGIN_CODE=$(curl -ks -o /tmp/threat-intel-login.json -w '%{http_code}' \
+            -X POST "$BASE_URL/auth/login" \
+            -H 'Content-Type: application/json' \
+            -d '{"email":"admin@minisoc.local","password":"Admin@MiniSOC2026!"}')
+          test "$LOGIN_CODE" -ge 200
+          test "$LOGIN_CODE" -lt 300
+
+          TOKEN=$(jq -r '.accessToken // .access_token // .token // empty' /tmp/threat-intel-login.json)
+          test -n "$TOKEN"
+
+          TEST_IOC="198.51.100.42"
+          CREATE_CODE=$(curl -ks -o /tmp/threat-intel-ioc.json -w '%{http_code}' \
+            -X POST "$BASE_URL/iocs" \
+            -H "Authorization: Bearer $TOKEN" \
+            -H 'Content-Type: application/json' \
+            -d "{\"type\":\"ip\",\"value\":\"$TEST_IOC\",\"confidence\":95,\"severity\":\"high\",\"source\":\"ci-threat-intel\",\"tags\":[\"ci\",\"threat-intel\"]}")
+
+          if [ "$CREATE_CODE" -ge 200 ] && [ "$CREATE_CODE" -lt 300 ]; then
+            echo "Created CI IOC $TEST_IOC"
+          elif [ "$CREATE_CODE" -eq 409 ]; then
+            echo "CI IOC $TEST_IOC already exists"
+          else
+            cat /tmp/threat-intel-ioc.json
+            echo "Threat Intel test IOC creation failed with HTTP $CREATE_CODE"
+            exit 1
+          fi
+
+          LOOKUP_CODE=$(curl -ks -o /tmp/threat-intel-lookup.json -w '%{http_code}' \
+            "$BASE_URL/threat-intel/lookup/$TEST_IOC" \
+            -H "Authorization: Bearer $TOKEN")
+
+          cat /tmp/threat-intel-lookup.json
+          test "$LOOKUP_CODE" -ge 200
+          test "$LOOKUP_CODE" -lt 300
+          jq -e --arg ioc "$TEST_IOC" \
+            '.ioc == $ioc and .malicious == true and (.confidence >= 90) and .localIocMatch != null' \
+            /tmp/threat-intel-lookup.json >/dev/null
+          echo "Threat Intel lookup returned a confirmed local match."
 
       - name: Collect Docker status
         if: always()

@@ -324,7 +324,7 @@ services:
   # FILEBEAT - Log Shipper
   # ============================================
   filebeat:
-    image: docker.elastic.co/beats/filebeat-oss:7.12.1
+    image: docker.elastic.co/beats/filebeat:8.11.4
     container_name: minisoc-filebeat
     restart: unless-stopped
     user: root
