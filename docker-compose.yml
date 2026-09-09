@@ -321,20 +321,20 @@ services:
       retries: 5
 
   # ============================================
-  # FILEBEAT - Log Shipper
+  # FLUENT BIT - Wazuh Log Shipper
   # ============================================
   filebeat:
-    image: docker.elastic.co/beats/filebeat:8.11.4
+    image: fluent/fluent-bit:3.2.10
     container_name: minisoc-filebeat
     restart: unless-stopped
     user: root
-    command: ["filebeat", "-e", "--strict.perms=false"]
+    command: ["/fluent-bit/bin/fluent-bit", "-c", "/fluent-bit/etc/fluent-bit.conf"]
     networks:
       - siem
       - backend
     volumes:
       - wazuh_logs:/var/ossec/logs:ro
-      - ./security/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - ./security/filebeat/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf:ro
     depends_on:
       opensearch:
         condition: service_healthy
