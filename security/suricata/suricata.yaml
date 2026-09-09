@@ -27,22 +27,7 @@ outputs:
       filename: eve.json
       types:
         - alert:
-            tagged-packets: yes
-            metadata: yes
-        - http:
-            extended: yes
-        - dns:
-            query: yes
-            answer: yes
-        - tls:
-            extended: yes
-        - files:
-            force-magic: yes
-            force-hash: [md5, sha256]
-        - flow
-        - stats:
-            totals: yes
-            threads: no
+            metadata: no
 
   - fast:
       enabled: yes
