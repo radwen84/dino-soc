@@ -251,8 +251,7 @@ export class IocService {
     try {
       await this.opensearch.index(
         'minisoc-iocs',
-        ioc.id,
-        JSON.stringify({
+        {
           type: ioc.type,
           value: ioc.value,
           status: ioc.status,
@@ -261,7 +260,8 @@ export class IocService {
           source: ioc.source,
           mitreTechniques: ioc.mitreTechniques,
           createdAt: ioc.createdAt,
-        }),
+        },
+        ioc.id,
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
