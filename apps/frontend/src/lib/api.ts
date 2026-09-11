@@ -59,7 +59,11 @@ api.interceptors.response.use(
       originalRequest.url?.includes("/auth/mfa/verify");
 
     // Handle 401 - attempt token refresh (sauf pour les routes de connexion)
-    if (error.response?.status === 401 && !originalRequest._retry && !isAuthRoute) {
+    if (
+      error.response?.status === 401 &&
+      !originalRequest._retry &&
+      !isAuthRoute
+    ) {
       if (isRefreshing) {
         return new Promise<string | null>((resolve, reject) => {
           failedQueue.push({ resolve, reject });
