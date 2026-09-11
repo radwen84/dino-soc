@@ -1,6 +1,11 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Couverture globale des modules Mini-SOC - Intégration Réelle', () => {
+  async function navigateTo(page: import('@playwright/test').Page, label: string, path: string) {
+    await page.getByRole('link', { name: label }).click();
+    await expect(page).toHaveURL(new RegExp(`${path}/?$`));
+  }
+
   test.beforeEach(async ({ page }) => {
     // Each module test starts an independent session. This dedicated account has
     // MFA disabled, so a valid TOTP cannot be accidentally replayed.
@@ -15,8 +20,7 @@ test.describe('Couverture globale des modules Mini-SOC - Intégration Réelle', 
   });
 
   test('Module Alertes - Filtrage et Drawer d inspection', async ({ page }) => {
-    await page.goto('/alerts');
-    await page.waitForURL(/\/alerts\/?$/);
+    await navigateTo(page, 'Alertes', '/alerts');
 
     await expect(page.locator('main h1, main h2, h2').first()).toContainText(/Alertes/i);
     
@@ -30,8 +34,7 @@ test.describe('Couverture globale des modules Mini-SOC - Intégration Réelle', 
   });
 
   test('Module Incidents - Création d un nouvel incident', async ({ page }) => {
-    await page.goto('/incidents');
-    await page.waitForURL(/\/incidents\/?$/);
+    await navigateTo(page, 'Incidents', '/incidents');
 
     await page.getByRole('button', { name: /Créer|Nouveau/i }).click();
     await page.locator('input[placeholder*="Malware"], input[name="title"]').fill('Intrusion Système Critique (E2E Test)');
@@ -47,8 +50,7 @@ test.describe('Couverture globale des modules Mini-SOC - Intégration Réelle', 
   });
 
   test('Module Threat Intelligence - Recherche de réputation d une IP', async ({ page }) => {
-    await page.goto('/threat-intel');
-    await page.waitForURL(/\/threat-intel\/?$/);
+    await navigateTo(page, 'Threat Intel', '/threat-intel');
 
     const searchInput = page.locator('input[placeholder*="IP"], input[type="text"]').first();
     await searchInput.fill('185.220.101.5');
@@ -59,8 +61,7 @@ test.describe('Couverture globale des modules Mini-SOC - Intégration Réelle', 
   });
 
   test('Module Assets - Ajout d un nouvel asset', async ({ page }) => {
-    await page.goto('/assets');
-    await page.waitForURL(/\/assets\/?$/);
+    await navigateTo(page, 'Assets', '/assets');
 
     await page.getByRole('button', { name: /Ajouter un asset|Ajouter/i }).first().click();
     await page.locator('input[placeholder*="srv-web-01"], input[name="name"]').fill('srv-db-prod-e2e');
@@ -71,8 +72,7 @@ test.describe('Couverture globale des modules Mini-SOC - Intégration Réelle', 
   });
 
   test('Module Rapports - Génération et export JSON', async ({ page }) => {
-    await page.goto('/reports');
-    await page.waitForURL(/\/reports\/?$/);
+    await navigateTo(page, 'Rapports', '/reports');
 
     // Mock léger uniquement sur l'endpoint lourd de génération
     await page.route('**/api/reports/generate*', async (route) => {
@@ -93,14 +93,13 @@ test.describe('Couverture globale des modules Mini-SOC - Intégration Réelle', 
   });
 
   test('Module Paramètres - Ouverture du Modal MFA TOTP', async ({ page }) => {
-    await page.goto('/settings');
-    await page.waitForURL(/\/settings\/?$/);
+    await navigateTo(page, 'Paramètres', '/settings');
 
     const mfaBtn = page.getByRole('button', { name: /Configurer le MFA|Activer MFA|TOTP/i });
     
     if (await mfaBtn.isVisible()) {
       await mfaBtn.click();
-      await expect(page.getByText(/QR CODE|Scannez/i)).toBeVisible();
+      await expect(page.getByText('[QR CODE MFA]', { exact: true })).toBeVisible();
     } else {
       // Si le MFA est déjà actif pour cet utilisateur
       await expect(page.getByText(/MFA Activé|Désactiver/i)).toBeVisible();
