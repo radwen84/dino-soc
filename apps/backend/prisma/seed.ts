@@ -70,6 +70,29 @@ async function main() {
   console.log(`   ✓ Analyst L2 created: ${analyst2.email}`);
 
   // Create sample assets — use createMany with skipDuplicates for idempotency
+  // Dedicated account for API smoke checks and module E2E tests. It deliberately
+  // has MFA disabled because those checks create several independent sessions.
+  const e2ePassword = await bcrypt.hash('E2E@MiniSOC2026!', 12);
+  const e2eUser = await prisma.user.upsert({
+    where: { email: 'e2e.modules@minisoc.local' },
+    update: {
+      passwordHash: e2ePassword,
+      roles: ['admin'],
+      mfaEnabled: false,
+      mfaSecret: null,
+      isActive: true,
+    },
+    create: {
+      email: 'e2e.modules@minisoc.local',
+      name: 'E2E Modules User',
+      passwordHash: e2ePassword,
+      roles: ['admin'],
+      isActive: true,
+      mfaEnabled: false,
+    },
+  });
+  console.log(`E2E modules user created: ${e2eUser.email}`);
+
   const assets = [
     { hostname: 'web-server-01', ipAddress: '10.0.2.10', os: 'Ubuntu', osVersion: '22.04', criticality: 'high' as const, department: 'Production' },
     { hostname: 'db-server-01', ipAddress: '10.0.2.11', os: 'Ubuntu', osVersion: '22.04', criticality: 'critical' as const, department: 'Production' },

@@ -1,0 +1,490 @@
+{
+  "config": {
+    "argv": [
+      "C:\\Program Files\\nodejs\\node.exe",
+      "C:\\Users\\radwen\\Desktop\\dino-soc\\node_modules\\@playwright\\test\\cli.js",
+      "test",
+      "--config=playwright.config.ts",
+      "--list"
+    ],
+    "configFile": "C:\\Users\\radwen\\Desktop\\dino-soc\\playwright.config.ts",
+    "rootDir": "C:/Users/radwen/Desktop/dino-soc/apps/frontend/e2e",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {},
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "C:/Users/radwen/Desktop/dino-soc/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "C:/Users/radwen/Desktop/dino-soc/apps/frontend/e2e",
+        "testIgnore": [
+          "**/__tests__/**",
+          "**/*.test.{ts,tsx}"
+        ],
+        "testMatch": [
+          "**/*.{spec,e2e}.{ts,js}"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "line",
+        null
+      ],
+      [
+        "html",
+        {
+          "outputFolder": "playwright-report",
+          "open": "never"
+        }
+      ],
+      [
+        "json",
+        {
+          "outputFile": "playwright-report/results.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.62.1",
+    "workers": 2,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "app.spec.ts",
+      "file": "app.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Vérification de l'application SOC",
+          "file": "app.spec.ts",
+          "line": 3,
+          "column": 6,
+          "specs": [
+            {
+              "title": "La page d'accueil Nginx / Frontend charge correctement",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c31ff144dc4fee3acd0a-8f7e6eea603327f4d11e",
+              "file": "app.spec.ts",
+              "line": 4,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "auth.spec.ts",
+      "file": "auth.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Authentification Frontend - Intégration Réelle",
+          "file": "auth.spec.ts",
+          "line": 4,
+          "column": 6,
+          "specs": [
+            {
+              "title": "Affiche la page de connexion",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-9561720659b60dec5ef9",
+              "file": "auth.spec.ts",
+              "line": 7,
+              "column": 7
+            },
+            {
+              "title": "Permet à l'utilisateur de se connecter (Flux complet Identifiants + MFA)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-fde5257e83bd5d429584",
+              "file": "auth.spec.ts",
+              "line": 16,
+              "column": 7
+            },
+            {
+              "title": "Affiche un message d'erreur avec des identifiants invalides",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-a2710dc848af25871403",
+              "file": "auth.spec.ts",
+              "line": 37,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "full-stack.spec.ts",
+      "file": "full-stack.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "full-stack smoke tests",
+          "file": "full-stack.spec.ts",
+          "line": 3,
+          "column": 6,
+          "specs": [
+            {
+              "title": "backend health is available through the frontend proxy",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "2dbbd66c5ac68c116146-570370e7d02b1b3ce815",
+              "file": "full-stack.spec.ts",
+              "line": 4,
+              "column": 7
+            },
+            {
+              "title": "frontend renders the login screen",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "2dbbd66c5ac68c116146-d2636bcd03a039d73992",
+              "file": "full-stack.spec.ts",
+              "line": 14,
+              "column": 7
+            },
+            {
+              "title": "protected dashboard redirects unauthenticated users to login",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "2dbbd66c5ac68c116146-7802893956256372ed46",
+              "file": "full-stack.spec.ts",
+              "line": 23,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "mfa.spec.ts",
+      "file": "mfa.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Validation du flux MFA (Multi-Factor Authentication) - Intégration Réelle",
+          "file": "mfa.spec.ts",
+          "line": 4,
+          "column": 6,
+          "specs": [
+            {
+              "title": "un analyste doit pouvoir se connecter avec un code TOTP valide",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "186ee2c0811d355d6db7-9c9b07bf08f712dc1562",
+              "file": "mfa.spec.ts",
+              "line": 7,
+              "column": 7
+            },
+            {
+              "title": "doit refuser la connexion avec un code TOTP invalide",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "186ee2c0811d355d6db7-b8d25899a6a00a87d8e4",
+              "file": "mfa.spec.ts",
+              "line": 29,
+              "column": 7
+            },
+            {
+              "title": "permet de renoncer à l étape MFA et de revenir aux identifiants",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "186ee2c0811d355d6db7-eb46ff83365d606aadc1",
+              "file": "mfa.spec.ts",
+              "line": 49,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "soc-modules.spec.ts",
+      "file": "soc-modules.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Couverture globale des modules Mini-SOC - Intégration Réelle",
+          "file": "soc-modules.spec.ts",
+          "line": 3,
+          "column": 6,
+          "specs": [
+            {
+              "title": "Module Alertes - Filtrage et Drawer d inspection",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "002eb969cc9bfaab41b5-595273d6d50e65bb943f",
+              "file": "soc-modules.spec.ts",
+              "line": 17,
+              "column": 7
+            },
+            {
+              "title": "Module Incidents - Création d un nouvel incident",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "002eb969cc9bfaab41b5-7fb5beb021d42c289797",
+              "file": "soc-modules.spec.ts",
+              "line": 32,
+              "column": 7
+            },
+            {
+              "title": "Module Threat Intelligence - Recherche de réputation d une IP",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "002eb969cc9bfaab41b5-7fb0c628b0f4fe8a7b4b",
+              "file": "soc-modules.spec.ts",
+              "line": 49,
+              "column": 7
+            },
+            {
+              "title": "Module Assets - Ajout d un nouvel asset",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "002eb969cc9bfaab41b5-952d22514208daec82da",
+              "file": "soc-modules.spec.ts",
+              "line": 61,
+              "column": 7
+            },
+            {
+              "title": "Module Rapports - Génération et export JSON",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "002eb969cc9bfaab41b5-68ecb7b2cbd3966192bb",
+              "file": "soc-modules.spec.ts",
+              "line": 73,
+              "column": 7
+            },
+            {
+              "title": "Module Paramètres - Ouverture du Modal MFA TOTP",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "002eb969cc9bfaab41b5-28866d9352fc47a61ee3",
+              "file": "soc-modules.spec.ts",
+              "line": 95,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-09-11T18:54:56.150Z",
+    "duration": 6606.377,
+    "expected": 0,
+    "skipped": 16,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

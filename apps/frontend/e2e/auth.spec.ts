@@ -17,8 +17,8 @@ test.describe('Authentification Frontend - Intégration Réelle', () => {
     await page.goto('/login');
 
     // 1. Étape 1 : Identifiants
-    await page.fill('input#email, input[name="email"]', 'admin@minisoc.local');
-    await page.fill('input#password, input[name="password"]', 'Admin@MiniSOC2026!');
+    await page.fill('input#email, input[name="email"]', 'analyst.l1@minisoc.local');
+    await page.fill('input#password, input[name="password"]', 'Analyst1@SOC2026!');
     await page.click('button[type="submit"]');
 
     // 2. Étape 2 : Challenge MFA
@@ -31,13 +31,7 @@ test.describe('Authentification Frontend - Intégration Réelle', () => {
     await mfaInput.fill(currentToken);
     await page.click('button[type="submit"]');
 
-    // 3. Attente SPA : On attend la transition d'URL sans bloquer sur l'événement 'load'
-    await page.waitForURL((url) => url.pathname === '/' || url.pathname === '/dashboard', { 
-      timeout: 10000,
-      waitUntil: 'commit',
-    });
-
-    await expect(page).not.toHaveURL(/\/login\/?$/);
+    await expect(page).toHaveURL(/\/$/, { timeout: 10000 });
   });
 
   test('Affiche un message d\'erreur avec des identifiants invalides', async ({ page }) => {

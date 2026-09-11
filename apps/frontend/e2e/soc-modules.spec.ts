@@ -1,27 +1,16 @@
 import { test, expect } from '@playwright/test';
-import { authenticator } from 'otplib';
 
 test.describe('Couverture globale des modules Mini-SOC - Intégration Réelle', () => {
-  // Secret TOTP partagé avec le seed de la base de données
-  const MFA_SECRET = process.env.TEST_USER_MFA_SECRET || 'JBSWY3DPEHPK3PXP';
-
   test.beforeEach(async ({ page }) => {
-    // 1. Connexion initiale réelle sur la stack
+    // Each module test starts an independent session. This dedicated account has
+    // MFA disabled, so a valid TOTP cannot be accidentally replayed.
     await page.goto('/login');
-    await page.fill('input#email, input[name="email"]', 'admin@minisoc.local');
-    await page.fill('input#password, input[name="password"]', 'Admin@MiniSOC2026!');
+    await page.fill('input#email, input[name="email"]', 'e2e.modules@minisoc.local');
+    await page.fill('input#password, input[name="password"]', 'E2E@MiniSOC2026!');
     await page.click('button[type="submit"]');
 
-    // 2. Traitement dynamique du formulaire MFA si réclamé par le backend NestJS
-    const mfaInput = page.locator('input#mfaCode, input[name="mfaCode"]');
-    if (await mfaInput.isVisible({ timeout: 4000 }).catch(() => false)) {
-      const currentToken = authenticator.generate(MFA_SECRET);
-      await mfaInput.fill(currentToken);
-      await page.click('button[type="submit"]');
-    }
-
-    // 3. Confirmation de l'entrée dans le Dashboard Mini-SOC
-    await page.waitForURL((url) => url.pathname !== '/login', { timeout: 10000 });
+    // Confirmation de l'entrée dans le Dashboard Mini-SOC
+    await expect(page).not.toHaveURL(/\/login\/?$/, { timeout: 10000 });
     await expect(page.locator('main')).toBeVisible();
   });
 

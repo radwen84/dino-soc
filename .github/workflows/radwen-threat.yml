@@ -1252,7 +1252,7 @@ jobs:
           LOGIN_CODE=$(curl -ks -o /tmp/login.json -w '%{http_code}' \
             -X POST "$BASE_URL/auth/login" \
             -H 'Content-Type: application/json' \
-            -d '{"email":"admin@minisoc.local","password":"Admin@MiniSOC2026!"}')
+            -d '{"email":"e2e.modules@minisoc.local","password":"E2E@MiniSOC2026!"}')
 
           cat /tmp/login.json
 

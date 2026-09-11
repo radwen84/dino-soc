@@ -23,13 +23,7 @@ test.describe('Validation du flux MFA (Multi-Factor Authentication) - Intégrati
     await mfaInput.fill(currentToken);
     await page.click('button[type="submit"]');
 
-    // 3. Validation de redirection SPA (waitUntil: 'commit')
-    await page.waitForURL((url) => url.pathname === '/' || url.pathname === '/dashboard', { 
-      timeout: 10000,
-      waitUntil: 'commit',
-    });
-
-    await expect(page).not.toHaveURL(/\/login\/?$/);
+    await expect(page).toHaveURL(/\/$/, { timeout: 10000 });
   });
 
   test('doit refuser la connexion avec un code TOTP invalide', async ({ page }) => {
