@@ -1,37 +1,29 @@
-import { expect } from '@playwright/test';
-import { test } from './fixtures';
+// 1. Importation DEPUIS './fixtures' pour hériter des types et de mockSocApi
+import { test, expect } from './fixtures';
 
 test.describe('Couverture globale des modules Mini-SOC', () => {
   test.beforeEach(async ({ page, mockSocApi }) => {
-    // 1. Initialisation des intercepteurs API de mock
+    // Initialisation des routes de mock
     await mockSocApi();
 
-    // 2. Navigation vers une page d'origine pour fixer le domaine du localStorage
+    // Authentification fluide via la page de login pour initialiser l'état React / Zustand
     await page.goto('/login');
+    await page.fill('input#email', 'admin@minisoc.local');
+    await page.fill('input#password', 'Password123!');
+    await page.click('button[type="submit"]');
 
-    // 3. Injection robuste de l'état d'authentification dans le localStorage
-    await page.evaluate(() => {
-      window.localStorage.setItem(
-        'auth-storage',
-        JSON.stringify({
-          state: {
-            token: 'fake-jwt-token',
-            isAuthenticated: true,
-            user: { id: 'usr-1', name: 'Analyste SOC', role: 'admin', roles: ['admin'] },
-          },
-          version: 0,
-        })
-      );
-    });
+    // Attente que le routeur confirme la connexion avant de lancer le test
+    await page.waitForURL((url) => url.pathname !== '/login', { timeout: 10000 });
   });
 
   test('Module Alertes - Filtrage et Drawer d inspection', async ({ page }) => {
     await page.goto('/alerts');
+    await expect(page).toHaveURL('/alerts');
 
-    // Ciblage ciblé du titre de la section principale plutôt que le Header global h1 "Mini-SOC"
-    await expect(page.locator('main h1, main h2, h2')).toContainText(/Alertes/i);
+    // Ciblage du titre de section sans conflit avec le logo "Mini-SOC"
+    await expect(page.locator('main h1, main h2, h2').first()).toContainText(/Alertes/i);
 
-    // Vérification du tableau et clic sur l alerte mockée
+    // Vérification de la présence de l'alerte
     await expect(page.getByText('Détection SSH Bruteforce')).toBeVisible();
     await page.getByText('Détection SSH Bruteforce').click();
 
@@ -42,8 +34,9 @@ test.describe('Couverture globale des modules Mini-SOC', () => {
 
   test('Module Incidents - Création d un nouvel incident', async ({ page }) => {
     await page.goto('/incidents');
+    await expect(page).toHaveURL('/incidents');
 
-    // Interception de la création d incident
+    // Mock spécifique à la création d'incident POST
     await page.route('**/api/incidents', async (route) => {
       if (route.request().method() === 'POST') {
         await route.fulfill({ status: 201, body: JSON.stringify({ id: 'inc-99' }) });
@@ -52,13 +45,11 @@ test.describe('Couverture globale des modules Mini-SOC', () => {
       }
     });
 
-    // Clic sur le bouton de création avec un matcher de rôle accessible
     await page.getByRole('button', { name: /Créer|Nouveau/i }).click();
 
-    // Remplissage du formulaire modal
     await page.locator('input[placeholder*="Malware"], input[name="title"]').fill('Intrusion Système Critique');
     await page.locator('textarea').fill('Analyse nécessaire sur le serveur srv-web-01');
-    
+
     const selectSeverity = page.locator('select');
     if (await selectSeverity.isVisible()) {
       await selectSeverity.selectOption('critical');
@@ -70,20 +61,20 @@ test.describe('Couverture globale des modules Mini-SOC', () => {
 
   test('Module Threat Intelligence - Recherche de réputation d une IP', async ({ page }) => {
     await page.goto('/threat-intel');
+    await expect(page).toHaveURL('/threat-intel');
 
-    // Ciblage du champ de recherche d IP
     const searchInput = page.locator('input[placeholder*="IP"], input[type="text"]').first();
     await searchInput.fill('185.220.101.5');
-    
+
     await page.getByRole('button', { name: /Analyser|Rechercher|Search/i }).click();
 
-    // Vérification des métriques de réputation
     await expect(page.getByText(/critical/i)).toBeVisible();
     await expect(page.getByText(/98%/)).toBeVisible();
   });
 
   test('Module Assets - Ajout d un nouvel asset', async ({ page }) => {
     await page.goto('/assets');
+    await expect(page).toHaveURL('/assets');
 
     await page.route('**/api/assets', async (route) => {
       if (route.request().method() === 'POST') {
@@ -104,6 +95,7 @@ test.describe('Couverture globale des modules Mini-SOC', () => {
 
   test('Module Rapports - Génération et export JSON', async ({ page }) => {
     await page.goto('/reports');
+    await expect(page).toHaveURL('/reports');
 
     await page.route('**/api/reports/generate*', async (route) => {
       await route.fulfill({
@@ -116,7 +108,6 @@ test.describe('Couverture globale des modules Mini-SOC', () => {
       });
     });
 
-    // Déclenchement de la génération de rapport
     const generateBtn = page.getByRole('button', { name: /Générer/i }).first();
     await generateBtn.click();
 
@@ -125,13 +116,13 @@ test.describe('Couverture globale des modules Mini-SOC', () => {
 
   test('Module Paramètres - Ouverture du Modal MFA TOTP', async ({ page }) => {
     await page.goto('/settings');
+    await expect(page).toHaveURL('/settings');
 
     await page.getByRole('button', { name: /Configurer le MFA|Activer MFA|TOTP/i }).click();
 
-    // Validation du modal
     await expect(page.getByText(/QR CODE|Scannez/i)).toBeVisible();
     await page.getByRole('button', { name: /Valider|Activer/i }).click();
-    
+
     await expect(page.locator('.toast, [role="status"], text=activé')).toBeVisible();
   });
 });

@@ -1,7 +1,12 @@
-import { test as base, Page } from '@playwright/test';
+import { test as base } from '@playwright/test';
 
-export const test = base.extend({
-  // Helper pour mocker l'API du SOC pendant les tests E2E
+// 1. Définition du type de la fixture custom
+type SocFixtures = {
+  mockSocApi: () => Promise<void>;
+};
+
+// 2. Extension du 'test' de base avec le type générique <SocFixtures>
+export const test = base.extend<SocFixtures>({
   mockSocApi: async ({ page }, use) => {
     const setupMocks = async () => {
       // Mock de l'API Health
@@ -16,9 +21,10 @@ export const test = base.extend({
         });
       });
 
-      // Mock de la connexion MFA
+      // Mock de la connexion MFA & Auth globale
       await page.route('**/api/auth/login', async (route) => {
         const json = route.request().postDataJSON();
+
         if (json?.email === 'mfa@minisoc.local' && !json?.mfaCode) {
           await route.fulfill({
             status: 200,
@@ -29,10 +35,18 @@ export const test = base.extend({
           await route.fulfill({
             status: 200,
             contentType: 'application/json',
-            body: JSON.stringify({ accessToken: 'fake-jwt-token', user: { name: 'SOC Analyst' } }),
+            body: JSON.stringify({
+              accessToken: 'fake-jwt-token',
+              token: 'fake-jwt-token',
+              user: { id: 'usr-1', name: 'SOC Analyst', role: 'admin', roles: ['admin'] },
+            }),
           });
         } else {
-          await route.fulfill({ status: 401, body: JSON.stringify({ message: 'Code invalide' }) });
+          await route.fulfill({
+            status: 401,
+            contentType: 'application/json',
+            body: JSON.stringify({ message: 'Code invalide' }),
+          });
         }
       });
 
@@ -94,6 +108,10 @@ export const test = base.extend({
       });
     };
 
+    // Rend la fonction de setup disponible dans les tests
     await use(setupMocks);
   },
 });
+
+// Re-export de expect pour simplifier les imports dans les specs
+export { expect } from '@playwright/test';
