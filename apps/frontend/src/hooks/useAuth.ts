@@ -43,12 +43,13 @@ export function useLogin() {
     mutationFn: async (
       credentials: LoginCredentials,
     ): Promise<LoginResponse> => {
-      const { data } = credentials.mfaCode && credentials.tempToken
-        ? await api.post("/auth/mfa/verify", {
-            tempToken: credentials.tempToken,
-            totpToken: credentials.mfaCode,
-          })
-        : await api.post("/auth/login", credentials);
+      const { data } =
+        credentials.mfaCode && credentials.tempToken
+          ? await api.post("/auth/mfa/verify", {
+              tempToken: credentials.tempToken,
+              totpToken: credentials.mfaCode,
+            })
+          : await api.post("/auth/login", credentials);
       return data;
     },
 
