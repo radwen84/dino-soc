@@ -39,12 +39,11 @@ export function LoginPage() {
 
       if (result?.requiresMfa) {
         setMfaRequired(true);
-        // Correctif TypeScript: fallback sur "" si tempToken est undefined
         setTempToken(result.tempToken ?? "");
         toast.success("Veuillez saisir votre code MFA");
       }
     } catch (err) {
-      // Les erreurs d'authentification sont gérées dans le hook useLogin via toast
+      // Les erreurs sont gérées dans le hook useLogin via toast
     }
   };
 
@@ -88,10 +87,14 @@ export function LoginPage() {
             {!mfaRequired ? (
               <>
                 <div>
-                  <label className="block text-sm font-medium text-soc-muted mb-1.5">
+                  <label 
+                    htmlFor="email" 
+                    className="block text-sm font-medium text-soc-muted mb-1.5"
+                  >
                     Adresse Email
                   </label>
                   <input
+                    id="email"
                     {...register("email", {
                       required: "Email requis",
                       pattern: {
@@ -112,11 +115,15 @@ export function LoginPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-soc-muted mb-1.5">
+                  <label 
+                    htmlFor="password" 
+                    className="block text-sm font-medium text-soc-muted mb-1.5"
+                  >
                     Mot de passe
                   </label>
                   <div className="relative">
                     <input
+                      id="password"
                       {...register("password", {
                         required: "Mot de passe requis",
                       })}
@@ -146,10 +153,14 @@ export function LoginPage() {
               </>
             ) : (
               <div className="animate-fade-in">
-                <label className="block text-sm font-medium text-soc-muted mb-1.5 text-center">
+                <label 
+                  htmlFor="mfaCode" 
+                  className="block text-sm font-medium text-soc-muted mb-1.5 text-center"
+                >
                   Code MFA (6 chiffres)
                 </label>
                 <input
+                  id="mfaCode"
                   {...register("mfaCode", {
                     required: "Code MFA requis",
                     pattern: {
