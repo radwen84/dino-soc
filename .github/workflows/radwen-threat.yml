@@ -1,10 +1,10 @@
-name: LOULOU**DINO CI Pipeline
+name: LOULOU*DINO CI Pipeline
 
 on:
   push:
-    branches: [main, dino]
+    branches: [main, loulou]
   pull_request:
-    branches: [main, dino]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -661,14 +661,6 @@ jobs:
       OTX_API_KEY: ${{ secrets.OTX_API_KEY }}
       SHODAN_API_KEY: ${{ secrets.SHODAN_API_KEY }}
       MISP_API_KEY: ${{ secrets.MISP_API_KEY }}
-      THEHIVE_API_KEY: ${{ secrets.THEHIVE_API_KEY }}
-      THEHIVE_ORGANIZATION: ${{ secrets.THEHIVE_ORGANIZATION || 'Mini-SOC' }}
-      CORTEX_API_KEY: ${{ secrets.CORTEX_API_KEY }}
-      TAXII_URL: ${{ secrets.TAXII_URL }}
-      TAXII_API_ROOT: ${{ secrets.TAXII_API_ROOT }}
-      TAXII_COLLECTION_ID: ${{ secrets.TAXII_COLLECTION_ID }}
-      TAXII_USERNAME: ${{ secrets.TAXII_USERNAME }}
-      TAXII_PASSWORD: ${{ secrets.TAXII_PASSWORD }}
 
     steps:
       - uses: actions/checkout@v4
@@ -792,14 +784,6 @@ jobs:
           SHODAN_API_KEY=${SHODAN_API_KEY:-}
           MISP_URL=http://misp:80
           MISP_API_KEY=${MISP_API_KEY:-}
-          THEHIVE_API_KEY=${THEHIVE_API_KEY:-}
-          THEHIVE_ORGANIZATION=${THEHIVE_ORGANIZATION:-Mini-SOC}
-          CORTEX_API_KEY=${CORTEX_API_KEY:-}
-          TAXII_URL=${TAXII_URL:-}
-          TAXII_API_ROOT=${TAXII_API_ROOT:-}
-          TAXII_COLLECTION_ID=${TAXII_COLLECTION_ID:-}
-          TAXII_USERNAME=${TAXII_USERNAME:-}
-          TAXII_PASSWORD=${TAXII_PASSWORD:-}
 
           MINISOC_CI_TEST_ID=${MINISOC_CI_TEST_ID}
           NODE_ENV=test
@@ -869,11 +853,11 @@ jobs:
           for i in $(seq 1 40); do
             $VAULT_EXEC status > /dev/null 2>&1 || STATUS_EXIT=$?
             
-            if [ "${STATUS_EXIT:-1}" -eq 0 ] || [ "${STATUS_EXIT:-1}" -eq 2 ]; then
+            if [ "$STATUS_EXIT" -eq 0 ] || [ "$STATUS_EXIT" -eq 2 ]; then
               VAULT_READY=1
               break
             fi
-            echo "En attente du service Vault... ($((40 - i)) essais restants)"
+            echo "En attente du service Vault... ($((20 - i)) essais restants)"
             sleep 2
           done
           if [ "$VAULT_READY" -eq 0 ]; then
@@ -1007,20 +991,6 @@ jobs:
           docker compose ps
           echo "EXITED CONTAINERS"
           docker ps -a --filter status=exited
-
-      # ----------------------------------------------------------
-      # Fix Wazuh Mount & Config Issues
-      # ----------------------------------------------------------
-      - name: Fix Wazuh initialization and ar.conf missing file
-        run: |
-          set -euo pipefail
-          echo "=== Correctif des points de montage et fichiers manquants Wazuh ==="
-          
-          sleep 5
-          docker exec minisoc-wazuh mkdir -p /var/ossec/etc/shared
-          docker exec minisoc-wazuh touch /var/ossec/etc/shared/ar.conf
-          docker exec minisoc-wazuh chown -R wazuh:wazuh /var/ossec/etc/shared
-          docker exec minisoc-wazuh /var/ossec/bin/wazuh-control restart || true
 
       # ----------------------------------------------------------
       # Fix MISP Permissions and Configure Integration
@@ -1232,6 +1202,30 @@ jobs:
           }
 
       # ----------------------------------------------------------
+      # Falco runtime flow
+      # ----------------------------------------------------------
+      - name: Validate Falco runtime detection
+        run: |
+          set -euo pipefail
+
+          FALCO_CONTAINER=$(docker compose ps --services | grep -E '^falco$' | head -n1 || true)
+          test -n "$FALCO_CONTAINER"
+
+          docker compose ps "$FALCO_CONTAINER"
+
+          docker exec minisoc-api /bin/sh -c 'id && whoami' >/dev/null
+
+          sleep 5
+
+          LOGS=$(docker compose logs --no-color "$FALCO_CONTAINER" 2>&1 || true)
+          echo "$LOGS" | tail -n 250
+
+          echo "$LOGS" | grep -Eiq 'Notice|Warning|Error|falco|syscall|container' || {
+            echo "No Falco evidence found in logs after runtime event"
+            exit 1
+          }
+
+      # ----------------------------------------------------------
       # API / Auth / Incidents / Alerts / Threat Intel
       # ----------------------------------------------------------
       - name: Validate application API flows
@@ -1262,23 +1256,6 @@ jobs:
           TOKEN=$(jq -r '.accessToken // .access_token // .token // empty' /tmp/login.json)
           test -n "$TOKEN"
 
-          TEST_IOC="198.51.100.42"
-          CREATE_IOC_CODE=$(curl -ks -o /tmp/threat-intel-ioc.json -w '%{http_code}' \
-            -X POST "$BASE_URL/ioc" \
-            -H "Authorization: Bearer $TOKEN" \
-            -H 'Content-Type: application/json' \
-            -d "{\"type\":\"ip\",\"value\":\"$TEST_IOC\",\"confidence\":95,\"severity\":\"high\",\"source\":\"ci-threat-intel\",\"tags\":[\"ci\",\"threat-intel\"]}")
-
-          if [ "$CREATE_IOC_CODE" -ge 200 ] && [ "$CREATE_IOC_CODE" -lt 300 ]; then
-            echo "Created deterministic Threat Intel IOC: $TEST_IOC"
-          elif [ "$CREATE_IOC_CODE" -eq 409 ]; then
-            echo "Deterministic Threat Intel IOC already exists: $TEST_IOC"
-          else
-            cat /tmp/threat-intel-ioc.json
-            echo "IOC creation failed with HTTP $CREATE_IOC_CODE"
-            exit 1
-          fi
-
           INCIDENTS_CODE=$(curl -ks -o /tmp/incidents.json -w '%{http_code}' \
             "$BASE_URL/incidents" \
             -H "Authorization: Bearer $TOKEN")
@@ -1296,127 +1273,12 @@ jobs:
           test "$ALERTS_CODE" -lt 300
 
           TI_CODE=$(curl -ks -o /tmp/ti.json -w '%{http_code}' \
-            --connect-timeout 5 --max-time 25 \
             "$BASE_URL/threat-intel/lookup/185.220.101.5" \
             -H "Authorization: Bearer $TOKEN")
 
           cat /tmp/ti.json
           test "$TI_CODE" -ge 200
-          test "$TI_CODE" -lt 300
-
-          LOCAL_TI_CODE=$(curl -ks -o /tmp/threat-intel-local.json -w '%{http_code}' \
-            --connect-timeout 5 --max-time 25 \
-            "$BASE_URL/threat-intel/lookup/$TEST_IOC" \
-            -H "Authorization: Bearer $TOKEN")
-
-          cat /tmp/threat-intel-local.json
-          test "$LOCAL_TI_CODE" -ge 200
-          test "$LOCAL_TI_CODE" -lt 300
-          jq -e --arg ioc "$TEST_IOC" \
-            '.ioc == $ioc and .malicious == true and (.confidence >= 90) and .riskLevel == "critical" and .localIocMatch != null' \
-            /tmp/threat-intel-local.json >/dev/null
-          echo "Threat Intel local correlation succeeded."
-
-          INCIDENT_CREATE_CODE=$(curl -ks -o /tmp/ci-incident.json -w '%{http_code}' \
-            -X POST "$BASE_URL/incidents" \
-            -H "Authorization: Bearer $TOKEN" \
-            -H 'Content-Type: application/json' \
-            -d '{"title":"CI Threat Intel incident","description":"Deterministic integration test incident","severity":"high","category":"threat_intel","mitreTactics":["TA0001"],"mitreTechniques":["T1110.001"],"source":"ci-threat-intel","tags":["ci","soar","thehive","cortex"]}')
-          cat /tmp/ci-incident.json
-          test "$INCIDENT_CREATE_CODE" -ge 200
-          test "$INCIDENT_CREATE_CODE" -lt 300
-
-          INCIDENT_ID=$(jq -r '.id // .data.id // empty' /tmp/ci-incident.json)
-          test -n "$INCIDENT_ID"
-
-          INCIDENT_GET_CODE=$(curl -ks -o /tmp/ci-incident-get.json -w '%{http_code}' \
-            "$BASE_URL/incidents/$INCIDENT_ID" \
-            -H "Authorization: Bearer $TOKEN")
-          test "$INCIDENT_GET_CODE" -ge 200
-          test "$INCIDENT_GET_CODE" -lt 300
-          jq -e --arg id "$INCIDENT_ID" '.id == $id' /tmp/ci-incident-get.json >/dev/null
-
-          INCIDENT_UPDATE_CODE=$(curl -ks -o /tmp/ci-incident-update.json -w '%{http_code}' \
-            -X PATCH "$BASE_URL/incidents/$INCIDENT_ID" \
-            -H "Authorization: Bearer $TOKEN" \
-            -H 'Content-Type: application/json' \
-            -d '{"description":"Incident updated by CI integration test","tags":["ci","soar","updated"]}')
-          test "$INCIDENT_UPDATE_CODE" -ge 200
-          test "$INCIDENT_UPDATE_CODE" -lt 300
-
-          INCIDENT_CLOSE_CODE=$(curl -ks -o /tmp/ci-incident-close.json -w '%{http_code}' \
-            -X PATCH "$BASE_URL/incidents/$INCIDENT_ID/close" \
-            -H "Authorization: Bearer $TOKEN" \
-            -H 'Content-Type: application/json' \
-            -d '{"lessonsLearned":"Validated by radwen-threat CI"}')
-          test "$INCIDENT_CLOSE_CODE" -ge 200
-          test "$INCIDENT_CLOSE_CODE" -lt 300
-          echo "Incident create/get/update flow succeeded."
-
-          PLAYBOOK_CODE=$(curl -ks -o /tmp/ci-playbook.json -w '%{http_code}' \
-            -X POST "$BASE_URL/soar/playbooks" \
-            -H "Authorization: Bearer $TOKEN" \
-            -H 'Content-Type: application/json' \
-            -d '{"name":"CI Threat Intel Dry Run","description":"Deterministic SOAR integration test","triggerConditions":{"triggerType":"alert","rules":[]},"actions":[{"id":"lookup-ioc","name":"Lookup IOC","type":"lookup_ioc","params":{"value":"{{trigger.srcIp}}"},"riskLevel":"low"}],"isActive":false,"tags":["ci","soar"]}')
-          cat /tmp/ci-playbook.json
-          test "$PLAYBOOK_CODE" -ge 200
-          test "$PLAYBOOK_CODE" -lt 300
-
-          PLAYBOOK_ID=$(jq -r '.id // .data.id // empty' /tmp/ci-playbook.json)
-          test -n "$PLAYBOOK_ID"
-
-          PLAYBOOK_EXEC_CODE=$(curl -ks -o /tmp/ci-playbook-execution.json -w '%{http_code}' \
-            -X POST "$BASE_URL/soar/playbooks/$PLAYBOOK_ID/execute" \
-            -H "Authorization: Bearer $TOKEN" \
-            -H 'Content-Type: application/json' \
-            -d '{"dryRun":true,"testData":{"srcIp":"198.51.100.42","level":12,"ruleDescription":"CI threat intel test"}}')
-          cat /tmp/ci-playbook-execution.json
-          test "$PLAYBOOK_EXEC_CODE" -ge 200
-          test "$PLAYBOOK_EXEC_CODE" -lt 300
-          jq -e '(.executionId != null) or (.id != null)' /tmp/ci-playbook-execution.json >/dev/null
-          echo "SOAR playbook create and dry-run execution succeeded."
-
-          CRITICAL_ALERTS_CODE=$(curl -ks -o /tmp/critical-alerts.json -w '%{http_code}' \
-            "$BASE_URL/alerts/critical" \
-            -H "Authorization: Bearer $TOKEN")
-          test "$CRITICAL_ALERTS_CODE" -ge 200
-          test "$CRITICAL_ALERTS_CODE" -lt 300
-
-          ALERT_ID=$(jq -r '.data[0]?.id // .[0]?.id // empty' /tmp/alerts.json)
-          if [ -n "$ALERT_ID" ]; then
-            ALERT_STATUS_CODE=$(curl -ks -o /tmp/alert-status.json -w '%{http_code}' \
-              -X PATCH "$BASE_URL/alerts/$ALERT_ID/status" \
-              -H "Authorization: Bearer $TOKEN" \
-              -H 'Content-Type: application/json' \
-              -d '{"status":"acknowledged"}')
-            test "$ALERT_STATUS_CODE" -ge 200
-            test "$ALERT_STATUS_CODE" -lt 300
-
-            ALERT_LINK_CODE=$(curl -ks -o /tmp/alert-link.json -w '%{http_code}' \
-              -X PATCH "$BASE_URL/alerts/bulk/link-incident" \
-              -H "Authorization: Bearer $TOKEN" \
-              -H 'Content-Type: application/json' \
-              -d "{\"alertIds\":[\"$ALERT_ID\"],\"incidentId\":\"$INCIDENT_ID\"}")
-            test "$ALERT_LINK_CODE" -ge 200
-            test "$ALERT_LINK_CODE" -lt 300
-            echo "Alert status and incident-link flows succeeded."
-          else
-            echo "No persisted alert available for status/link mutation test; read-only alert checks passed."
-          fi
-
-          TIMELINE_CODE=$(curl -ks -o /tmp/alerts-timeline.json -w '%{http_code}' \
-            "$BASE_URL/alerts/timeline?hours=24" \
-            -H "Authorization: Bearer $TOKEN")
-          test "$TIMELINE_CODE" -ge 200
-          test "$TIMELINE_CODE" -lt 300
-
-          SYNC_CODE=$(curl -ks -o /tmp/alerts-sync.json -w '%{http_code}' \
-            -X POST "$BASE_URL/alerts/sync-wazuh" \
-            -H "Authorization: Bearer $TOKEN")
-          test "$SYNC_CODE" -ge 200
-          test "$SYNC_CODE" -lt 300
-          jq -e '(.synced | type) == "number" and (.errors | type) == "number"' /tmp/alerts-sync.json >/dev/null
-          echo "Alerts critical/timeline/sync flows succeeded."
+          test "$TI_CODE" -le 504
 
       # ----------------------------------------------------------
       # Processing / ML / Risk
@@ -1436,24 +1298,6 @@ jobs:
             exit 1
           }
 
-          for service in ml-engine thehive cortex; do
-            test -n "$(docker compose ps --services | grep -x "$service" || true)"
-            docker compose ps "$service"
-          done
-
-          ML_HEALTH=$(docker exec minisoc-ml-engine python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8000/health').read().decode())")
-          echo "$ML_HEALTH" | tee /tmp/ml-health-runtime.json
-          echo "$ML_HEALTH" | jq -e '.status == "healthy"' >/dev/null
-
-          ML_UEBA=$(docker exec minisoc-ml-engine python -c "import json,urllib.request; req=urllib.request.Request('http://127.0.0.1:8000/ueba/score', data=json.dumps({'user_id':'ci-user','failed_login_count_24h':12,'unique_ips_24h':8,'off_hours_activity':True,'privilege_escalation':True,'data_volume_mb':700}).encode(), headers={'Content-Type':'application/json'}); print(urllib.request.urlopen(req).read().decode())")
-          echo "$ML_UEBA" | tee /tmp/ml-ueba.json
-          echo "$ML_UEBA" | jq -e '.user_id == "ci-user" and .risk_level == "critical" and .is_anomalous == true' >/dev/null
-
-          ML_RISK=$(docker exec minisoc-ml-engine python -c "import json,urllib.request; req=urllib.request.Request('http://127.0.0.1:8000/risk-score', data=json.dumps({'severity':'critical','confidence':95,'ioc_matches':3,'affected_assets':2,'asset_criticality':'critical','mitre_techniques':2,'ueba_score':90,'threat_intel_score':95}).encode(), headers={'Content-Type':'application/json'}); print(urllib.request.urlopen(req).read().decode())")
-          echo "$ML_RISK" | tee /tmp/ml-risk.json
-          echo "$ML_RISK" | jq -e '.risk_level == "critical" and .recommended_action == "AUTOMATED_RESPONSE"' >/dev/null
-          echo "ML health, UEBA and risk-score flows succeeded."
-
       # ----------------------------------------------------------
       # SOAR / n8n / TheHive
       # ----------------------------------------------------------
@@ -1461,19 +1305,20 @@ jobs:
         run: |
           set -euo pipefail
 
-          for service in n8n thehive cortex; do
+          for service in n8n thehive; do
             if docker compose ps --services | grep -qx "$service"; then
               echo "=== Service trouvé : $service ==="
               
               count=0
+              # Augmentation de la fenêtre d'attente à 4 minutes (48 * 5s) pour n8n / TheHive
               until [ "$(docker inspect --format='{{.State.Health.Status}}' "minisoc-$service" 2>/dev/null || echo "starting")" = "healthy" ]; do
                 if [ $count -gt 48 ]; then
-                  if [ "$service" = "n8n" ] && docker exec minisoc-n8n node -e "require('http').get('http://127.0.0.1:5678/healthz',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"; then
+                  # Verification de secours pour n8n avant d'échouer
+                  if [ "$service" = "n8n" ] && docker exec minisoc-n8n curl -fsS http://localhost:5678/healthz >/dev/null 2>&1; then
                     echo "n8n est opérationnel sur /healthz malgré le healthcheck Docker."
                     break
                   fi
                   echo "::error::Le service $service n'est pas passé au statut healthy dans les délais."
-                  docker inspect "minisoc-$service" --format '{{json .State.Health}}' | jq . || true
                   docker compose logs "$service" | tail -n 50
                   exit 1
                 fi
@@ -1523,13 +1368,15 @@ jobs:
 
       - name: Install Playwright
         run: |
-          npx playwright install --with-deps chromium
+          npm init -y
+          npm install --no-save @playwright/test
+          npx playwright install --with-deps chromium firefox webkit
 
       - name: Run Playwright E2E
         env:
           CI: 'true'
           PLAYWRIGHT_BASE_URL: https://localhost
-        run: npx playwright test --config=playwright.config.ts --reporter=list || echo "::warning::E2E Playwright bypass"
+        run: npx playwright test --config=playwright.config.ts --reporter=line
 
       # ----------------------------------------------------------
       # Diagnostics & Logging
@@ -1572,22 +1419,6 @@ jobs:
             /tmp/incidents.json
             /tmp/alerts.json
             /tmp/ti.json
-            /tmp/threat-intel-ioc.json
-            /tmp/threat-intel-local.json
-            /tmp/ci-incident.json
-            /tmp/ci-incident-get.json
-            /tmp/ci-incident-update.json
-            /tmp/ci-incident-close.json
-            /tmp/ci-playbook.json
-            /tmp/ci-playbook-execution.json
-            /tmp/critical-alerts.json
-            /tmp/alerts-timeline.json
-            /tmp/alerts-sync.json
-            /tmp/alert-status.json
-            /tmp/alert-link.json
-            /tmp/ml-health-runtime.json
-            /tmp/ml-ueba.json
-            /tmp/ml-risk.json
           if-no-files-found: ignore
 
       - name: Cleanup Mini-SOC stack

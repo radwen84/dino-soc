@@ -5,6 +5,22 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
+  server: {
+    proxy: {
+      '/api': {
+        target: process.env.API_BASE_URL || 'http://127.0.0.1:4000',
+        changeOrigin: true,
+      },
+    },
+  },
+  preview: {
+    proxy: {
+      '/api': {
+        target: process.env.API_BASE_URL || 'http://127.0.0.1:4000',
+        changeOrigin: true,
+      },
+    },
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -13,11 +29,6 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-    setupFiles: './src/test/setup.ts',
-    exclude: [
-      '**/node_modules/**',
-      '**/dist/**',
-      '**/e2e/**', // Empêche Vitest de tenter d'exécuter les tests Playwright
-    ],
+    setupFiles: './src/test/setup.ts', // Optionnel si vous avez un fichier de setup
   },
 });
