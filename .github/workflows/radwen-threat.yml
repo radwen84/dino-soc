@@ -1265,12 +1265,14 @@ jobs:
             REQUIRES_MFA=$(jq -r '.requiresMfa // false' /tmp/login.json)
             if [ "$REQUIRES_MFA" = "true" ]; then
               echo "MFA authentication step detected, submitting TOTP token..."
+              
+              TEMP_TOKEN=$(jq -r '.tempToken // empty' /tmp/login.json)
               TOTP_CODE=$(oathtool --totp -b "$TEST_USER_MFA_SECRET")
               
               MFA_VERIFY_CODE=$(curl -ks -o /tmp/mfa.json -w '%{http_code}' \
                 -X POST "$BASE_URL/auth/mfa/verify" \
                 -H 'Content-Type: application/json' \
-                -d "{\"email\":\"admin@minisoc.local\",\"mfaCode\":\"$TOTP_CODE\"}")
+                -d "{\"tempToken\":\"$TEMP_TOKEN\",\"totpToken\":\"$TOTP_CODE\"}")
 
               cat /tmp/mfa.json
               test "$MFA_VERIFY_CODE" -ge 200
