@@ -35,7 +35,6 @@ test.describe('Couverture globale des modules Mini-SOC - Intégration Réelle', 
       // Inspection du détail dans le Drawer / Modal
       await expect(page.getByRole('button', { name: /Acquitter|Fermer/i }).first()).toBeVisible({ timeout: 5000 });
     } else {
-      // Si la liste d'alertes est vide dans l'environnement de test E2E
       await expect(page.locator('main')).toBeVisible();
     }
   });
@@ -58,11 +57,16 @@ test.describe('Couverture globale des modules Mini-SOC - Intégration Réelle', 
       await selectSeverity.selectOption('critical');
     }
 
-    // 2. Clic ciblé sur le bouton de SOUMISSION dans le modal (évite la strict mode violation)
+    // 2. Clic ciblé sur le bouton de SOUMISSION dans le modal
     const submitBtn = modal.getByRole('button', { name: /Enregistrer|Créer|Sauvegarder|Submit/i }).first();
     await submitBtn.click();
 
-    await expect(page.locator('.toast, [role="status"], text=/créé|created|succès/i').first()).toBeVisible({ timeout: 5000 });
+    // SÉLECTEUR CORRIGÉ : combinaison propre via .or()
+    const notification = page.locator('.toast, [role="status"]')
+      .or(page.getByText(/créé|created|succès/i))
+      .first();
+
+    await expect(notification).toBeVisible({ timeout: 5000 });
   });
 
   test('Module Threat Intelligence - Recherche de réputation d une IP', async ({ page }) => {
@@ -71,7 +75,6 @@ test.describe('Couverture globale des modules Mini-SOC - Intégration Réelle', 
     const searchInput = page.locator('input[placeholder*="IP"], input[type="text"]').first();
     await searchInput.fill('185.220.101.5');
     
-    // Clic sur le bouton de lancement de recherche
     const searchBtn = page.getByRole('button', { name: /Analyser|Rechercher|Search|Analyse/i }).first();
     if (await searchBtn.isVisible().catch(() => false)) {
       await searchBtn.click();
@@ -79,7 +82,6 @@ test.describe('Couverture globale des modules Mini-SOC - Intégration Réelle', 
       await searchInput.press('Enter');
     }
 
-    // Assertion adaptée au contenu réel du DOM (compatible avec AbuseIPDB, Feeds, OTX, Score ou IP)
     await expect(page.locator('main')).toContainText(/185\.220\.101\.5|Score|Trouvé|Threat Intelligence|AbuseIPDB|Analyse/i, { timeout: 10000 });
   });
 
@@ -91,13 +93,18 @@ test.describe('Couverture globale des modules Mini-SOC - Intégration Réelle', 
     await page.locator('input[placeholder*="192.168"], input[name="ip"]').fill('10.0.0.15');
 
     await page.getByRole('button', { name: /^Ajouter$|^Enregistrer$/i }).click();
-    await expect(page.locator('.toast, [role="status"]').first()).toBeVisible({ timeout: 5000 });
+
+    // SÉLECTEUR CORRIGÉ
+    const notification = page.locator('.toast, [role="status"]')
+      .or(page.getByText(/ajouté|added|succès/i))
+      .first();
+
+    await expect(notification).toBeVisible({ timeout: 5000 });
   });
 
   test('Module Rapports - Génération et export JSON', async ({ page }) => {
     await navigateTo(page, 'Rapports', '/reports');
 
-    // Mock léger uniquement sur l'endpoint lourd de génération
     await page.route('**/api/reports/generate*', async (route) => {
       await route.fulfill({
         status: 200,
@@ -124,7 +131,6 @@ test.describe('Couverture globale des modules Mini-SOC - Intégration Réelle', 
       await mfaBtn.click();
       await expect(page.getByText('[QR CODE MFA]', { exact: true })).toBeVisible();
     } else {
-      // Si le MFA est déjà actif pour cet utilisateur
       await expect(page.getByText(/MFA Activé|Désactiver/i)).toBeVisible();
     }
   });
