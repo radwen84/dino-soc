@@ -656,6 +656,7 @@ jobs:
       POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD || 'ci-test-db-password-123' }}
       JWT_SECRET: ${{ secrets.JWT_SECRET || 'ci-super-secret-jwt-key-minimum-32-chars' }}
       JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET || 'ci-super-secret-refresh-key-minimum-32-chars' }}
+      TEST_USER_MFA_SECRET: ${{ secrets.TEST_USER_MFA_SECRET || 'JBSWY3DPEHPK3PXP' }}
       ABUSEIPDB_API_KEY: ${{ secrets.ABUSEIPDB_API_KEY }}
       VIRUSTOTAL_API_KEY: ${{ secrets.VIRUSTOTAL_API_KEY }}
       OTX_API_KEY: ${{ secrets.OTX_API_KEY }}
@@ -664,6 +665,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install TOTP utilities
+        run: sudo apt-get update && sudo apt-get install -y oathtool
 
       # ----------------------------------------------------------
       # Host preparation & Docker DNS Configuration
@@ -766,6 +770,7 @@ jobs:
 
           JWT_SECRET=${JWT_SEC}
           JWT_REFRESH_SECRET=${JWT_REF_SEC}
+          TEST_USER_MFA_SECRET=${TEST_USER_MFA_SECRET}
           API_CORS_ORIGINS=*
           API_PORT=4000
 
@@ -1231,6 +1236,7 @@ jobs:
       - name: Validate application API flows
         env:
           BASE_URL: https://localhost/api
+          TEST_USER_MFA_SECRET: ${{ secrets.TEST_USER_MFA_SECRET || 'JBSWY3DPEHPK3PXP' }}
           ABUSEIPDB_API_KEY: ${{ secrets.ABUSEIPDB_API_KEY }}
           VIRUSTOTAL_API_KEY: ${{ secrets.VIRUSTOTAL_API_KEY }}
           OTX_API_KEY: ${{ secrets.OTX_API_KEY }}
@@ -1254,6 +1260,26 @@ jobs:
           test "$LOGIN_CODE" -lt 300
 
           TOKEN=$(jq -r '.accessToken // .access_token // .token // empty' /tmp/login.json)
+
+          if [ -z "$TOKEN" ]; then
+            REQUIRES_MFA=$(jq -r '.requiresMfa // false' /tmp/login.json)
+            if [ "$REQUIRES_MFA" = "true" ]; then
+              echo "MFA authentication step detected, submitting TOTP token..."
+              TOTP_CODE=$(oathtool --totp -b "$TEST_USER_MFA_SECRET")
+              
+              MFA_VERIFY_CODE=$(curl -ks -o /tmp/mfa.json -w '%{http_code}' \
+                -X POST "$BASE_URL/auth/mfa/verify" \
+                -H 'Content-Type: application/json' \
+                -d "{\"email\":\"admin@minisoc.local\",\"mfaCode\":\"$TOTP_CODE\"}")
+
+              cat /tmp/mfa.json
+              test "$MFA_VERIFY_CODE" -ge 200
+              test "$MFA_VERIFY_CODE" -lt 300
+
+              TOKEN=$(jq -r '.accessToken // .access_token // .token // empty' /tmp/mfa.json)
+            fi
+          fi
+
           test -n "$TOKEN"
 
           INCIDENTS_CODE=$(curl -ks -o /tmp/incidents.json -w '%{http_code}' \
@@ -1310,10 +1336,8 @@ jobs:
               echo "=== Service trouvé : $service ==="
               
               count=0
-              # Augmentation de la fenêtre d'attente à 4 minutes (48 * 5s) pour n8n / TheHive
               until [ "$(docker inspect --format='{{.State.Health.Status}}' "minisoc-$service" 2>/dev/null || echo "starting")" = "healthy" ]; do
                 if [ $count -gt 48 ]; then
-                  # Verification de secours pour n8n avant d'échouer
                   if [ "$service" = "n8n" ] && docker exec minisoc-n8n curl -fsS http://localhost:5678/healthz >/dev/null 2>&1; then
                     echo "n8n est opérationnel sur /healthz malgré le healthcheck Docker."
                     break
@@ -1416,6 +1440,7 @@ jobs:
             **/*.log
             /tmp/health.json
             /tmp/login.json
+            /tmp/mfa.json
             /tmp/incidents.json
             /tmp/alerts.json
             /tmp/ti.json
