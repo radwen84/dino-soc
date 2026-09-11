@@ -16,24 +16,27 @@ test.describe('Authentification Frontend - Intégration Réelle', () => {
   test('Permet à l\'utilisateur de se connecter (Flux complet Identifiants + MFA)', async ({ page }) => {
     await page.goto('/login');
 
-    // 1. Étape 1 : Remplissage des identifiants
+    // 1. Étape 1 : Identifiants
     await page.fill('input#email, input[name="email"]', 'admin@minisoc.local');
     await page.fill('input#password, input[name="password"]', 'Admin@MiniSOC2026!');
     await page.click('button[type="submit"]');
 
-    // 2. Étape 2 : Saisie MFA
+    // 2. Étape 2 : Challenge MFA
     const mfaInput = page.locator('input#mfaCode, input[name="mfaCode"]');
     await expect(mfaInput).toBeVisible({ timeout: 5000 });
 
-    // Autoriser une tolérance de pas de temps (+/- 30s) pour éviter les rejets en CI
     authenticator.options = { window: 1 };
     const currentToken = authenticator.generate(MFA_SECRET);
 
     await mfaInput.fill(currentToken);
     await page.click('button[type="submit"]');
 
-    // 3. Attente basée sur les éléments du DOM de la SPA (Dashboard) plutôt qu'un reload navigateur
-    await expect(page.locator('main')).toBeVisible({ timeout: 10000 });
+    // 3. Attente SPA : On attend la transition d'URL sans bloquer sur l'événement 'load'
+    await page.waitForURL((url) => url.pathname === '/' || url.pathname === '/dashboard', { 
+      timeout: 10000,
+      waitUntil: 'commit',
+    });
+
     await expect(page).not.toHaveURL(/\/login\/?$/);
   });
 
@@ -44,10 +47,11 @@ test.describe('Authentification Frontend - Intégration Réelle', () => {
     await page.fill('input#password, input[name="password"]', 'WrongPassword123!');
     await page.click('button[type="submit"]');
 
-    await expect(
-      page.locator('.toast, [role="status"], .hot-toast-message, text=/invalide|erreur|unauthorized/i').first()
-    ).toBeVisible({ timeout: 5000 });
+    // Correctif du sélecteur : Séparation propre des locuteurs
+    const toastError = page.locator('.toast, [role="status"], .hot-toast-message')
+      .or(page.getByText(/invalide|erreur|unauthorized/i));
 
+    await expect(toastError.first()).toBeVisible({ timeout: 5000 });
     await expect(page).toHaveURL(/\/login\/?$/);
   });
 });
