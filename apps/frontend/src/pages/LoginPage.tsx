@@ -87,8 +87,8 @@ export function LoginPage() {
             {!mfaRequired ? (
               <>
                 <div>
-                  <label 
-                    htmlFor="email" 
+                  <label
+                    htmlFor="email"
                     className="block text-sm font-medium text-soc-muted mb-1.5"
                   >
                     Adresse Email
@@ -115,8 +115,8 @@ export function LoginPage() {
                 </div>
 
                 <div>
-                  <label 
-                    htmlFor="password" 
+                  <label
+                    htmlFor="password"
                     className="block text-sm font-medium text-soc-muted mb-1.5"
                   >
                     Mot de passe
@@ -153,8 +153,8 @@ export function LoginPage() {
               </>
             ) : (
               <div className="animate-fade-in">
-                <label 
-                  htmlFor="mfaCode" 
+                <label
+                  htmlFor="mfaCode"
                   className="block text-sm font-medium text-soc-muted mb-1.5 text-center"
                 >
                   Code MFA (6 chiffres)
