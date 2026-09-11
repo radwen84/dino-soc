@@ -52,8 +52,14 @@ api.interceptors.response.use(
       _retry?: boolean;
     };
 
-    // Handle 401 - attempt token refresh
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // Chemins qui NE doivent PAS tenter de refresh sur un 401
+    const isAuthRoute =
+      originalRequest.url?.includes("/auth/login") ||
+      originalRequest.url?.includes("/auth/refresh") ||
+      originalRequest.url?.includes("/auth/mfa/verify");
+
+    // Handle 401 - attempt token refresh (sauf pour les routes de connexion)
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthRoute) {
       if (isRefreshing) {
         return new Promise<string | null>((resolve, reject) => {
           failedQueue.push({ resolve, reject });
@@ -96,7 +102,10 @@ api.interceptors.response.use(
 
         useAuthStore.getState().logout();
 
-        window.location.href = "/login";
+        // Évite de recharger la page si l'utilisateur y est déjà
+        if (window.location.pathname !== "/login") {
+          window.location.href = "/login";
+        }
 
         return Promise.reject(refreshError);
       } finally {
