@@ -3,6 +3,9 @@ import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
+// Secret TOTP Base32 fixe partagé avec Playwright pour les tests E2E
+export const TEST_MFA_SECRET = 'JBSWY3DPEHPK3PXP';
+
 async function main() {
   console.log('🌱 Seeding database...');
 
@@ -10,49 +13,63 @@ async function main() {
   const adminPassword = await bcrypt.hash('Admin@MiniSOC2026!', 12);
   const admin = await prisma.user.upsert({
     where: { email: 'admin@minisoc.local' },
-    update: {},
+    update: {
+      mfaSecret: TEST_MFA_SECRET,
+      mfaEnabled: true,
+    },
     create: {
       email: 'admin@minisoc.local',
       name: 'SOC Administrator',
       passwordHash: adminPassword,
       roles: ['admin'],
       isActive: true,
+      mfaSecret: TEST_MFA_SECRET,
+      mfaEnabled: true,
     },
   });
-  console.log(`  ✓ Admin user created: ${admin.email}`);
+  console.log(`   ✓ Admin user created: ${admin.email}`);
 
   // Create analyst L1
   const l1Password = await bcrypt.hash('Analyst1@SOC2026!', 12);
   const analyst1 = await prisma.user.upsert({
     where: { email: 'analyst.l1@minisoc.local' },
-    update: {},
+    update: {
+      mfaSecret: TEST_MFA_SECRET,
+      mfaEnabled: true,
+    },
     create: {
       email: 'analyst.l1@minisoc.local',
       name: 'Analyst Level 1',
       passwordHash: l1Password,
       roles: ['analyst_l1'],
       isActive: true,
+      mfaSecret: TEST_MFA_SECRET,
+      mfaEnabled: true,
     },
   });
-  console.log(`  ✓ Analyst L1 created: ${analyst1.email}`);
+  console.log(`   ✓ Analyst L1 created: ${analyst1.email}`);
 
   // Create analyst L2
   const l2Password = await bcrypt.hash('Analyst2@SOC2026!', 12);
   const analyst2 = await prisma.user.upsert({
     where: { email: 'analyst.l2@minisoc.local' },
-    update: {},
+    update: {
+      mfaSecret: TEST_MFA_SECRET,
+      mfaEnabled: true,
+    },
     create: {
       email: 'analyst.l2@minisoc.local',
       name: 'Analyst Level 2',
       passwordHash: l2Password,
       roles: ['analyst_l2'],
       isActive: true,
+      mfaSecret: TEST_MFA_SECRET,
+      mfaEnabled: true,
     },
   });
-  console.log(`  ✓ Analyst L2 created: ${analyst2.email}`);
+  console.log(`   ✓ Analyst L2 created: ${analyst2.email}`);
 
   // Create sample assets — use createMany with skipDuplicates for idempotency
-  // Since Asset has no natural unique key other than id, we check by hostname+ipAddress
   const assets = [
     { hostname: 'web-server-01', ipAddress: '10.0.2.10', os: 'Ubuntu', osVersion: '22.04', criticality: 'high' as const, department: 'Production' },
     { hostname: 'db-server-01', ipAddress: '10.0.2.11', os: 'Ubuntu', osVersion: '22.04', criticality: 'critical' as const, department: 'Production' },
@@ -62,13 +79,12 @@ async function main() {
   ];
 
   for (const asset of assets) {
-    // Check if exists by hostname to avoid duplicates
     const existing = await prisma.asset.findFirst({ where: { hostname: asset.hostname } });
     if (!existing) {
       await prisma.asset.create({ data: asset });
     }
   }
-  console.log(`  ✓ ${assets.length} assets ensured`);
+  console.log(`   ✓ ${assets.length} assets ensured`);
 
   // Create sample IOCs — upsert by unique (type, value)
   const iocs = [
@@ -90,7 +106,7 @@ async function main() {
       },
     });
   }
-  console.log(`  ✓ ${iocs.length} IOCs ensured`);
+  console.log(`   ✓ ${iocs.length} IOCs ensured`);
 
   // Create sample incident — check if one already exists with same title
   const existingIncident = await prisma.incident.findFirst({
@@ -122,13 +138,14 @@ async function main() {
       },
     });
   }
-  console.log('  ✓ Sample incident ensured');
+  console.log('   ✓ Sample incident ensured');
 
   console.log('\n✅ Seeding completed!');
   console.log('\nDefault credentials:');
-  console.log('  Admin: admin@minisoc.local / Admin@MiniSOC2026!');
-  console.log('  L1:    analyst.l1@minisoc.local / Analyst1@SOC2026!');
-  console.log('  L2:    analyst.l2@minisoc.local / Analyst2@SOC2026!');
+  console.log('   Admin: admin@minisoc.local / Admin@MiniSOC2026!');
+  console.log('   L1:    analyst.l1@minisoc.local / Analyst1@SOC2026!');
+  console.log('   L2:    analyst.l2@minisoc.local / Analyst2@SOC2026!');
+  console.log(`   MFA Secret (Base32): ${TEST_MFA_SECRET}`);
 }
 
 main()

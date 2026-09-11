@@ -1,17 +1,29 @@
 import { test, expect } from './fixtures';
+import { authenticator } from 'otplib';
 
 test.describe('Couverture globale des modules Mini-SOC', () => {
+  // Secret TOTP partagé pour les tests (seed database)
+  const MFA_SECRET = process.env.TEST_USER_MFA_SECRET || 'JBSWY3DPEHPK3PXP';
+
   test.beforeEach(async ({ page, mockSocApi }) => {
     // 1. Initialisation des intercepteurs d'API
     await mockSocApi();
 
-    // 2. Connexion initiale
+    // 2. Étape 1 : Identifiants primaires
     await page.goto('/login');
     await page.fill('input#email, input[name="email"]', 'admin@minisoc.local');
-    await page.fill('input#password, input[name="password"]', 'Password123!');
+    await page.fill('input#password, input[name="password"]', 'Admin@MiniSOC2026!');
     await page.click('button[type="submit"]');
 
-    // 3. Attente explicite de la fin du processus de connexion et de stockage du token
+    // 3. Étape 2 : Saisie TOTP si le MFA est exigé à la connexion
+    const mfaInput = page.locator('input#mfaCode, input[name="mfaCode"]');
+    if (await mfaInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+      const currentToken = authenticator.generate(MFA_SECRET);
+      await mfaInput.fill(currentToken);
+      await page.click('button[type="submit"]');
+    }
+
+    // 4. Validation de l'accès à l'application
     await page.waitForURL((url) => url.pathname !== '/login', { timeout: 10000 });
     await expect(page.locator('main')).toBeVisible();
   });
