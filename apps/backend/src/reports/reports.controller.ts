@@ -36,13 +36,13 @@ export class ReportsController {
         return this.convertToCsv(report.data);
 
       case ReportFormat.PDF:
-        // PDF generation would use a library like puppeteer or pdfkit
-        // For now, return JSON with a note
-        return {
-          ...report,
-          note: 'PDF export requires puppeteer setup - see docs',
-        };
-
+         res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader(
+          'Content-Disposition',
+          `attachment; filename="report-${filters.type}-${Date.now()}.pdf"`,
+        );
+        return this.reportsService.generatePdf(report);
+        
       case ReportFormat.JSON:
       default:
         return report;

@@ -29,7 +29,7 @@ interface KpiMetrics {
 }
 
 export function DashboardPage() {
-  useWebSocket();
+  const { stats: realtimeStats } = useWebSocket();
   const queryClient = useQueryClient();
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
@@ -96,6 +96,11 @@ export function DashboardPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-white">SOC Dashboard</h1>
         <div className="flex items-center gap-3">
+          {realtimeStats && (
+            <span className="text-xs text-emerald-400">
+              {realtimeStats.connectedClients} client(s) connectés
+            </span>
+          )}
           <div className="flex items-center gap-1.5 text-xs text-soc-muted">
             <ClockIcon className="h-4 w-4" />
             <span>Dernière MAJ: {lastUpdated.toLocaleTimeString("fr-FR")}</span>

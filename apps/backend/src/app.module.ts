@@ -20,6 +20,7 @@ import { AssetsModule } from './assets/assets.module';
 import { ThreatIntelModule } from './threat-intel/threat-intel.module';
 import { ReportsModule } from './reports/reports.module';
 import { SoarModule } from './soar/soar.module';
+import { MetricsModule } from './metrics/metrics.module';
 
 // Infrastructure modules
 import { OpenSearchModule } from './opensearch/opensearch.module';
@@ -80,7 +81,7 @@ import { validate } from './config/env.validation';
     ThreatIntelModule,
     ReportsModule,
     SoarModule,
-
+    MetricsModule,
     // Infrastructure
     OpenSearchModule,
     WazuhModule,

@@ -1,20 +1,27 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Socket } from "socket.io-client";
 import { connectSocket, disconnectSocket } from "../lib/socket";
 import { useNotificationsStore } from "../stores/notifications.store";
 import { useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 
+export interface RealtimeStats {
+  alertsLastHour: number;
+  openIncidents: number;
+  criticalIncidents: number;
+  connectedClients: number;
+  timestamp: string;
+}
+
 export function useWebSocket() {
   const socketRef = useRef<Socket | null>(null);
+  const [stats, setStats] = useState<RealtimeStats | null>(null);
   const { addNotification } = useNotificationsStore();
   const queryClient = useQueryClient();
 
   useEffect(() => {
     const socket = connectSocket();
     socketRef.current = socket;
-
-    // Nouvelle alerte
     socket.on("alert:new", (alert: any) => {
       addNotification({
         type: "alert",
@@ -24,18 +31,13 @@ export function useWebSocket() {
           alert.level >= 12 ? "critical" : alert.level >= 8 ? "high" : "medium",
         link: "/alerts",
       });
-
-      if (alert.level >= 12) {
+      if (alert.level >= 12)
         toast.error(`🚨 Alerte critique: ${alert.ruleDescription}`, {
           duration: 8000,
         });
-      }
-
       queryClient.invalidateQueries({ queryKey: ["alerts"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
     });
-
-    // Mise à jour d'incident
     socket.on("incident:updated", (incident: any) => {
       addNotification({
         type: "incident",
@@ -44,31 +46,27 @@ export function useWebSocket() {
         severity: incident.severity,
         link: `/incidents/${incident.id}`,
       });
-
       queryClient.invalidateQueries({ queryKey: ["incidents"] });
       queryClient.invalidateQueries({ queryKey: ["incident", incident.id] });
     });
-
-    // Création d'incident
     socket.on("incident:created", (incident: any) => {
-      const severityStr = incident.severity?.toUpperCase() || "INFO";
       addNotification({
         type: "incident",
         title: "Nouvel incident",
-        message: `[${severityStr}] ${incident.title}`,
+        message: `[${incident.severity?.toUpperCase() || "INFO"}] ${incident.title}`,
         severity: incident.severity,
         link: `/incidents/${incident.id}`,
       });
-
       toast(`🔴 Nouvel incident: ${incident.title}`, { duration: 6000 });
       queryClient.invalidateQueries({ queryKey: ["incidents"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
     });
-
-    return () => {
-      disconnectSocket();
-    };
+    socket.on("stats:update", (payload: RealtimeStats) => {
+      setStats(payload);
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+    });
+    return () => disconnectSocket();
   }, [addNotification, queryClient]);
 
-  return socketRef.current;
+  return { socket: socketRef.current, stats };
 }
