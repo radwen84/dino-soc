@@ -129,7 +129,8 @@ test.describe('Couverture globale des modules Mini-SOC - Intégration Réelle', 
     
     if (await mfaBtn.isVisible().catch(() => false)) {
       await mfaBtn.click();
-      await expect(page.getByText('[QR CODE MFA]', { exact: true })).toBeVisible();
+      //wait expect(page.getByText('[QR CODE MFA]', { exact: true })).toBeVisible();
+      await expect(page.getByText(/QR Code/i).or(page.locator('img[alt*="QR"]'))).toBeVisible();
     } else {
       await expect(page.getByText(/MFA Activé|Désactiver/i)).toBeVisible();
     }
