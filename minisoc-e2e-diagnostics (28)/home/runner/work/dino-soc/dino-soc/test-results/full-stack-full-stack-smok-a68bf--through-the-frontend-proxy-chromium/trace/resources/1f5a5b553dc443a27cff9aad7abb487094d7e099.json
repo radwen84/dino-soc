@@ -1,0 +1,1 @@
+{"status":"healthy","version":"1.0.0","uptime":139.017133648,"timestamp":"2026-09-11T22:15:06.706Z","checks":{"database":"healthy","redis":"healthy"}}
