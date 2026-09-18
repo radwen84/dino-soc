@@ -4,7 +4,6 @@
       "C:\\Program Files\\nodejs\\node.exe",
       "C:\\Users\\radwen\\Desktop\\dino-soc\\node_modules\\@playwright\\test\\cli.js",
       "test",
-      "apps/frontend/e2e/soc-modules.spec.ts",
       "--ui"
     ],
     "configFile": "C:\\Users\\radwen\\Desktop\\dino-soc\\playwright.config.ts",
@@ -19,7 +18,7 @@
     "grepInvert": null,
     "maxFailures": 0,
     "metadata": {
-      "actualWorkers": 1
+      "actualWorkers": 2
     },
     "preserveOutput": "always",
     "projects": [
@@ -28,7 +27,7 @@
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
-          "actualWorkers": 1
+          "actualWorkers": 2
         },
         "id": "chromium",
         "name": "chromium",
@@ -77,6 +76,827 @@
   },
   "suites": [
     {
+      "title": "app.spec.ts",
+      "file": "app.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Vérification de l'application SOC",
+          "file": "app.spec.ts",
+          "line": 3,
+          "column": 6,
+          "specs": [
+            {
+              "title": "La page d'accueil Nginx / Frontend charge correctement",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "timedOut",
+                      "duration": 40674,
+                      "error": {
+                        "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m",
+                        "stack": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+                      },
+                      "errors": [
+                        {
+                          "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+                        },
+                        {
+                          "location": {
+                            "file": "C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\app.spec.ts",
+                            "column": 33,
+                            "line": 7
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at https://localhost/\nCall log:\n\u001b[2m  - navigating to \"https://localhost/\", waiting until \"load\"\u001b[22m\n\n\n\u001b[0m \u001b[90m  5 |\u001b[39m\n \u001b[90m  6 |\u001b[39m     \u001b[90m// Connexion à la baseURL https://localhost\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m  7 |\u001b[39m     \u001b[36mconst\u001b[39m response \u001b[33m=\u001b[39m \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                                 \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m  8 |\u001b[39m\n \u001b[90m  9 |\u001b[39m     \u001b[90m// Vérifie que le serveur web renvoie un code de succès\u001b[39m\n \u001b[90m 10 |\u001b[39m     expect(response\u001b[33m?\u001b[39m\u001b[33m.\u001b[39mstatus())\u001b[33m.\u001b[39mtoBeLessThan(\u001b[35m400\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m\n\u001b[2m    at C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\app.spec.ts:7:33\u001b[22m"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-12T14:55:36.030Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\app-Vérification-de-l-appl-bdaf0-rontend-charge-correctement-chromium\\video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\app-Vérification-de-l-appl-bdaf0-rontend-charge-correctement-chromium\\error-context.md"
+                        },
+                        {
+                          "name": "trace",
+                          "contentType": "application/zip",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\app-Vérification-de-l-appl-bdaf0-rontend-charge-correctement-chromium\\trace.zip"
+                        }
+                      ]
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "c31ff144dc4fee3acd0a-8f7e6eea603327f4d11e",
+              "file": "app.spec.ts",
+              "line": 4,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "auth.spec.ts",
+      "file": "auth.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Authentification Frontend - Intégration Réelle",
+          "file": "auth.spec.ts",
+          "line": 4,
+          "column": 6,
+          "specs": [
+            {
+              "title": "Affiche la page de connexion",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "timedOut",
+                      "duration": 40680,
+                      "error": {
+                        "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m",
+                        "stack": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+                      },
+                      "errors": [
+                        {
+                          "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+                        },
+                        {
+                          "location": {
+                            "file": "C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\auth.spec.ts",
+                            "column": 16,
+                            "line": 8
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at https://localhost/login\nCall log:\n\u001b[2m  - navigating to \"https://localhost/login\", waiting until \"load\"\u001b[22m\n\n\n\u001b[0m \u001b[90m  6 |\u001b[39m\n \u001b[90m  7 |\u001b[39m   test(\u001b[32m'Affiche la page de connexion'\u001b[39m\u001b[33m,\u001b[39m \u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m  8 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/login'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m  9 |\u001b[39m\n \u001b[90m 10 |\u001b[39m     \u001b[36mawait\u001b[39m expect(page\u001b[33m.\u001b[39mgetByRole(\u001b[32m'heading'\u001b[39m\u001b[33m,\u001b[39m { name\u001b[33m:\u001b[39m \u001b[35m/Mini-SOC/i\u001b[39m }))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 11 |\u001b[39m     \u001b[36mawait\u001b[39m expect(page\u001b[33m.\u001b[39mlocator(\u001b[32m'form'\u001b[39m))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\u001b[0m\n\u001b[2m    at C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\auth.spec.ts:8:16\u001b[22m"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-12T14:55:36.436Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\auth-Authentification-Fron-b2204-ffiche-la-page-de-connexion-chromium\\video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\auth-Authentification-Fron-b2204-ffiche-la-page-de-connexion-chromium\\error-context.md"
+                        },
+                        {
+                          "name": "trace",
+                          "contentType": "application/zip",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\auth-Authentification-Fron-b2204-ffiche-la-page-de-connexion-chromium\\trace.zip"
+                        }
+                      ]
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-9561720659b60dec5ef9",
+              "file": "auth.spec.ts",
+              "line": 7,
+              "column": 7
+            },
+            {
+              "title": "Permet à l'utilisateur de se connecter (Flux complet Identifiants + MFA)",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 1,
+                      "status": "failed",
+                      "duration": 6952,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at https://localhost/login\nCall log:\n\u001b[2m  - navigating to \"https://localhost/login\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at https://localhost/login\nCall log:\n\u001b[2m  - navigating to \"https://localhost/login\", waiting until \"load\"\u001b[22m\n\n    at C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\auth.spec.ts:17:16",
+                        "location": {
+                          "file": "C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\auth.spec.ts",
+                          "column": 16,
+                          "line": 17
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 15 |\u001b[39m\n \u001b[90m 16 |\u001b[39m   test(\u001b[32m'Permet à l\\'utilisateur de se connecter (Flux complet Identifiants + MFA)'\u001b[39m\u001b[33m,\u001b[39m \u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 17 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/login'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 18 |\u001b[39m\n \u001b[90m 19 |\u001b[39m     \u001b[90m// 1. Étape 1 : Identifiants\u001b[39m\n \u001b[90m 20 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input#email, input[name=\"email\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'analyst.l1@minisoc.local'\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\auth.spec.ts",
+                            "column": 16,
+                            "line": 17
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at https://localhost/login\nCall log:\n\u001b[2m  - navigating to \"https://localhost/login\", waiting until \"load\"\u001b[22m\n\n\n\u001b[0m \u001b[90m 15 |\u001b[39m\n \u001b[90m 16 |\u001b[39m   test(\u001b[32m'Permet à l\\'utilisateur de se connecter (Flux complet Identifiants + MFA)'\u001b[39m\u001b[33m,\u001b[39m \u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 17 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/login'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 18 |\u001b[39m\n \u001b[90m 19 |\u001b[39m     \u001b[90m// 1. Étape 1 : Identifiants\u001b[39m\n \u001b[90m 20 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input#email, input[name=\"email\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'analyst.l1@minisoc.local'\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m\n\u001b[2m    at C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\auth.spec.ts:17:16\u001b[22m"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-12T14:56:46.617Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\auth-Authentification-Fron-ce0b9-x-complet-Identifiants-MFA--chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\auth-Authentification-Fron-ce0b9-x-complet-Identifiants-MFA--chromium\\video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\auth-Authentification-Fron-ce0b9-x-complet-Identifiants-MFA--chromium\\error-context.md"
+                        },
+                        {
+                          "name": "trace",
+                          "contentType": "application/zip",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\auth-Authentification-Fron-ce0b9-x-complet-Identifiants-MFA--chromium\\trace.zip"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\auth.spec.ts",
+                        "column": 16,
+                        "line": 17
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-fde5257e83bd5d429584",
+              "file": "auth.spec.ts",
+              "line": 16,
+              "column": 7
+            },
+            {
+              "title": "Affiche un message d'erreur avec des identifiants invalides",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 6,
+                      "parallelIndex": 1,
+                      "status": "failed",
+                      "duration": 3543,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at https://localhost/login\nCall log:\n\u001b[2m  - navigating to \"https://localhost/login\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at https://localhost/login\nCall log:\n\u001b[2m  - navigating to \"https://localhost/login\", waiting until \"load\"\u001b[22m\n\n    at C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\auth.spec.ts:38:16",
+                        "location": {
+                          "file": "C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\auth.spec.ts",
+                          "column": 16,
+                          "line": 38
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 36 |\u001b[39m\n \u001b[90m 37 |\u001b[39m   test(\u001b[32m'Affiche un message d\\'erreur avec des identifiants invalides'\u001b[39m\u001b[33m,\u001b[39m \u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 38 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/login'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 39 |\u001b[39m\n \u001b[90m 40 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input#email, input[name=\"email\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'bad-user@minisoc.local'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 41 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input#password, input[name=\"password\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'WrongPassword123!'\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\auth.spec.ts",
+                            "column": 16,
+                            "line": 38
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at https://localhost/login\nCall log:\n\u001b[2m  - navigating to \"https://localhost/login\", waiting until \"load\"\u001b[22m\n\n\n\u001b[0m \u001b[90m 36 |\u001b[39m\n \u001b[90m 37 |\u001b[39m   test(\u001b[32m'Affiche un message d\\'erreur avec des identifiants invalides'\u001b[39m\u001b[33m,\u001b[39m \u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 38 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/login'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 39 |\u001b[39m\n \u001b[90m 40 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input#email, input[name=\"email\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'bad-user@minisoc.local'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 41 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input#password, input[name=\"password\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'WrongPassword123!'\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m\n\u001b[2m    at C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\auth.spec.ts:38:16\u001b[22m"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-12T14:57:08.685Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\auth-Authentification-Fron-0284c--des-identifiants-invalides-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\auth-Authentification-Fron-0284c--des-identifiants-invalides-chromium\\video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\auth-Authentification-Fron-0284c--des-identifiants-invalides-chromium\\error-context.md"
+                        },
+                        {
+                          "name": "trace",
+                          "contentType": "application/zip",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\auth-Authentification-Fron-0284c--des-identifiants-invalides-chromium\\trace.zip"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\auth.spec.ts",
+                        "column": 16,
+                        "line": 38
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-a2710dc848af25871403",
+              "file": "auth.spec.ts",
+              "line": 37,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "full-stack.spec.ts",
+      "file": "full-stack.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "full-stack smoke tests",
+          "file": "full-stack.spec.ts",
+          "line": 3,
+          "column": 6,
+          "specs": [
+            {
+              "title": "backend health is available through the frontend proxy",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 3,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 3705,
+                      "error": {
+                        "message": "Error: apiRequestContext.get: connect ECONNREFUSED ::1:443\nCall log:\n\u001b[2m  - → GET https://localhost/api/health\u001b[22m\n\u001b[2m    - user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.7922.34 Safari/537.36\u001b[22m\n\u001b[2m    - accept: */*\u001b[22m\n\u001b[2m    - accept-encoding: gzip,deflate,br\u001b[22m\n",
+                        "stack": "Error: apiRequestContext.get: connect ECONNREFUSED ::1:443\nCall log:\n\u001b[2m  - → GET https://localhost/api/health\u001b[22m\n\u001b[2m    - user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.7922.34 Safari/537.36\u001b[22m\n\u001b[2m    - accept: */*\u001b[22m\n\u001b[2m    - accept-encoding: gzip,deflate,br\u001b[22m\n\n    at apiRequestContext.get: connect ECONNREFUSED ::1:443\n    at C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\full-stack.spec.ts:5:36",
+                        "location": {
+                          "file": "apiRequestContext.get: connect ECONNREFUSED :",
+                          "column": 443,
+                          "line": 1
+                        }
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "apiRequestContext.get: connect ECONNREFUSED :",
+                            "column": 443,
+                            "line": 1
+                          },
+                          "message": "Error: apiRequestContext.get: connect ECONNREFUSED ::1:443\nCall log:\n\u001b[2m  - → GET https://localhost/api/health\u001b[22m\n\u001b[2m    - user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.7922.34 Safari/537.36\u001b[22m\n\u001b[2m    - accept: */*\u001b[22m\n\u001b[2m    - accept-encoding: gzip,deflate,br\u001b[22m\n\n\u001b[2m    at apiRequestContext.get: connect ECONNREFUSED ::1:443\u001b[22m\n\u001b[2m    at C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\full-stack.spec.ts:5:36\u001b[22m"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-12T14:56:45.115Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\full-stack-full-stack-smok-a68bf--through-the-frontend-proxy-chromium\\error-context.md"
+                        },
+                        {
+                          "name": "trace",
+                          "contentType": "application/zip",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\full-stack-full-stack-smok-a68bf--through-the-frontend-proxy-chromium\\trace.zip"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "apiRequestContext.get: connect ECONNREFUSED :",
+                        "column": 443,
+                        "line": 1
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "2dbbd66c5ac68c116146-570370e7d02b1b3ce815",
+              "file": "full-stack.spec.ts",
+              "line": 4,
+              "column": 7
+            },
+            {
+              "title": "frontend renders the login screen",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 4,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 4253,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at https://localhost/login\nCall log:\n\u001b[2m  - navigating to \"https://localhost/login\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at https://localhost/login\nCall log:\n\u001b[2m  - navigating to \"https://localhost/login\", waiting until \"load\"\u001b[22m\n\n    at C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\full-stack.spec.ts:15:16",
+                        "location": {
+                          "file": "C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\full-stack.spec.ts",
+                          "column": 16,
+                          "line": 15
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 13 |\u001b[39m\n \u001b[90m 14 |\u001b[39m   test(\u001b[32m'frontend renders the login screen'\u001b[39m\u001b[33m,\u001b[39m \u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 15 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/login'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 16 |\u001b[39m     \u001b[36mawait\u001b[39m expect(page)\u001b[33m.\u001b[39mtoHaveTitle(\u001b[35m/Mini-SOC/i\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 17 |\u001b[39m     \u001b[36mawait\u001b[39m expect(page\u001b[33m.\u001b[39mgetByRole(\u001b[32m'heading'\u001b[39m\u001b[33m,\u001b[39m { name\u001b[33m:\u001b[39m \u001b[32m'Mini-SOC'\u001b[39m }))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 18 |\u001b[39m     \u001b[36mawait\u001b[39m expect(page\u001b[33m.\u001b[39mgetByLabel(\u001b[32m'Adresse Email'\u001b[39m))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\full-stack.spec.ts",
+                            "column": 16,
+                            "line": 15
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at https://localhost/login\nCall log:\n\u001b[2m  - navigating to \"https://localhost/login\", waiting until \"load\"\u001b[22m\n\n\n\u001b[0m \u001b[90m 13 |\u001b[39m\n \u001b[90m 14 |\u001b[39m   test(\u001b[32m'frontend renders the login screen'\u001b[39m\u001b[33m,\u001b[39m \u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 15 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/login'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 16 |\u001b[39m     \u001b[36mawait\u001b[39m expect(page)\u001b[33m.\u001b[39mtoHaveTitle(\u001b[35m/Mini-SOC/i\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 17 |\u001b[39m     \u001b[36mawait\u001b[39m expect(page\u001b[33m.\u001b[39mgetByRole(\u001b[32m'heading'\u001b[39m\u001b[33m,\u001b[39m { name\u001b[33m:\u001b[39m \u001b[32m'Mini-SOC'\u001b[39m }))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 18 |\u001b[39m     \u001b[36mawait\u001b[39m expect(page\u001b[33m.\u001b[39mgetByLabel(\u001b[32m'Adresse Email'\u001b[39m))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\u001b[0m\n\u001b[2m    at C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\full-stack.spec.ts:15:16\u001b[22m"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-12T14:56:49.673Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\full-stack-full-stack-smok-94100-nd-renders-the-login-screen-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\full-stack-full-stack-smok-94100-nd-renders-the-login-screen-chromium\\video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\full-stack-full-stack-smok-94100-nd-renders-the-login-screen-chromium\\error-context.md"
+                        },
+                        {
+                          "name": "trace",
+                          "contentType": "application/zip",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\full-stack-full-stack-smok-94100-nd-renders-the-login-screen-chromium\\trace.zip"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\full-stack.spec.ts",
+                        "column": 16,
+                        "line": 15
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "2dbbd66c5ac68c116146-d2636bcd03a039d73992",
+              "file": "full-stack.spec.ts",
+              "line": 14,
+              "column": 7
+            },
+            {
+              "title": "protected dashboard redirects unauthenticated users to login",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 5,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 2998,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at https://localhost/\nCall log:\n\u001b[2m  - navigating to \"https://localhost/\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at https://localhost/\nCall log:\n\u001b[2m  - navigating to \"https://localhost/\", waiting until \"load\"\u001b[22m\n\n    at C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\full-stack.spec.ts:24:16",
+                        "location": {
+                          "file": "C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\full-stack.spec.ts",
+                          "column": 16,
+                          "line": 24
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 22 |\u001b[39m\n \u001b[90m 23 |\u001b[39m   test(\u001b[32m'protected dashboard redirects unauthenticated users to login'\u001b[39m\u001b[33m,\u001b[39m \u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 24 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 25 |\u001b[39m     \u001b[36mawait\u001b[39m expect(page)\u001b[33m.\u001b[39mtoHaveURL(\u001b[35m/\\/login$/\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 26 |\u001b[39m   })\u001b[33m;\u001b[39m\n \u001b[90m 27 |\u001b[39m })\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\full-stack.spec.ts",
+                            "column": 16,
+                            "line": 24
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at https://localhost/\nCall log:\n\u001b[2m  - navigating to \"https://localhost/\", waiting until \"load\"\u001b[22m\n\n\n\u001b[0m \u001b[90m 22 |\u001b[39m\n \u001b[90m 23 |\u001b[39m   test(\u001b[32m'protected dashboard redirects unauthenticated users to login'\u001b[39m\u001b[33m,\u001b[39m \u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 24 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 25 |\u001b[39m     \u001b[36mawait\u001b[39m expect(page)\u001b[33m.\u001b[39mtoHaveURL(\u001b[35m/\\/login$/\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 26 |\u001b[39m   })\u001b[33m;\u001b[39m\n \u001b[90m 27 |\u001b[39m })\u001b[33m;\u001b[39m\u001b[0m\n\u001b[2m    at C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\full-stack.spec.ts:24:16\u001b[22m"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-12T14:57:03.903Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\full-stack-full-stack-smok-d8eec-uthenticated-users-to-login-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\full-stack-full-stack-smok-d8eec-uthenticated-users-to-login-chromium\\video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\full-stack-full-stack-smok-d8eec-uthenticated-users-to-login-chromium\\error-context.md"
+                        },
+                        {
+                          "name": "trace",
+                          "contentType": "application/zip",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\full-stack-full-stack-smok-d8eec-uthenticated-users-to-login-chromium\\trace.zip"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\full-stack.spec.ts",
+                        "column": 16,
+                        "line": 24
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "2dbbd66c5ac68c116146-7802893956256372ed46",
+              "file": "full-stack.spec.ts",
+              "line": 23,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "mfa.spec.ts",
+      "file": "mfa.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Validation du flux MFA (Multi-Factor Authentication) - Intégration Réelle",
+          "file": "mfa.spec.ts",
+          "line": 4,
+          "column": 6,
+          "specs": [
+            {
+              "title": "un analyste doit pouvoir se connecter avec un code TOTP valide",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 7,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 3548,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at https://localhost/login\nCall log:\n\u001b[2m  - navigating to \"https://localhost/login\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at https://localhost/login\nCall log:\n\u001b[2m  - navigating to \"https://localhost/login\", waiting until \"load\"\u001b[22m\n\n    at C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\mfa.spec.ts:8:16",
+                        "location": {
+                          "file": "C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\mfa.spec.ts",
+                          "column": 16,
+                          "line": 8
+                        },
+                        "snippet": "\u001b[0m \u001b[90m  6 |\u001b[39m\n \u001b[90m  7 |\u001b[39m   test(\u001b[32m'un analyste doit pouvoir se connecter avec un code TOTP valide'\u001b[39m\u001b[33m,\u001b[39m \u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m  8 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/login'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m  9 |\u001b[39m\n \u001b[90m 10 |\u001b[39m     \u001b[90m// 1. ÉTAPE 1\u001b[39m\n \u001b[90m 11 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input#email, input[name=\"email\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'admin@minisoc.local'\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\mfa.spec.ts",
+                            "column": 16,
+                            "line": 8
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at https://localhost/login\nCall log:\n\u001b[2m  - navigating to \"https://localhost/login\", waiting until \"load\"\u001b[22m\n\n\n\u001b[0m \u001b[90m  6 |\u001b[39m\n \u001b[90m  7 |\u001b[39m   test(\u001b[32m'un analyste doit pouvoir se connecter avec un code TOTP valide'\u001b[39m\u001b[33m,\u001b[39m \u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m  8 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/login'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m  9 |\u001b[39m\n \u001b[90m 10 |\u001b[39m     \u001b[90m// 1. ÉTAPE 1\u001b[39m\n \u001b[90m 11 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input#email, input[name=\"email\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'admin@minisoc.local'\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m\n\u001b[2m    at C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\mfa.spec.ts:8:16\u001b[22m"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-12T14:57:11.517Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\mfa-Validation-du-flux-MFA-c0b0d-er-avec-un-code-TOTP-valide-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\mfa-Validation-du-flux-MFA-c0b0d-er-avec-un-code-TOTP-valide-chromium\\video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\mfa-Validation-du-flux-MFA-c0b0d-er-avec-un-code-TOTP-valide-chromium\\error-context.md"
+                        },
+                        {
+                          "name": "trace",
+                          "contentType": "application/zip",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\mfa-Validation-du-flux-MFA-c0b0d-er-avec-un-code-TOTP-valide-chromium\\trace.zip"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\mfa.spec.ts",
+                        "column": 16,
+                        "line": 8
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "186ee2c0811d355d6db7-9c9b07bf08f712dc1562",
+              "file": "mfa.spec.ts",
+              "line": 7,
+              "column": 7
+            },
+            {
+              "title": "doit refuser la connexion avec un code TOTP invalide",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 9,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 3365,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at https://localhost/login\nCall log:\n\u001b[2m  - navigating to \"https://localhost/login\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at https://localhost/login\nCall log:\n\u001b[2m  - navigating to \"https://localhost/login\", waiting until \"load\"\u001b[22m\n\n    at C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\mfa.spec.ts:30:16",
+                        "location": {
+                          "file": "C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\mfa.spec.ts",
+                          "column": 16,
+                          "line": 30
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 28 |\u001b[39m\n \u001b[90m 29 |\u001b[39m   test(\u001b[32m'doit refuser la connexion avec un code TOTP invalide'\u001b[39m\u001b[33m,\u001b[39m \u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 30 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/login'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 31 |\u001b[39m\n \u001b[90m 32 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input#email, input[name=\"email\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'admin@minisoc.local'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 33 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input#password, input[name=\"password\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'Admin@MiniSOC2026!'\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\mfa.spec.ts",
+                            "column": 16,
+                            "line": 30
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at https://localhost/login\nCall log:\n\u001b[2m  - navigating to \"https://localhost/login\", waiting until \"load\"\u001b[22m\n\n\n\u001b[0m \u001b[90m 28 |\u001b[39m\n \u001b[90m 29 |\u001b[39m   test(\u001b[32m'doit refuser la connexion avec un code TOTP invalide'\u001b[39m\u001b[33m,\u001b[39m \u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 30 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/login'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 31 |\u001b[39m\n \u001b[90m 32 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input#email, input[name=\"email\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'admin@minisoc.local'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 33 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input#password, input[name=\"password\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'Admin@MiniSOC2026!'\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m\n\u001b[2m    at C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\mfa.spec.ts:30:16\u001b[22m"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-12T14:57:21.083Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\mfa-Validation-du-flux-MFA-e406d--avec-un-code-TOTP-invalide-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\mfa-Validation-du-flux-MFA-e406d--avec-un-code-TOTP-invalide-chromium\\video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\mfa-Validation-du-flux-MFA-e406d--avec-un-code-TOTP-invalide-chromium\\error-context.md"
+                        },
+                        {
+                          "name": "trace",
+                          "contentType": "application/zip",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\mfa-Validation-du-flux-MFA-e406d--avec-un-code-TOTP-invalide-chromium\\trace.zip"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\mfa.spec.ts",
+                        "column": 16,
+                        "line": 30
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "186ee2c0811d355d6db7-b8d25899a6a00a87d8e4",
+              "file": "mfa.spec.ts",
+              "line": 29,
+              "column": 7
+            },
+            {
+              "title": "permet de renoncer à l étape MFA et de revenir aux identifiants",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 11,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 4096,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at https://localhost/login\nCall log:\n\u001b[2m  - navigating to \"https://localhost/login\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at https://localhost/login\nCall log:\n\u001b[2m  - navigating to \"https://localhost/login\", waiting until \"load\"\u001b[22m\n\n    at C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\mfa.spec.ts:50:16",
+                        "location": {
+                          "file": "C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\mfa.spec.ts",
+                          "column": 16,
+                          "line": 50
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 48 |\u001b[39m\n \u001b[90m 49 |\u001b[39m   test(\u001b[32m'permet de renoncer à l étape MFA et de revenir aux identifiants'\u001b[39m\u001b[33m,\u001b[39m \u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 50 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/login'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 51 |\u001b[39m\n \u001b[90m 52 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input#email, input[name=\"email\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'admin@minisoc.local'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 53 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input#password, input[name=\"password\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'Admin@MiniSOC2026!'\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\mfa.spec.ts",
+                            "column": 16,
+                            "line": 50
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at https://localhost/login\nCall log:\n\u001b[2m  - navigating to \"https://localhost/login\", waiting until \"load\"\u001b[22m\n\n\n\u001b[0m \u001b[90m 48 |\u001b[39m\n \u001b[90m 49 |\u001b[39m   test(\u001b[32m'permet de renoncer à l étape MFA et de revenir aux identifiants'\u001b[39m\u001b[33m,\u001b[39m \u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 50 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/login'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 51 |\u001b[39m\n \u001b[90m 52 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input#email, input[name=\"email\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'admin@minisoc.local'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 53 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input#password, input[name=\"password\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'Admin@MiniSOC2026!'\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m\n\u001b[2m    at C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\mfa.spec.ts:50:16\u001b[22m"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-12T14:57:26.611Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\mfa-Validation-du-flux-MFA-37e25-de-revenir-aux-identifiants-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\mfa-Validation-du-flux-MFA-37e25-de-revenir-aux-identifiants-chromium\\video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\mfa-Validation-du-flux-MFA-37e25-de-revenir-aux-identifiants-chromium\\error-context.md"
+                        },
+                        {
+                          "name": "trace",
+                          "contentType": "application/zip",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\mfa-Validation-du-flux-MFA-37e25-de-revenir-aux-identifiants-chromium\\trace.zip"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\mfa.spec.ts",
+                        "column": 16,
+                        "line": 50
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "186ee2c0811d355d6db7-eb46ff83365d606aadc1",
+              "file": "mfa.spec.ts",
+              "line": 49,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
       "title": "soc-modules.spec.ts",
       "file": "soc-modules.spec.ts",
       "column": 0,
@@ -102,25 +922,46 @@
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
+                      "workerIndex": 8,
+                      "parallelIndex": 1,
                       "status": "failed",
-                      "duration": 3,
+                      "duration": 3156,
                       "error": {
-                        "message": "Error: browserType.launch: Executable doesn't exist at C:\\Users\\radwen\\AppData\\Local\\ms-playwright\\chromium_headless_shell-1234\\chrome-headless-shell-win64\\chrome-headless-shell.exe\n╔════════════════════════════════════════════════════════════╗\n║ Looks like Playwright was just installed or updated.       ║\n║ Please run the following command to download new browsers: ║\n║                                                            ║\n║     npx playwright install                                 ║\n║                                                            ║\n║ <3 Playwright Team                                         ║\n╚════════════════════════════════════════════════════════════╝",
-                        "stack": "Error: browserType.launch: Executable doesn't exist at C:\\Users\\radwen\\AppData\\Local\\ms-playwright\\chromium_headless_shell-1234\\chrome-headless-shell-win64\\chrome-headless-shell.exe\n╔════════════════════════════════════════════════════════════╗\n║ Looks like Playwright was just installed or updated.       ║\n║ Please run the following command to download new browsers: ║\n║                                                            ║\n║     npx playwright install                                 ║\n║                                                            ║\n║ <3 Playwright Team                                         ║\n╚════════════════════════════════════════════════════════════╝"
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at https://localhost/login\nCall log:\n\u001b[2m  - navigating to \"https://localhost/login\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at https://localhost/login\nCall log:\n\u001b[2m  - navigating to \"https://localhost/login\", waiting until \"load\"\u001b[22m\n\n    at C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\soc-modules.spec.ts:12:16",
+                        "location": {
+                          "file": "C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\soc-modules.spec.ts",
+                          "column": 16,
+                          "line": 12
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 10 |\u001b[39m     \u001b[90m// Each module test starts an independent session. This dedicated account has\u001b[39m\n \u001b[90m 11 |\u001b[39m     \u001b[90m// MFA disabled, so a valid TOTP cannot be accidentally replayed.\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 12 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/login'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 13 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input#email, input[name=\"email\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'e2e.modules@minisoc.local'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 14 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input#password, input[name=\"password\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'E2E@MiniSOC2026!'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 15 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mclick(\u001b[32m'button[type=\"submit\"]'\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m"
                       },
                       "errors": [
                         {
-                          "message": "Error: browserType.launch: Executable doesn't exist at C:\\Users\\radwen\\AppData\\Local\\ms-playwright\\chromium_headless_shell-1234\\chrome-headless-shell-win64\\chrome-headless-shell.exe\n╔════════════════════════════════════════════════════════════╗\n║ Looks like Playwright was just installed or updated.       ║\n║ Please run the following command to download new browsers: ║\n║                                                            ║\n║     npx playwright install                                 ║\n║                                                            ║\n║ <3 Playwright Team                                         ║\n╚════════════════════════════════════════════════════════════╝"
+                          "location": {
+                            "file": "C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\soc-modules.spec.ts",
+                            "column": 16,
+                            "line": 12
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at https://localhost/login\nCall log:\n\u001b[2m  - navigating to \"https://localhost/login\", waiting until \"load\"\u001b[22m\n\n\n\u001b[0m \u001b[90m 10 |\u001b[39m     \u001b[90m// Each module test starts an independent session. This dedicated account has\u001b[39m\n \u001b[90m 11 |\u001b[39m     \u001b[90m// MFA disabled, so a valid TOTP cannot be accidentally replayed.\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 12 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/login'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 13 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input#email, input[name=\"email\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'e2e.modules@minisoc.local'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 14 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input#password, input[name=\"password\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'E2E@MiniSOC2026!'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 15 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mclick(\u001b[32m'button[type=\"submit\"]'\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m\n\u001b[2m    at C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\soc-modules.spec.ts:12:16\u001b[22m"
                         }
                       ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-12T14:20:55.195Z",
+                      "startTime": "2026-09-12T14:57:15.014Z",
                       "annotations": [],
                       "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\soc-modules-Couverture-glo-ba3bd-rage-et-Drawer-d-inspection-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\soc-modules-Couverture-glo-ba3bd-rage-et-Drawer-d-inspection-chromium\\video.webm"
+                        },
                         {
                           "name": "error-context",
                           "contentType": "text/markdown",
@@ -131,7 +972,12 @@
                           "contentType": "application/zip",
                           "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\soc-modules-Couverture-glo-ba3bd-rage-et-Drawer-d-inspection-chromium\\trace.zip"
                         }
-                      ]
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\soc-modules.spec.ts",
+                        "column": 16,
+                        "line": 12
+                      }
                     }
                   ],
                   "status": "unexpected"
@@ -155,25 +1001,46 @@
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 1,
-                      "parallelIndex": 0,
+                      "workerIndex": 10,
+                      "parallelIndex": 1,
                       "status": "failed",
-                      "duration": 4,
+                      "duration": 3957,
                       "error": {
-                        "message": "Error: browserType.launch: Executable doesn't exist at C:\\Users\\radwen\\AppData\\Local\\ms-playwright\\chromium_headless_shell-1234\\chrome-headless-shell-win64\\chrome-headless-shell.exe\n╔════════════════════════════════════════════════════════════╗\n║ Looks like Playwright was just installed or updated.       ║\n║ Please run the following command to download new browsers: ║\n║                                                            ║\n║     npx playwright install                                 ║\n║                                                            ║\n║ <3 Playwright Team                                         ║\n╚════════════════════════════════════════════════════════════╝",
-                        "stack": "Error: browserType.launch: Executable doesn't exist at C:\\Users\\radwen\\AppData\\Local\\ms-playwright\\chromium_headless_shell-1234\\chrome-headless-shell-win64\\chrome-headless-shell.exe\n╔════════════════════════════════════════════════════════════╗\n║ Looks like Playwright was just installed or updated.       ║\n║ Please run the following command to download new browsers: ║\n║                                                            ║\n║     npx playwright install                                 ║\n║                                                            ║\n║ <3 Playwright Team                                         ║\n╚════════════════════════════════════════════════════════════╝"
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at https://localhost/login\nCall log:\n\u001b[2m  - navigating to \"https://localhost/login\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at https://localhost/login\nCall log:\n\u001b[2m  - navigating to \"https://localhost/login\", waiting until \"load\"\u001b[22m\n\n    at C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\soc-modules.spec.ts:12:16",
+                        "location": {
+                          "file": "C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\soc-modules.spec.ts",
+                          "column": 16,
+                          "line": 12
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 10 |\u001b[39m     \u001b[90m// Each module test starts an independent session. This dedicated account has\u001b[39m\n \u001b[90m 11 |\u001b[39m     \u001b[90m// MFA disabled, so a valid TOTP cannot be accidentally replayed.\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 12 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/login'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 13 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input#email, input[name=\"email\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'e2e.modules@minisoc.local'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 14 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input#password, input[name=\"password\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'E2E@MiniSOC2026!'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 15 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mclick(\u001b[32m'button[type=\"submit\"]'\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m"
                       },
                       "errors": [
                         {
-                          "message": "Error: browserType.launch: Executable doesn't exist at C:\\Users\\radwen\\AppData\\Local\\ms-playwright\\chromium_headless_shell-1234\\chrome-headless-shell-win64\\chrome-headless-shell.exe\n╔════════════════════════════════════════════════════════════╗\n║ Looks like Playwright was just installed or updated.       ║\n║ Please run the following command to download new browsers: ║\n║                                                            ║\n║     npx playwright install                                 ║\n║                                                            ║\n║ <3 Playwright Team                                         ║\n╚════════════════════════════════════════════════════════════╝"
+                          "location": {
+                            "file": "C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\soc-modules.spec.ts",
+                            "column": 16,
+                            "line": 12
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at https://localhost/login\nCall log:\n\u001b[2m  - navigating to \"https://localhost/login\", waiting until \"load\"\u001b[22m\n\n\n\u001b[0m \u001b[90m 10 |\u001b[39m     \u001b[90m// Each module test starts an independent session. This dedicated account has\u001b[39m\n \u001b[90m 11 |\u001b[39m     \u001b[90m// MFA disabled, so a valid TOTP cannot be accidentally replayed.\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 12 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/login'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 13 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input#email, input[name=\"email\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'e2e.modules@minisoc.local'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 14 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input#password, input[name=\"password\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'E2E@MiniSOC2026!'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 15 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mclick(\u001b[32m'button[type=\"submit\"]'\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m\n\u001b[2m    at C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\soc-modules.spec.ts:12:16\u001b[22m"
                         }
                       ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-12T14:20:56.729Z",
+                      "startTime": "2026-09-12T14:57:21.283Z",
                       "annotations": [],
                       "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\soc-modules-Couverture-glo-e837c-éation-d-un-nouvel-incident-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\soc-modules-Couverture-glo-e837c-éation-d-un-nouvel-incident-chromium\\video.webm"
+                        },
                         {
                           "name": "error-context",
                           "contentType": "text/markdown",
@@ -184,7 +1051,12 @@
                           "contentType": "application/zip",
                           "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\soc-modules-Couverture-glo-e837c-éation-d-un-nouvel-incident-chromium\\trace.zip"
                         }
-                      ]
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\soc-modules.spec.ts",
+                        "column": 16,
+                        "line": 12
+                      }
                     }
                   ],
                   "status": "unexpected"
@@ -208,25 +1080,46 @@
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 2,
-                      "parallelIndex": 0,
+                      "workerIndex": 12,
+                      "parallelIndex": 1,
                       "status": "failed",
-                      "duration": 5,
+                      "duration": 3188,
                       "error": {
-                        "message": "Error: browserType.launch: Executable doesn't exist at C:\\Users\\radwen\\AppData\\Local\\ms-playwright\\chromium_headless_shell-1234\\chrome-headless-shell-win64\\chrome-headless-shell.exe\n╔════════════════════════════════════════════════════════════╗\n║ Looks like Playwright was just installed or updated.       ║\n║ Please run the following command to download new browsers: ║\n║                                                            ║\n║     npx playwright install                                 ║\n║                                                            ║\n║ <3 Playwright Team                                         ║\n╚════════════════════════════════════════════════════════════╝",
-                        "stack": "Error: browserType.launch: Executable doesn't exist at C:\\Users\\radwen\\AppData\\Local\\ms-playwright\\chromium_headless_shell-1234\\chrome-headless-shell-win64\\chrome-headless-shell.exe\n╔════════════════════════════════════════════════════════════╗\n║ Looks like Playwright was just installed or updated.       ║\n║ Please run the following command to download new browsers: ║\n║                                                            ║\n║     npx playwright install                                 ║\n║                                                            ║\n║ <3 Playwright Team                                         ║\n╚════════════════════════════════════════════════════════════╝"
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at https://localhost/login\nCall log:\n\u001b[2m  - navigating to \"https://localhost/login\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at https://localhost/login\nCall log:\n\u001b[2m  - navigating to \"https://localhost/login\", waiting until \"load\"\u001b[22m\n\n    at C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\soc-modules.spec.ts:12:16",
+                        "location": {
+                          "file": "C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\soc-modules.spec.ts",
+                          "column": 16,
+                          "line": 12
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 10 |\u001b[39m     \u001b[90m// Each module test starts an independent session. This dedicated account has\u001b[39m\n \u001b[90m 11 |\u001b[39m     \u001b[90m// MFA disabled, so a valid TOTP cannot be accidentally replayed.\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 12 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/login'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 13 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input#email, input[name=\"email\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'e2e.modules@minisoc.local'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 14 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input#password, input[name=\"password\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'E2E@MiniSOC2026!'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 15 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mclick(\u001b[32m'button[type=\"submit\"]'\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m"
                       },
                       "errors": [
                         {
-                          "message": "Error: browserType.launch: Executable doesn't exist at C:\\Users\\radwen\\AppData\\Local\\ms-playwright\\chromium_headless_shell-1234\\chrome-headless-shell-win64\\chrome-headless-shell.exe\n╔════════════════════════════════════════════════════════════╗\n║ Looks like Playwright was just installed or updated.       ║\n║ Please run the following command to download new browsers: ║\n║                                                            ║\n║     npx playwright install                                 ║\n║                                                            ║\n║ <3 Playwright Team                                         ║\n╚════════════════════════════════════════════════════════════╝"
+                          "location": {
+                            "file": "C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\soc-modules.spec.ts",
+                            "column": 16,
+                            "line": 12
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at https://localhost/login\nCall log:\n\u001b[2m  - navigating to \"https://localhost/login\", waiting until \"load\"\u001b[22m\n\n\n\u001b[0m \u001b[90m 10 |\u001b[39m     \u001b[90m// Each module test starts an independent session. This dedicated account has\u001b[39m\n \u001b[90m 11 |\u001b[39m     \u001b[90m// MFA disabled, so a valid TOTP cannot be accidentally replayed.\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 12 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/login'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 13 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input#email, input[name=\"email\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'e2e.modules@minisoc.local'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 14 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input#password, input[name=\"password\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'E2E@MiniSOC2026!'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 15 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mclick(\u001b[32m'button[type=\"submit\"]'\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m\n\u001b[2m    at C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\soc-modules.spec.ts:12:16\u001b[22m"
                         }
                       ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-12T14:20:57.729Z",
+                      "startTime": "2026-09-12T14:57:29.043Z",
                       "annotations": [],
                       "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\soc-modules-Couverture-glo-12762-rche-de-réputation-d-une-IP-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\soc-modules-Couverture-glo-12762-rche-de-réputation-d-une-IP-chromium\\video.webm"
+                        },
                         {
                           "name": "error-context",
                           "contentType": "text/markdown",
@@ -237,7 +1130,12 @@
                           "contentType": "application/zip",
                           "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\soc-modules-Couverture-glo-12762-rche-de-réputation-d-une-IP-chromium\\trace.zip"
                         }
-                      ]
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\soc-modules.spec.ts",
+                        "column": 16,
+                        "line": 12
+                      }
                     }
                   ],
                   "status": "unexpected"
@@ -261,25 +1159,46 @@
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 3,
+                      "workerIndex": 13,
                       "parallelIndex": 0,
                       "status": "failed",
-                      "duration": 4,
+                      "duration": 3020,
                       "error": {
-                        "message": "Error: browserType.launch: Executable doesn't exist at C:\\Users\\radwen\\AppData\\Local\\ms-playwright\\chromium_headless_shell-1234\\chrome-headless-shell-win64\\chrome-headless-shell.exe\n╔════════════════════════════════════════════════════════════╗\n║ Looks like Playwright was just installed or updated.       ║\n║ Please run the following command to download new browsers: ║\n║                                                            ║\n║     npx playwright install                                 ║\n║                                                            ║\n║ <3 Playwright Team                                         ║\n╚════════════════════════════════════════════════════════════╝",
-                        "stack": "Error: browserType.launch: Executable doesn't exist at C:\\Users\\radwen\\AppData\\Local\\ms-playwright\\chromium_headless_shell-1234\\chrome-headless-shell-win64\\chrome-headless-shell.exe\n╔════════════════════════════════════════════════════════════╗\n║ Looks like Playwright was just installed or updated.       ║\n║ Please run the following command to download new browsers: ║\n║                                                            ║\n║     npx playwright install                                 ║\n║                                                            ║\n║ <3 Playwright Team                                         ║\n╚════════════════════════════════════════════════════════════╝"
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at https://localhost/login\nCall log:\n\u001b[2m  - navigating to \"https://localhost/login\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at https://localhost/login\nCall log:\n\u001b[2m  - navigating to \"https://localhost/login\", waiting until \"load\"\u001b[22m\n\n    at C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\soc-modules.spec.ts:12:16",
+                        "location": {
+                          "file": "C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\soc-modules.spec.ts",
+                          "column": 16,
+                          "line": 12
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 10 |\u001b[39m     \u001b[90m// Each module test starts an independent session. This dedicated account has\u001b[39m\n \u001b[90m 11 |\u001b[39m     \u001b[90m// MFA disabled, so a valid TOTP cannot be accidentally replayed.\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 12 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/login'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 13 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input#email, input[name=\"email\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'e2e.modules@minisoc.local'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 14 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input#password, input[name=\"password\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'E2E@MiniSOC2026!'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 15 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mclick(\u001b[32m'button[type=\"submit\"]'\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m"
                       },
                       "errors": [
                         {
-                          "message": "Error: browserType.launch: Executable doesn't exist at C:\\Users\\radwen\\AppData\\Local\\ms-playwright\\chromium_headless_shell-1234\\chrome-headless-shell-win64\\chrome-headless-shell.exe\n╔════════════════════════════════════════════════════════════╗\n║ Looks like Playwright was just installed or updated.       ║\n║ Please run the following command to download new browsers: ║\n║                                                            ║\n║     npx playwright install                                 ║\n║                                                            ║\n║ <3 Playwright Team                                         ║\n╚════════════════════════════════════════════════════════════╝"
+                          "location": {
+                            "file": "C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\soc-modules.spec.ts",
+                            "column": 16,
+                            "line": 12
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at https://localhost/login\nCall log:\n\u001b[2m  - navigating to \"https://localhost/login\", waiting until \"load\"\u001b[22m\n\n\n\u001b[0m \u001b[90m 10 |\u001b[39m     \u001b[90m// Each module test starts an independent session. This dedicated account has\u001b[39m\n \u001b[90m 11 |\u001b[39m     \u001b[90m// MFA disabled, so a valid TOTP cannot be accidentally replayed.\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 12 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/login'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 13 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input#email, input[name=\"email\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'e2e.modules@minisoc.local'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 14 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input#password, input[name=\"password\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'E2E@MiniSOC2026!'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 15 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mclick(\u001b[32m'button[type=\"submit\"]'\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m\n\u001b[2m    at C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\soc-modules.spec.ts:12:16\u001b[22m"
                         }
                       ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-12T14:20:58.535Z",
+                      "startTime": "2026-09-12T14:57:35.307Z",
                       "annotations": [],
                       "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\soc-modules-Couverture-glo-c423d-s---Ajout-d-un-nouvel-asset-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\soc-modules-Couverture-glo-c423d-s---Ajout-d-un-nouvel-asset-chromium\\video.webm"
+                        },
                         {
                           "name": "error-context",
                           "contentType": "text/markdown",
@@ -290,7 +1209,12 @@
                           "contentType": "application/zip",
                           "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\soc-modules-Couverture-glo-c423d-s---Ajout-d-un-nouvel-asset-chromium\\trace.zip"
                         }
-                      ]
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\soc-modules.spec.ts",
+                        "column": 16,
+                        "line": 12
+                      }
                     }
                   ],
                   "status": "unexpected"
@@ -314,25 +1238,46 @@
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 4,
+                      "workerIndex": 14,
                       "parallelIndex": 0,
                       "status": "failed",
-                      "duration": 13,
+                      "duration": 3041,
                       "error": {
-                        "message": "Error: browserType.launch: Executable doesn't exist at C:\\Users\\radwen\\AppData\\Local\\ms-playwright\\chromium_headless_shell-1234\\chrome-headless-shell-win64\\chrome-headless-shell.exe\n╔════════════════════════════════════════════════════════════╗\n║ Looks like Playwright was just installed or updated.       ║\n║ Please run the following command to download new browsers: ║\n║                                                            ║\n║     npx playwright install                                 ║\n║                                                            ║\n║ <3 Playwright Team                                         ║\n╚════════════════════════════════════════════════════════════╝",
-                        "stack": "Error: browserType.launch: Executable doesn't exist at C:\\Users\\radwen\\AppData\\Local\\ms-playwright\\chromium_headless_shell-1234\\chrome-headless-shell-win64\\chrome-headless-shell.exe\n╔════════════════════════════════════════════════════════════╗\n║ Looks like Playwright was just installed or updated.       ║\n║ Please run the following command to download new browsers: ║\n║                                                            ║\n║     npx playwright install                                 ║\n║                                                            ║\n║ <3 Playwright Team                                         ║\n╚════════════════════════════════════════════════════════════╝"
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at https://localhost/login\nCall log:\n\u001b[2m  - navigating to \"https://localhost/login\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at https://localhost/login\nCall log:\n\u001b[2m  - navigating to \"https://localhost/login\", waiting until \"load\"\u001b[22m\n\n    at C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\soc-modules.spec.ts:12:16",
+                        "location": {
+                          "file": "C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\soc-modules.spec.ts",
+                          "column": 16,
+                          "line": 12
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 10 |\u001b[39m     \u001b[90m// Each module test starts an independent session. This dedicated account has\u001b[39m\n \u001b[90m 11 |\u001b[39m     \u001b[90m// MFA disabled, so a valid TOTP cannot be accidentally replayed.\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 12 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/login'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 13 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input#email, input[name=\"email\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'e2e.modules@minisoc.local'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 14 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input#password, input[name=\"password\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'E2E@MiniSOC2026!'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 15 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mclick(\u001b[32m'button[type=\"submit\"]'\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m"
                       },
                       "errors": [
                         {
-                          "message": "Error: browserType.launch: Executable doesn't exist at C:\\Users\\radwen\\AppData\\Local\\ms-playwright\\chromium_headless_shell-1234\\chrome-headless-shell-win64\\chrome-headless-shell.exe\n╔════════════════════════════════════════════════════════════╗\n║ Looks like Playwright was just installed or updated.       ║\n║ Please run the following command to download new browsers: ║\n║                                                            ║\n║     npx playwright install                                 ║\n║                                                            ║\n║ <3 Playwright Team                                         ║\n╚════════════════════════════════════════════════════════════╝"
+                          "location": {
+                            "file": "C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\soc-modules.spec.ts",
+                            "column": 16,
+                            "line": 12
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at https://localhost/login\nCall log:\n\u001b[2m  - navigating to \"https://localhost/login\", waiting until \"load\"\u001b[22m\n\n\n\u001b[0m \u001b[90m 10 |\u001b[39m     \u001b[90m// Each module test starts an independent session. This dedicated account has\u001b[39m\n \u001b[90m 11 |\u001b[39m     \u001b[90m// MFA disabled, so a valid TOTP cannot be accidentally replayed.\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 12 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/login'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 13 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input#email, input[name=\"email\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'e2e.modules@minisoc.local'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 14 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input#password, input[name=\"password\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'E2E@MiniSOC2026!'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 15 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mclick(\u001b[32m'button[type=\"submit\"]'\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m\n\u001b[2m    at C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\soc-modules.spec.ts:12:16\u001b[22m"
                         }
                       ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-12T14:20:59.735Z",
+                      "startTime": "2026-09-12T14:57:40.738Z",
                       "annotations": [],
                       "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\soc-modules-Couverture-glo-12b1c---Génération-et-export-JSON-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\soc-modules-Couverture-glo-12b1c---Génération-et-export-JSON-chromium\\video.webm"
+                        },
                         {
                           "name": "error-context",
                           "contentType": "text/markdown",
@@ -343,7 +1288,12 @@
                           "contentType": "application/zip",
                           "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\soc-modules-Couverture-glo-12b1c---Génération-et-export-JSON-chromium\\trace.zip"
                         }
-                      ]
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\soc-modules.spec.ts",
+                        "column": 16,
+                        "line": 12
+                      }
                     }
                   ],
                   "status": "unexpected"
@@ -367,25 +1317,46 @@
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 5,
+                      "workerIndex": 15,
                       "parallelIndex": 0,
                       "status": "failed",
-                      "duration": 3,
+                      "duration": 3310,
                       "error": {
-                        "message": "Error: browserType.launch: Executable doesn't exist at C:\\Users\\radwen\\AppData\\Local\\ms-playwright\\chromium_headless_shell-1234\\chrome-headless-shell-win64\\chrome-headless-shell.exe\n╔════════════════════════════════════════════════════════════╗\n║ Looks like Playwright was just installed or updated.       ║\n║ Please run the following command to download new browsers: ║\n║                                                            ║\n║     npx playwright install                                 ║\n║                                                            ║\n║ <3 Playwright Team                                         ║\n╚════════════════════════════════════════════════════════════╝",
-                        "stack": "Error: browserType.launch: Executable doesn't exist at C:\\Users\\radwen\\AppData\\Local\\ms-playwright\\chromium_headless_shell-1234\\chrome-headless-shell-win64\\chrome-headless-shell.exe\n╔════════════════════════════════════════════════════════════╗\n║ Looks like Playwright was just installed or updated.       ║\n║ Please run the following command to download new browsers: ║\n║                                                            ║\n║     npx playwright install                                 ║\n║                                                            ║\n║ <3 Playwright Team                                         ║\n╚════════════════════════════════════════════════════════════╝"
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at https://localhost/login\nCall log:\n\u001b[2m  - navigating to \"https://localhost/login\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at https://localhost/login\nCall log:\n\u001b[2m  - navigating to \"https://localhost/login\", waiting until \"load\"\u001b[22m\n\n    at C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\soc-modules.spec.ts:12:16",
+                        "location": {
+                          "file": "C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\soc-modules.spec.ts",
+                          "column": 16,
+                          "line": 12
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 10 |\u001b[39m     \u001b[90m// Each module test starts an independent session. This dedicated account has\u001b[39m\n \u001b[90m 11 |\u001b[39m     \u001b[90m// MFA disabled, so a valid TOTP cannot be accidentally replayed.\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 12 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/login'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 13 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input#email, input[name=\"email\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'e2e.modules@minisoc.local'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 14 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input#password, input[name=\"password\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'E2E@MiniSOC2026!'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 15 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mclick(\u001b[32m'button[type=\"submit\"]'\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m"
                       },
                       "errors": [
                         {
-                          "message": "Error: browserType.launch: Executable doesn't exist at C:\\Users\\radwen\\AppData\\Local\\ms-playwright\\chromium_headless_shell-1234\\chrome-headless-shell-win64\\chrome-headless-shell.exe\n╔════════════════════════════════════════════════════════════╗\n║ Looks like Playwright was just installed or updated.       ║\n║ Please run the following command to download new browsers: ║\n║                                                            ║\n║     npx playwright install                                 ║\n║                                                            ║\n║ <3 Playwright Team                                         ║\n╚════════════════════════════════════════════════════════════╝"
+                          "location": {
+                            "file": "C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\soc-modules.spec.ts",
+                            "column": 16,
+                            "line": 12
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at https://localhost/login\nCall log:\n\u001b[2m  - navigating to \"https://localhost/login\", waiting until \"load\"\u001b[22m\n\n\n\u001b[0m \u001b[90m 10 |\u001b[39m     \u001b[90m// Each module test starts an independent session. This dedicated account has\u001b[39m\n \u001b[90m 11 |\u001b[39m     \u001b[90m// MFA disabled, so a valid TOTP cannot be accidentally replayed.\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 12 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/login'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 13 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input#email, input[name=\"email\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'e2e.modules@minisoc.local'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 14 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input#password, input[name=\"password\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'E2E@MiniSOC2026!'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 15 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mclick(\u001b[32m'button[type=\"submit\"]'\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m\n\u001b[2m    at C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\soc-modules.spec.ts:12:16\u001b[22m"
                         }
                       ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-12T14:21:00.530Z",
+                      "startTime": "2026-09-12T14:57:48.010Z",
                       "annotations": [],
                       "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\soc-modules-Couverture-glo-41ea0-Ouverture-du-Modal-MFA-TOTP-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\soc-modules-Couverture-glo-41ea0-Ouverture-du-Modal-MFA-TOTP-chromium\\video.webm"
+                        },
                         {
                           "name": "error-context",
                           "contentType": "text/markdown",
@@ -396,7 +1367,12 @@
                           "contentType": "application/zip",
                           "path": "C:\\Users\\radwen\\Desktop\\dino-soc\\test-results\\soc-modules-Couverture-glo-41ea0-Ouverture-du-Modal-MFA-TOTP-chromium\\trace.zip"
                         }
-                      ]
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\radwen\\Desktop\\dino-soc\\apps\\frontend\\e2e\\soc-modules.spec.ts",
+                        "column": 16,
+                        "line": 12
+                      }
                     }
                   ],
                   "status": "unexpected"
@@ -414,11 +1390,11 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-09-12T14:20:53.982Z",
-    "duration": 6688.107000000004,
+    "startTime": "2026-09-12T14:55:34.812Z",
+    "duration": 137540.208,
     "expected": 0,
     "skipped": 0,
-    "unexpected": 6,
+    "unexpected": 16,
     "flaky": 0
   }
 }
