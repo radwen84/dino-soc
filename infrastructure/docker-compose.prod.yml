@@ -97,7 +97,7 @@ services:
           cpus: '0.5'
           memory: 256M
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      test: ["CMD-SHELL", "redis-cli -a \"$REDIS_PASSWORD\" ping | grep -q PONG"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -125,7 +125,7 @@ services:
           cpus: '2.0'
           memory: 1.5G
     healthcheck:
-      test: ["CMD-SHELL", "curl -sk https://localhost:9200/_cluster/health || exit 1"]
+      test: ["CMD-SHELL", "curl -u admin:${OPENSEARCH_PASSWORD} -sk https://localhost:9200/_cluster/health || exit 1"]
       interval: 30s
       timeout: 10s
       start_period: 60s
@@ -176,4 +176,3 @@ secrets:
     file: ./secrets/db_password.txt
   jwt_secret:
     file: ./secrets/jwt_secret.txt
-
