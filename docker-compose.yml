@@ -134,6 +134,12 @@ services:
       - TAXII_PASSWORD=${TAXII_PASSWORD:-}
       # ML Engine
       - ML_ENGINE_URL=http://ml-engine:8000
+      # Plugin Engine (Express) — internal only
+      - PLUGIN_ENGINE_URL=http://plugin-engine:8001
+      - PLUGIN_ENGINE_TIMEOUT_MS=${PLUGIN_ENGINE_TIMEOUT_MS:-8000}
+      # Shared interservice secret protecting ml-engine /train,/drift/check
+      # and plugin-engine /plugins/:name/execute
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-}
       # TheHive & Cortex
       - THEHIVE_URL=http://thehive:9000
       - THEHIVE_API_KEY=${THEHIVE_API_KEY:-}
@@ -158,6 +164,10 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      ml-engine:
+        condition: service_healthy
+      plugin-engine:
         condition: service_healthy
 
   # ============================================
@@ -424,6 +434,8 @@ services:
       - OPENSEARCH_USER=admin
       - OPENSEARCH_ADMIN_PASSWORD=${OPENSEARCH_ADMIN_PASSWORD:-admin}
       - MODEL_PATH=./models
+      # Shared interservice secret protecting /train and /drift/check
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-}
     deploy:
       resources:
         limits:
@@ -438,6 +450,39 @@ services:
     depends_on:
       opensearch:
         condition: service_healthy
+
+  # ============================================
+  # PLUGIN ENGINE - Extensible integrations (Express)
+  # Internal only: reachable exclusively via the NestJS API on the
+  # `backend` network. Not exposed publicly (no `ports:` mapping).
+  # ============================================
+  plugin-engine:
+    build:
+      context: .
+      dockerfile: services/plugin-engine/Dockerfile
+    container_name: minisoc-plugin-engine
+    restart: unless-stopped
+    networks:
+      - backend
+    environment:
+      - NODE_ENV=production
+      - PORT=8001
+      - LOG_LEVEL=${PLUGIN_ENGINE_LOG_LEVEL:-info}
+      # Shared interservice secret protecting /plugins/:name/execute
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-}
+      # Plugin credentials (e.g. VirusTotal)
+      - VIRUSTOTAL_API_KEY=${VIRUSTOTAL_API_KEY:-}
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
   # ============================================
   # MISP LOCAL - Threat Intelligence Platform

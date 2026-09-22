@@ -8,6 +8,7 @@ import { OtxFeedService } from './feeds/otx-feed.service';
 import { AbuseIpDbService } from './feeds/abuseipdb.service';
 import { MispFeedService } from './feeds/misp-feed.service';
 import { StixTaxiiService } from './feeds/stix-taxii.service';
+import { PluginEngineClient } from './plugin-engine.client';
 
 @Module({
   imports: [
@@ -22,7 +23,8 @@ import { StixTaxiiService } from './feeds/stix-taxii.service';
     AbuseIpDbService,
     MispFeedService,
     StixTaxiiService,
+    PluginEngineClient,
   ],
-  exports: [ThreatIntelService, StixTaxiiService],
+  exports: [ThreatIntelService, StixTaxiiService, PluginEngineClient],
 })
 export class ThreatIntelModule {}

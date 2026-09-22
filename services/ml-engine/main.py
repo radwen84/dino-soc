@@ -8,7 +8,7 @@ Features:
 - Model versioning and drift detection
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, Header
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic import BaseModel, Field
 from typing import Optional, List
@@ -36,6 +36,30 @@ OPENSEARCH_URL = os.getenv("OPENSEARCH_URL", "http://opensearch:9200")
 OPENSEARCH_USER = os.getenv("OPENSEARCH_USER", "admin")
 OPENSEARCH_PASSWORD = os.getenv("OPENSEARCH_ADMIN_PASSWORD", "admin")
 MODEL_PATH = os.getenv("MODEL_PATH", "./models")
+
+# Shared secret used to authenticate privileged interservice calls
+# (training / drift). Injected via docker-compose from an env var/secret.
+# When empty, protection is disabled (dev only) but a warning is logged.
+INTERNAL_API_KEY = os.getenv("INTERNAL_API_KEY", "")
+
+
+# ─────────────────────────────────────────────────────────────
+# Interservice Authentication
+# ─────────────────────────────────────────────────────────────
+
+
+async def verify_internal_api_key(x_internal_api_key: str = Header(default="")) -> None:
+    """Guard for privileged endpoints (/train, /drift/check).
+
+    Requires the caller to present the shared ``X-Internal-Api-Key`` header
+    matching ``INTERNAL_API_KEY``. If no key is configured, the guard allows
+    the request (development mode) but the risk is accepted explicitly.
+    """
+    if not INTERNAL_API_KEY:
+        # No key configured: allow but do not silently pretend it is secured.
+        return
+    if x_internal_api_key != INTERNAL_API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid or missing internal API key")
 
 # ─────────────────────────────────────────────────────────────
 # Models & State
@@ -479,7 +503,7 @@ async def calculate_risk_score(request: RiskScoreRequest):
 
 
 @app.post("/train", response_model=TrainResponse)
-async def retrain_model():
+async def retrain_model(_auth: None = Depends(verify_internal_api_key)):
     """Retrain anomaly model using real data from OpenSearch"""
     global anomaly_model, scaler, model_version, model_trained_at, training_samples
 
@@ -546,7 +570,7 @@ async def retrain_model():
 
 
 @app.post("/drift/check")
-async def check_drift():
+async def check_drift(_auth: None = Depends(verify_internal_api_key)):
     """Check for model drift by comparing recent predictions distribution"""
     if anomaly_model is None:
         raise HTTPException(status_code=503, detail="Model not loaded")

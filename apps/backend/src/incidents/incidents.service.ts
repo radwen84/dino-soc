@@ -37,7 +37,9 @@ export class IncidentsService {
 
     if (mlResult) {
       riskScore = mlResult.risk_score;
-      this.logger.log(`ML risk score used: ${riskScore} (confidence: ${mlResult.confidence})`);
+      this.logger.log(
+        `ML risk score used: ${riskScore} (level: ${mlResult.risk_level}, action: ${mlResult.recommended_action})`,
+      );
     }
 
     const incident = await this.prisma.incident.create({
