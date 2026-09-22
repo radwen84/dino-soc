@@ -1,6 +1,7 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
+    "allowJs": true,
     "types": [
       "node",
       "jest"
@@ -10,7 +11,9 @@
     "src/**/*.ts",
     "test/**/*.ts",
     "*.ts",
-    "src/@types/**/*.d.ts"
+    "src/@types/**/*.d.ts",
+    "prisma/**/*.ts",
+    "prisma/**/*.js"
   ],
   "exclude": [
     "node_modules",

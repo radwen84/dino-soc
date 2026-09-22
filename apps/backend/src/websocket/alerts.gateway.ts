@@ -97,7 +97,7 @@ export class AlertsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const alertCount = await this.alertsService.countByTimeRange(1);
       const stats = await this.incidentsService.getStatistics();
 
-    this.server.emit('stats:update', {
+      this.server.emit('stats:update', {
         alertsLastHour: alertCount,
         openIncidents: stats.overview.openIncidents,
         criticalIncidents: stats.overview.criticalIncidents,

@@ -117,8 +117,8 @@ export class TheHiveService {
         }),
       );
       const analyzers = Array.isArray(analyzersResponse.data) ? analyzersResponse.data : [];
-      const analyzer = analyzers.find((item: any) =>
-        Array.isArray(item.dataTypeList) && item.dataTypeList.includes(type),
+      const analyzer = analyzers.find(
+        (item: any) => Array.isArray(item.dataTypeList) && item.dataTypeList.includes(type),
       );
       if (!analyzer?.id) {
         return { status: 'skipped', type, value, reason: `No Cortex analyzer supports ${type}` };
@@ -128,7 +128,10 @@ export class TheHiveService {
         this.httpService.post(
           `${baseUrl}/api/analyzer/${analyzer.id}/run`,
           { data: value, dataType: type, tlp: 2, message: 'Mini-SOC incident enrichment' },
-          { headers: { ...headers, 'Content-Type': 'application/json' }, timeout: this.requestTimeoutMs },
+          {
+            headers: { ...headers, 'Content-Type': 'application/json' },
+            timeout: this.requestTimeoutMs,
+          },
         ),
       );
       return {

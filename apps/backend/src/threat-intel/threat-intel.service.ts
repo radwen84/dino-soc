@@ -97,10 +97,7 @@ export class ThreatIntelService {
     };
 
     // Calculate aggregate confidence and malicious flag
-    const { malicious, confidence, riskLevel } = this.aggregateResults(
-      sources,
-      localIocMatch,
-    );
+    const { malicious, confidence, riskLevel } = this.aggregateResults(sources, localIocMatch);
 
     return {
       ioc: value,
@@ -129,9 +126,7 @@ export class ThreatIntelService {
     if (alertData.dstIp) tasks.push({ key: 'dstIp', value: alertData.dstIp });
     if (alertData.domain) tasks.push({ key: 'domain', value: alertData.domain });
 
-    const results = await Promise.allSettled(
-      tasks.map((t) => this.lookup(t.value)),
-    );
+    const results = await Promise.allSettled(tasks.map((t) => this.lookup(t.value)));
 
     results.forEach((result, index) => {
       if (result.status === 'fulfilled') {
@@ -193,9 +188,7 @@ export class ThreatIntelService {
       const events = data.response?.map((r: any) => r.Event) || [];
 
       const threatLevel =
-        events.length > 0
-          ? this.mapMispThreatLevel(events[0].threat_level_id)
-          : 'None';
+        events.length > 0 ? this.mapMispThreatLevel(events[0].threat_level_id) : 'None';
 
       return {
         events_count: events.length,
@@ -285,7 +278,9 @@ export class ThreatIntelService {
     const taxiiCollectionId = this.configService.get<string>('TAXII_COLLECTION_ID', '');
 
     if (!taxiiUrl || !taxiiApiRoot || !taxiiCollectionId) {
-      throw new Error('STIX/TAXII not configured (TAXII_URL, TAXII_API_ROOT, or TAXII_COLLECTION_ID missing)');
+      throw new Error(
+        'STIX/TAXII not configured (TAXII_URL, TAXII_API_ROOT, or TAXII_COLLECTION_ID missing)',
+      );
     }
 
     const taxiiUser = this.configService.get<string>('TAXII_USERNAME', '');
@@ -294,16 +289,11 @@ export class ThreatIntelService {
     // Poll last 7 days of indicators and match against the IOC value
     const addedAfter = new Date(Date.now() - 7 * 24 * 3600000).toISOString();
 
-    const bundle = await this.stixTaxii.pollCollection(
-      taxiiUrl,
-      taxiiApiRoot,
-      taxiiCollectionId,
-      {
-        addedAfter,
-        type: ['indicator'],
-        credentials: taxiiUser ? { user: taxiiUser, password: taxiiPass } : undefined,
-      },
-    );
+    const bundle = await this.stixTaxii.pollCollection(taxiiUrl, taxiiApiRoot, taxiiCollectionId, {
+      addedAfter,
+      type: ['indicator'],
+      credentials: taxiiUser ? { user: taxiiUser, password: taxiiPass } : undefined,
+    });
 
     if (!bundle || !bundle.objects?.length) {
       return { matches: 0, sources: [] };
@@ -385,10 +375,7 @@ export class ThreatIntelService {
       feeds: [
         {
           name: 'MISP Local',
-          enabled: !!(
-            this.configService.get('MISP_URL') &&
-            this.configService.get('MISP_API_KEY')
-          ),
+          enabled: !!(this.configService.get('MISP_URL') && this.configService.get('MISP_API_KEY')),
           lastSync: null,
         },
         {
@@ -404,8 +391,7 @@ export class ThreatIntelService {
         {
           name: 'STIX/TAXII 2.1',
           enabled: !!(
-            this.configService.get('TAXII_URL') &&
-            this.configService.get('TAXII_COLLECTION_ID')
+            this.configService.get('TAXII_URL') && this.configService.get('TAXII_COLLECTION_ID')
           ),
           lastSync: null,
         },
@@ -418,9 +404,7 @@ export class ThreatIntelService {
   // Helpers
   // ─────────────────────────────────────────────────────────
 
-  private formatProviderResult(
-    settled: PromiseSettledResult<any>,
-  ): ProviderResult {
+  private formatProviderResult(settled: PromiseSettledResult<any>): ProviderResult {
     if (settled.status === 'fulfilled') {
       return { status: 'fulfilled', data: settled.value };
     }
@@ -493,8 +477,7 @@ export class ThreatIntelService {
     }
 
     // Calculate weighted confidence
-    const confidence =
-      activeSources > 0 ? Math.round(totalScore / activeSources) : 0;
+    const confidence = activeSources > 0 ? Math.round(totalScore / activeSources) : 0;
 
     // Determine malicious flag (any source with significant score)
     const malicious = maxScore >= 50;

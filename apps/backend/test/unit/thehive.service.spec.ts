@@ -59,12 +59,14 @@ describe('TheHiveService', () => {
   it('skips TheHive cleanly when the integration is not configured', async () => {
     config.THEHIVE_API_KEY = '';
 
-    await expect(service.pushIncident({
-      id: 'incident-2',
-      title: 'Test',
-      description: 'Test',
-      severity: 'low',
-    })).resolves.toBeNull();
+    await expect(
+      service.pushIncident({
+        id: 'incident-2',
+        title: 'Test',
+        description: 'Test',
+        severity: 'low',
+      }),
+    ).resolves.toBeNull();
     expect(httpService.post).not.toHaveBeenCalled();
   });
 

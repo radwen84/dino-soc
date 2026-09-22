@@ -21,10 +21,7 @@ describe('Auth (E2E)', () => {
     };
 
     const moduleFixtureBuilder = Test.createTestingModule({
-      imports: [
-        EventEmitterModule.forRoot({ global: true }),
-        AppModule,
-      ],
+      imports: [EventEmitterModule.forRoot({ global: true }), AppModule],
     });
 
     // Remplace le vrai RedisService par le mock pour éviter les tentatives de connexion TCP

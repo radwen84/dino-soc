@@ -10,8 +10,10 @@ export class OpenSearchService implements OnModuleInit {
   constructor(private readonly configService: ConfigService) {
     const host = this.configService.get<string>('OPENSEARCH_HOST', 'opensearch');
     const port = this.configService.get<number>('OPENSEARCH_PORT', 9200);
-    const node = this.configService.get<string>('OPENSEARCH_URL') ||
-      this.configService.get<string>('OPENSEARCH_NODE') || `http://${host}:${port}`;
+    const node =
+      this.configService.get<string>('OPENSEARCH_URL') ||
+      this.configService.get<string>('OPENSEARCH_NODE') ||
+      `http://${host}:${port}`;
     const password = this.configService.get<string>('OPENSEARCH_ADMIN_PASSWORD');
     const nodeEnv = this.configService.get<string>('NODE_ENV', 'development');
 

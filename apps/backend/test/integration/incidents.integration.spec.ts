@@ -24,11 +24,11 @@ describe('Incidents (Integration)', () => {
     }).compile();
 
     testContext.app = module.createNestApplication();
-    
+
     // Configuration du préfixe global /api pour matcher les routes de production
     testContext.app.setGlobalPrefix('api');
     testContext.app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
-    
+
     await testContext.app.init();
 
     testContext.prisma = module.get<PrismaService>(PrismaService);
@@ -36,8 +36,8 @@ describe('Incidents (Integration)', () => {
     // Option 1 : Récupération du token via le flux complet (Saisie identifiants + Code TOTP MFA)
     const loginRes = await request(testContext.app.getHttpServer())
       .post('/api/auth/login')
-      .send({ 
-        email: 'admin@minisoc.local', 
+      .send({
+        email: 'admin@minisoc.local',
         password: 'Admin@MiniSOC2026!',
         mfaCode: authenticator.generate(TEST_MFA_SECRET), // Injection du code MFA valide
       });
@@ -71,7 +71,7 @@ describe('Incidents (Integration)', () => {
 
   describe('POST /api/incidents', () => {
     it('should create an incident', async () => {
-      const res = await request(testContext.app!.getHttpServer())
+      const res = await request(testContext.app.getHttpServer())
         .post('/api/incidents')
         .set('Authorization', `Bearer ${testContext.authToken}`)
         .send({
@@ -90,7 +90,7 @@ describe('Incidents (Integration)', () => {
     });
 
     it('should reject invalid severity', async () => {
-      await request(testContext.app!.getHttpServer())
+      await request(testContext.app.getHttpServer())
         .post('/api/incidents')
         .set('Authorization', `Bearer ${testContext.authToken}`)
         .send({ title: 'Test', severity: 'invalid' })
@@ -98,7 +98,7 @@ describe('Incidents (Integration)', () => {
     });
 
     it('should reject unauthenticated requests', async () => {
-      await request(testContext.app!.getHttpServer())
+      await request(testContext.app.getHttpServer())
         .post('/api/incidents')
         .send({ title: 'Test', severity: 'low' })
         .expect(401);
@@ -107,7 +107,7 @@ describe('Incidents (Integration)', () => {
 
   describe('GET /api/incidents', () => {
     it('should return paginated incidents', async () => {
-      const res = await request(testContext.app!.getHttpServer())
+      const res = await request(testContext.app.getHttpServer())
         .get('/api/incidents')
         .set('Authorization', `Bearer ${testContext.authToken}`)
         .query({ page: 1, limit: 10 })
@@ -119,7 +119,7 @@ describe('Incidents (Integration)', () => {
     });
 
     it('should filter by severity', async () => {
-      const res = await request(testContext.app!.getHttpServer())
+      const res = await request(testContext.app.getHttpServer())
         .get('/api/incidents')
         .set('Authorization', `Bearer ${testContext.authToken}`)
         .query({ severity: 'critical' })

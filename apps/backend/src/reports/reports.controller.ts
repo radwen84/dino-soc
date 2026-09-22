@@ -36,13 +36,13 @@ export class ReportsController {
         return this.convertToCsv(report.data);
 
       case ReportFormat.PDF:
-         res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Type', 'application/pdf');
         res.setHeader(
           'Content-Disposition',
           `attachment; filename="report-${filters.type}-${Date.now()}.pdf"`,
         );
         return this.reportsService.generatePdf(report);
-        
+
       case ReportFormat.JSON:
       default:
         return report;

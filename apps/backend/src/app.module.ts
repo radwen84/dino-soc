@@ -46,7 +46,7 @@ import { validate } from './config/env.validation';
       defaultMetrics: {
         enabled: true,
       },
-      }),
+    }),
 
     // Event system
     EventEmitterModule.forRoot({

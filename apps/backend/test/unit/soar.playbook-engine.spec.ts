@@ -7,7 +7,12 @@ import { AssetsService } from '../../src/assets/assets.service';
 import { ThreatIntelService } from '../../src/threat-intel/threat-intel.service';
 import { RedisService } from '../../src/redis/redis.service';
 import { WazuhService } from '../../src/wazuh/wazuh.service';
-import { PlaybookActionType, PlaybookActionDto, PlaybookRiskLevel, ConditionOperator } from '../../src/soar/dto/create-playbook.dto';
+import {
+  PlaybookActionType,
+  PlaybookActionDto,
+  PlaybookRiskLevel,
+  ConditionOperator,
+} from '../../src/soar/dto/create-playbook.dto';
 
 describe('PlaybookEngine', () => {
   let engine: PlaybookEngine;
@@ -37,7 +42,9 @@ describe('PlaybookEngine', () => {
       del: jest.fn(),
       setJson: jest.fn(),
       getJson: jest.fn(),
-      getClient: jest.fn().mockReturnValue({ keys: jest.fn().mockResolvedValue([]), del: jest.fn() }),
+      getClient: jest
+        .fn()
+        .mockReturnValue({ keys: jest.fn().mockResolvedValue([]), del: jest.fn() }),
     };
 
     mockWazuh = {
@@ -98,7 +105,12 @@ describe('PlaybookEngine', () => {
         { id: 'a1', name: 'Start', type: PlaybookActionType.LOOKUP_IOC },
         { id: 'a2', name: 'Branch A', type: PlaybookActionType.BLOCK_IP, dependsOn: ['a1'] },
         { id: 'a3', name: 'Branch B', type: PlaybookActionType.NOTIFY, dependsOn: ['a1'] },
-        { id: 'a4', name: 'Join', type: PlaybookActionType.CREATE_INCIDENT, dependsOn: ['a2', 'a3'] },
+        {
+          id: 'a4',
+          name: 'Join',
+          type: PlaybookActionType.CREATE_INCIDENT,
+          dependsOn: ['a2', 'a3'],
+        },
       ];
 
       expect(engine.validateDAG(actions)).toBe(true);
@@ -141,13 +153,19 @@ describe('PlaybookEngine', () => {
     });
 
     it('should match CONTAINS condition (case insensitive)', () => {
-      const conditions = [{ field: 'description', operator: ConditionOperator.CONTAINS, value: 'malware' }];
-      expect(engine.matchConditions(conditions, { description: 'Detected MALWARE activity' })).toBe(true);
+      const conditions = [
+        { field: 'description', operator: ConditionOperator.CONTAINS, value: 'malware' },
+      ];
+      expect(engine.matchConditions(conditions, { description: 'Detected MALWARE activity' })).toBe(
+        true,
+      );
       expect(engine.matchConditions(conditions, { description: 'Normal traffic' })).toBe(false);
     });
 
     it('should match nested fields with dot notation', () => {
-      const conditions = [{ field: 'data.srcIp', operator: ConditionOperator.EQ, value: '10.0.0.1' }];
+      const conditions = [
+        { field: 'data.srcIp', operator: ConditionOperator.EQ, value: '10.0.0.1' },
+      ];
       expect(engine.matchConditions(conditions, { data: { srcIp: '10.0.0.1' } })).toBe(true);
     });
 
@@ -161,7 +179,9 @@ describe('PlaybookEngine', () => {
     });
 
     it('should match REGEX condition', () => {
-      const conditions = [{ field: 'srcIp', operator: ConditionOperator.REGEX, value: '^10\\.0\\.' }];
+      const conditions = [
+        { field: 'srcIp', operator: ConditionOperator.REGEX, value: '^10\\.0\\.' },
+      ];
       expect(engine.matchConditions(conditions, { srcIp: '10.0.1.5' })).toBe(true);
       expect(engine.matchConditions(conditions, { srcIp: '192.168.1.1' })).toBe(false);
     });
@@ -178,7 +198,12 @@ describe('PlaybookEngine', () => {
       triggerConditions: { triggerType: 'alert', rules: [] },
       actions: [
         { id: 'a1', name: 'Enrich', type: PlaybookActionType.ENRICH_ALERT, params: {} },
-        { id: 'a2', name: 'Notify', type: PlaybookActionType.NOTIFY, params: { message: 'Alert enriched', channel: 'websocket' } },
+        {
+          id: 'a2',
+          name: 'Notify',
+          type: PlaybookActionType.NOTIFY,
+          params: { message: 'Alert enriched', channel: 'websocket' },
+        },
       ],
       isActive: true,
     };
@@ -207,7 +232,12 @@ describe('PlaybookEngine', () => {
       const playbookWithBlock = {
         ...mockPlaybook,
         actions: [
-          { id: 'a1', name: 'Block', type: PlaybookActionType.BLOCK_IP, params: { ip: '1.2.3.4', agentId: '001' } },
+          {
+            id: 'a1',
+            name: 'Block',
+            type: PlaybookActionType.BLOCK_IP,
+            params: { ip: '1.2.3.4', agentId: '001' },
+          },
         ],
       };
       mockPrisma.playbook.update.mockResolvedValue({});
@@ -239,7 +269,10 @@ describe('PlaybookEngine', () => {
       expect(result.status).toBe('pending_approval');
       expect(result.pendingApprovals).toHaveLength(1);
       expect(mockRedis.setJson).toHaveBeenCalled();
-      expect(mockEventEmitter.emit).toHaveBeenCalledWith('soar.approval_required', expect.any(Object));
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith(
+        'soar.approval_required',
+        expect.any(Object),
+      );
     });
 
     it('should stop execution on action failure', async () => {
@@ -248,8 +281,19 @@ describe('PlaybookEngine', () => {
       const playbookFail = {
         ...mockPlaybook,
         actions: [
-          { id: 'a1', name: 'Enrich', type: PlaybookActionType.ENRICH_ALERT, params: {}, retryPolicy: { maxRetries: 0 } },
-          { id: 'a2', name: 'Notify', type: PlaybookActionType.NOTIFY, params: { message: 'test' } },
+          {
+            id: 'a1',
+            name: 'Enrich',
+            type: PlaybookActionType.ENRICH_ALERT,
+            params: {},
+            retryPolicy: { maxRetries: 0 },
+          },
+          {
+            id: 'a2',
+            name: 'Notify',
+            type: PlaybookActionType.NOTIFY,
+            params: { message: 'test' },
+          },
         ],
       };
       mockPrisma.playbook.update.mockResolvedValue({});
@@ -286,10 +330,22 @@ describe('PlaybookEngine', () => {
       mockRedis.getJson.mockResolvedValue(mockApproval);
       mockPrisma.playbook.findUnique.mockResolvedValue({
         id: 'pb-uuid',
-        actions: [{ id: 'a1', name: 'Isolate', type: PlaybookActionType.ISOLATE_HOST, params: { hostname: 'srv01', agentId: '002' } }],
+        actions: [
+          {
+            id: 'a1',
+            name: 'Isolate',
+            type: PlaybookActionType.ISOLATE_HOST,
+            params: { hostname: 'srv01', agentId: '002' },
+          },
+        ],
       });
 
-      const result = await engine.processApproval('approval-uuid', 'approved', 'admin-user', 'Confirmed threat');
+      const result = await engine.processApproval(
+        'approval-uuid',
+        'approved',
+        'admin-user',
+        'Confirmed threat',
+      );
 
       expect(result.status).toBe('approved');
       expect(result.decidedBy).toBe('admin-user');
@@ -305,7 +361,12 @@ describe('PlaybookEngine', () => {
 
       mockRedis.getJson.mockResolvedValue(mockApproval);
 
-      const result = await engine.processApproval('approval-uuid', 'rejected', 'admin-user', 'False positive');
+      const result = await engine.processApproval(
+        'approval-uuid',
+        'rejected',
+        'admin-user',
+        'False positive',
+      );
 
       expect(result.status).toBe('rejected');
       expect(mockWazuh.triggerActiveResponse).not.toHaveBeenCalled();

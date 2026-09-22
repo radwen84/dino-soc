@@ -51,11 +51,16 @@ export class AuthService {
     if (!match) return 7 * 86400; // default 7 days
     const value = parseInt(match[1], 10);
     switch (match[2]) {
-      case 's': return value;
-      case 'm': return value * 60;
-      case 'h': return value * 3600;
-      case 'd': return value * 86400;
-      default: return 7 * 86400;
+      case 's':
+        return value;
+      case 'm':
+        return value * 60;
+      case 'h':
+        return value * 3600;
+      case 'd':
+        return value * 86400;
+      default:
+        return 7 * 86400;
     }
   }
 
@@ -86,11 +91,7 @@ export class AuthService {
       },
     );
     // Store jti in Redis with TTL — presence = token is valid
-    await this.redisService.set(
-      `refresh:${jti}`,
-      userId,
-      this.REFRESH_TOKEN_TTL_SECONDS,
-    );
+    await this.redisService.set(`refresh:${jti}`, userId, this.REFRESH_TOKEN_TTL_SECONDS);
     return refreshToken;
   }
 
@@ -176,7 +177,12 @@ export class AuthService {
         if (attempts >= this.MAX_FAILED_ATTEMPTS) {
           const lockUntil = new Date(Date.now() + this.LOCK_DURATION_MINUTES * 60000);
           await this.usersService.lockAccount(user.id, lockUntil);
-          await this.auditService.log('AUTH_ACCOUNT_LOCKED', { userId: user.id, ip, lockUntil, reason: 'mfa_failures' });
+          await this.auditService.log('AUTH_ACCOUNT_LOCKED', {
+            userId: user.id,
+            ip,
+            lockUntil,
+            reason: 'mfa_failures',
+          });
           throw new UnauthorizedException(
             `Account locked for ${this.LOCK_DURATION_MINUTES} minutes due to too many failed attempts.`,
           );
@@ -274,8 +280,13 @@ export class AuthService {
       const storedUserId = await this.redisService.get(`refresh:${payload.jti}`);
       if (!storedUserId) {
         // Token was already used or revoked — possible token theft
-        this.logger.warn(`Refresh token reuse detected for user ${payload.sub}, jti: ${payload.jti}`);
-        await this.auditService.log('REFRESH_TOKEN_REUSE', { userId: payload.sub, jti: payload.jti });
+        this.logger.warn(
+          `Refresh token reuse detected for user ${payload.sub}, jti: ${payload.jti}`,
+        );
+        await this.auditService.log('REFRESH_TOKEN_REUSE', {
+          userId: payload.sub,
+          jti: payload.jti,
+        });
         throw new UnauthorizedException('Refresh token has been revoked');
       }
 

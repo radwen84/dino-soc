@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
@@ -6,7 +7,7 @@ const prisma = new PrismaClient();
 // Secret TOTP Base32 fixe partagé avec Playwright pour les tests E2E
 export const TEST_MFA_SECRET = 'JBSWY3DPEHPK3PXP';
 
-async function main() {
+async function main(): Promise<void> {
   console.log('🌱 Seeding database...');
 
   // Create admin user
@@ -94,11 +95,46 @@ async function main() {
   console.log(`E2E modules user created: ${e2eUser.email}`);
 
   const assets = [
-    { hostname: 'web-server-01', ipAddress: '10.0.2.10', os: 'Ubuntu', osVersion: '22.04', criticality: 'high' as const, department: 'Production' },
-    { hostname: 'db-server-01', ipAddress: '10.0.2.11', os: 'Ubuntu', osVersion: '22.04', criticality: 'critical' as const, department: 'Production' },
-    { hostname: 'app-server-01', ipAddress: '10.0.2.12', os: 'Ubuntu', osVersion: '22.04', criticality: 'high' as const, department: 'Production' },
-    { hostname: 'dev-workstation-01', ipAddress: '10.0.3.10', os: 'Windows', osVersion: '11', criticality: 'medium' as const, department: 'Development' },
-    { hostname: 'soc-analyst-01', ipAddress: '10.0.4.10', os: 'Ubuntu', osVersion: '22.04', criticality: 'medium' as const, department: 'Security' },
+    {
+      hostname: 'web-server-01',
+      ipAddress: '10.0.2.10',
+      os: 'Ubuntu',
+      osVersion: '22.04',
+      criticality: 'high' as const,
+      department: 'Production',
+    },
+    {
+      hostname: 'db-server-01',
+      ipAddress: '10.0.2.11',
+      os: 'Ubuntu',
+      osVersion: '22.04',
+      criticality: 'critical' as const,
+      department: 'Production',
+    },
+    {
+      hostname: 'app-server-01',
+      ipAddress: '10.0.2.12',
+      os: 'Ubuntu',
+      osVersion: '22.04',
+      criticality: 'high' as const,
+      department: 'Production',
+    },
+    {
+      hostname: 'dev-workstation-01',
+      ipAddress: '10.0.3.10',
+      os: 'Windows',
+      osVersion: '11',
+      criticality: 'medium' as const,
+      department: 'Development',
+    },
+    {
+      hostname: 'soc-analyst-01',
+      ipAddress: '10.0.4.10',
+      os: 'Ubuntu',
+      osVersion: '22.04',
+      criticality: 'medium' as const,
+      department: 'Security',
+    },
   ];
 
   for (const asset of assets) {
@@ -111,10 +147,38 @@ async function main() {
 
   // Create sample IOCs — upsert by unique (type, value)
   const iocs = [
-    { type: 'ip' as const, value: '203.0.113.42', description: 'Known C2 server', source: 'misp', confidence: 90, severity: 'high' as const },
-    { type: 'domain' as const, value: 'malware-c2.evil.tk', description: 'Malware distribution domain', source: 'virustotal', confidence: 95, severity: 'critical' as const },
-    { type: 'hash_sha256' as const, value: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', description: 'Ransomware sample', source: 'manual', confidence: 100, severity: 'critical' as const },
-    { type: 'ip' as const, value: '198.51.100.23', description: 'Port scanner', source: 'abuseipdb', confidence: 75, severity: 'medium' as const },
+    {
+      type: 'ip' as const,
+      value: '203.0.113.42',
+      description: 'Known C2 server',
+      source: 'misp',
+      confidence: 90,
+      severity: 'high' as const,
+    },
+    {
+      type: 'domain' as const,
+      value: 'malware-c2.evil.tk',
+      description: 'Malware distribution domain',
+      source: 'virustotal',
+      confidence: 95,
+      severity: 'critical' as const,
+    },
+    {
+      type: 'hash_sha256' as const,
+      value: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+      description: 'Ransomware sample',
+      source: 'manual',
+      confidence: 100,
+      severity: 'critical' as const,
+    },
+    {
+      type: 'ip' as const,
+      value: '198.51.100.23',
+      description: 'Port scanner',
+      source: 'abuseipdb',
+      confidence: 75,
+      severity: 'medium' as const,
+    },
   ];
 
   for (const ioc of iocs) {
@@ -172,10 +236,10 @@ async function main() {
 }
 
 main()
-  .catch((e) => {
+  .catch((e: unknown) => {
     console.error('❌ Seeding failed:', e);
     process.exit(1);
   })
-  .finally(async () => {
-    await prisma.$disconnect();
+  .finally(() => {
+    void prisma.$disconnect();
   });

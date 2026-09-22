@@ -101,12 +101,12 @@ export class AlertsService {
             dstPort: doc.data?.dstport != null ? Number(doc.data.dstport) : null,
             mitreTactic: Array.isArray(doc.rule?.mitre?.tactic)
               ? doc.rule.mitre.tactic[0]
-              : doc.rule?.mitre?.tactic ?? null,
+              : (doc.rule?.mitre?.tactic ?? null),
             mitreTechnique: Array.isArray(doc.rule?.mitre?.id)
               ? doc.rule.mitre.id[0]
-              : doc.rule?.mitre?.id ?? null,
+              : (doc.rule?.mitre?.id ?? null),
             status: 'new' as AlertStatus,
-            rawLog: doc as any,
+            rawLog: doc,
             timestamp: new Date(doc.timestamp || hit._source['@timestamp'] || new Date()),
           };
 
@@ -118,8 +118,7 @@ export class AlertsService {
           });
 
           // Check if this was a creation (createdAt ~ now) to emit event
-          const isNew =
-            Math.abs(upserted.createdAt.getTime() - Date.now()) < 10000;
+          const isNew = Math.abs(upserted.createdAt.getTime() - Date.now()) < 10000;
 
           if (isNew) {
             synced++;
@@ -127,23 +126,16 @@ export class AlertsService {
           }
         } catch (error) {
           // Skip duplicate constraint errors silently, log others
-          if (
-            error instanceof Prisma.PrismaClientKnownRequestError &&
-            error.code === 'P2002'
-          ) {
+          if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
             // Already exists — expected for idempotent sync
           } else {
             errors++;
-            this.logger.error(
-              `Failed to sync alert ${hit._id}: ${error.message}`,
-            );
+            this.logger.error(`Failed to sync alert ${hit._id}: ${error.message}`);
           }
         }
       }
 
-      this.logger.log(
-        `Sync complete: ${synced} new alerts synced, ${errors} errors.`,
-      );
+      this.logger.log(`Sync complete: ${synced} new alerts synced, ${errors} errors.`);
     } catch (error) {
       this.logger.error('OpenSearch sync failed entirely', error);
     }
@@ -192,7 +184,11 @@ export class AlertsService {
         // Try to extract from rawLog (could be parsed Wazuh doc or Filebeat wrapper)
         let wazuhDoc = raw;
         if (typeof raw.message === 'string') {
-          try { wazuhDoc = JSON.parse(raw.message); } catch { /* ignore */ }
+          try {
+            wazuhDoc = JSON.parse(raw.message);
+          } catch {
+            /* ignore */
+          }
         }
         const description = wazuhDoc?.rule?.description;
         if (description) {
@@ -230,7 +226,11 @@ export class AlertsService {
       const raw = alert.rawLog as any;
       let wazuhDoc = raw;
       if (typeof raw.message === 'string') {
-        try { wazuhDoc = JSON.parse(raw.message); } catch { /* ignore */ }
+        try {
+          wazuhDoc = JSON.parse(raw.message);
+        } catch {
+          /* ignore */
+        }
       }
       if (wazuhDoc?.rule?.description) {
         (alert as any).ruleDescription = wazuhDoc.rule.description;
@@ -255,8 +255,10 @@ export class AlertsService {
         const incident = await this.prisma.incident.create({
           data: {
             title: `[Auto] ${alert.ruleDescription || `Alerte Rule ${alert.ruleId}`}`,
-            description: alert.ruleDescription || `Alerte escaladée automatiquement (rule: ${alert.ruleId}, level: ${alert.level})`,
-            
+            description:
+              alert.ruleDescription ||
+              `Alerte escaladée automatiquement (rule: ${alert.ruleId}, level: ${alert.level})`,
+
             severity: this.mapLevelToSeverity(alert.level) as IncidentSeverity,
             status: 'new',
             category: 'alert_escalation',

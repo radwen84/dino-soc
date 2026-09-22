@@ -11,11 +11,7 @@ import { StixTaxiiService } from './feeds/stix-taxii.service';
 import { PluginEngineClient } from './plugin-engine.client';
 
 @Module({
-  imports: [
-    HttpModule.register({ timeout: 10000, maxRedirects: 3 }),
-    IocModule,
-    AuditModule,
-  ],
+  imports: [HttpModule.register({ timeout: 10000, maxRedirects: 3 }), IocModule, AuditModule],
   controllers: [ThreatIntelController],
   providers: [
     ThreatIntelService,

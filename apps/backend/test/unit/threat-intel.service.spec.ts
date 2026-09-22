@@ -50,9 +50,15 @@ describe('ThreatIntelService', () => {
         ThreatIntelService,
         { provide: IocService, useValue: mockIocService },
         { provide: AuditService, useValue: { log: jest.fn() } },
-        { provide: OtxFeedService, useValue: { fetchLatestPulses: jest.fn().mockResolvedValue([]) } },
+        {
+          provide: OtxFeedService,
+          useValue: { fetchLatestPulses: jest.fn().mockResolvedValue([]) },
+        },
         { provide: AbuseIpDbService, useValue: mockAbuseIpDb },
-        { provide: MispFeedService, useValue: { fetchRecentEvents: jest.fn().mockResolvedValue([]) } },
+        {
+          provide: MispFeedService,
+          useValue: { fetchRecentEvents: jest.fn().mockResolvedValue([]) },
+        },
         { provide: StixTaxiiService, useValue: mockStixTaxiiService },
         { provide: ConfigService, useValue: mockConfigService },
       ],
@@ -79,7 +85,13 @@ describe('ThreatIntelService', () => {
 
       const result: any = await service.lookup('8.8.8.8');
 
-      const queriedValue = result.query ?? result.value ?? result.indicator ?? result.ioc ?? result.target ?? result.ip;
+      const queriedValue =
+        result.query ??
+        result.value ??
+        result.indicator ??
+        result.ioc ??
+        result.target ??
+        result.ip;
       expect(queriedValue).toBe('8.8.8.8');
       expect(result.riskLevel).toBe('unknown');
     });
@@ -87,11 +99,11 @@ describe('ThreatIntelService', () => {
     it('should flag as known IOC when found in local DB', async () => {
       const result: any = await service.lookup('1.2.3.4');
 
-      const checkResult = 
-        Boolean(result.isKnown) || 
-        Boolean(result.knownIoc) || 
-        Boolean(result.isKnownIoc) || 
-        Boolean(result.found) || 
+      const checkResult =
+        Boolean(result.isKnown) ||
+        Boolean(result.knownIoc) ||
+        Boolean(result.isKnownIoc) ||
+        Boolean(result.found) ||
         Boolean(result.localIocs && result.localIocs.length > 0) ||
         Boolean(result.matches && result.matches.length > 0) ||
         Boolean(result.iocs && result.iocs.length > 0) ||

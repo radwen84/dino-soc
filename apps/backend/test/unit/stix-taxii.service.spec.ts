@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { StixTaxiiService, StixBundle, TlpLevel } from '../../src/threat-intel/feeds/stix-taxii.service';
+import {
+  StixTaxiiService,
+  StixBundle,
+  TlpLevel,
+} from '../../src/threat-intel/feeds/stix-taxii.service';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 
@@ -237,7 +241,12 @@ describe('StixTaxiiService', () => {
     it('should generate a valid STIX bundle from IOCs', () => {
       const iocs = [
         { type: 'ip' as const, value: '10.0.0.1', description: 'C2 Server', confidence: 90 },
-        { type: 'domain' as const, value: 'evil.com', description: 'Phishing domain', confidence: 80 },
+        {
+          type: 'domain' as const,
+          value: 'evil.com',
+          description: 'Phishing domain',
+          confidence: 80,
+        },
       ];
 
       const bundle = service.generateStixBundle(iocs, 'Mini-SOC');
@@ -264,9 +273,7 @@ describe('StixTaxiiService', () => {
     });
 
     it('should include hash patterns with correct syntax', () => {
-      const iocs = [
-        { type: 'hash_sha256' as const, value: 'abc123def456', confidence: 95 },
-      ];
+      const iocs = [{ type: 'hash_sha256' as const, value: 'abc123def456', confidence: 95 }];
 
       const bundle = service.generateStixBundle(iocs, 'Mini-SOC');
       const indicators = bundle.objects.filter((o) => o.type === 'indicator');
