@@ -11,7 +11,7 @@ import { AppValidationPipe } from './common/pipes/validation.pipe';
 import { getCorsConfig } from './common/middleware/cors.config';
 import { loadRuntimeSecrets } from './config/load-secrets';
 
-async function bootstrap() {
+async function bootstrap(): Promise<void> {
   loadRuntimeSecrets();
   const logger = new Logger('Bootstrap');
 
@@ -70,4 +70,4 @@ async function bootstrap() {
   logger.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 }
 
-bootstrap();
+void bootstrap();

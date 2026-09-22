@@ -5,8 +5,9 @@ import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../../src/users/users.service';
 import { TotpService } from '../../src/auth/mfa/totp.service';
 import { AuditService } from '../../src/audit/audit.service';
-import { RedisService } from '../../src/redis/redis.service'; // Assurez-vous que le chemin vers RedisService est exact
+import { RedisService } from '../../src/redis/redis.service';
 import { UnauthorizedException } from '@nestjs/common';
+import { User } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 describe('AuthService', () => {
@@ -24,6 +25,9 @@ describe('AuthService', () => {
     failedLoginAttempts: 0,
     lockedUntil: null,
     isActive: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    lastLogin: null,
   };
 
   beforeAll(async () => {
@@ -68,7 +72,7 @@ describe('AuthService', () => {
 
   describe('validateUser', () => {
     it('should return user on valid credentials', async () => {
-      usersService.findByEmail.mockResolvedValue(mockUser as any);
+      usersService.findByEmail.mockResolvedValue(mockUser as User);
 
       const result = await service.validateUser(
         'test@minisoc.local',
@@ -80,7 +84,7 @@ describe('AuthService', () => {
     });
 
     it('should throw on invalid password', async () => {
-      usersService.findByEmail.mockResolvedValue(mockUser as any);
+      usersService.findByEmail.mockResolvedValue(mockUser as User);
 
       await expect(
         service.validateUser('test@minisoc.local', 'wrong-password', '127.0.0.1'),
@@ -88,8 +92,11 @@ describe('AuthService', () => {
     });
 
     it('should throw if account is locked', async () => {
-      const lockedUser = { ...mockUser, lockedUntil: new Date(Date.now() + 3600000) };
-      usersService.findByEmail.mockResolvedValue(lockedUser as any);
+      const lockedUser: User = {
+        ...(mockUser as User),
+        lockedUntil: new Date(Date.now() + 3600000),
+      };
+      usersService.findByEmail.mockResolvedValue(lockedUser);
 
       await expect(
         service.validateUser('test@minisoc.local', 'TestPassword123!', '127.0.0.1'),
@@ -97,8 +104,8 @@ describe('AuthService', () => {
     });
 
     it('should return user even if inactive (login handles this check)', async () => {
-      const inactiveUser = { ...mockUser, isActive: false };
-      usersService.findByEmail.mockResolvedValue(inactiveUser as any);
+      const inactiveUser: User = { ...(mockUser as User), isActive: false };
+      usersService.findByEmail.mockResolvedValue(inactiveUser);
 
       // validateUser only checks credentials, not active status
       const result = await service.validateUser(

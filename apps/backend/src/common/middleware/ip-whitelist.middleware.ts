@@ -12,7 +12,7 @@ export class IpWhitelistMiddleware implements NestMiddleware {
       .map((ip) => ip.trim());
   }
 
-  use(req: Request, _res: Response, next: NextFunction) {
+  use(req: Request, _res: Response, next: NextFunction): void {
     const clientIp = req.ip || req.socket.remoteAddress || '';
 
     if (!this.allowedIps.includes(clientIp) && !this.allowedIps.includes('*')) {

@@ -30,6 +30,12 @@ export interface AnalyzerRunResult {
   reason?: string;
 }
 
+interface CortexAnalyzer {
+  id: string;
+  dataTypeList?: string[];
+  [key: string]: unknown;
+}
+
 @Injectable()
 export class TheHiveService {
   private readonly logger = new Logger(TheHiveService.name);
@@ -116,9 +122,12 @@ export class TheHiveService {
           timeout: this.requestTimeoutMs,
         }),
       );
-      const analyzers = Array.isArray(analyzersResponse.data) ? analyzersResponse.data : [];
+      const analyzers: CortexAnalyzer[] = Array.isArray(analyzersResponse.data)
+        ? analyzersResponse.data
+        : [];
       const analyzer = analyzers.find(
-        (item: any) => Array.isArray(item.dataTypeList) && item.dataTypeList.includes(type),
+        (item: CortexAnalyzer) =>
+          Array.isArray(item.dataTypeList) && item.dataTypeList.includes(type),
       );
       if (!analyzer?.id) {
         return { status: 'skipped', type, value, reason: `No Cortex analyzer supports ${type}` };

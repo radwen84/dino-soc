@@ -6,6 +6,7 @@ import { AssetsService } from '../assets/assets.service';
 import { ThreatIntelService } from '../threat-intel/threat-intel.service';
 import { RedisService } from '../redis/redis.service';
 import { WazuhService } from '../wazuh/wazuh.service';
+import { Playbook } from '@prisma/client';
 import {
   PlaybookActionType,
   PlaybookActionDto,
@@ -18,6 +19,16 @@ import { ApprovalStatus } from './dto/approval.dto';
 // ─────────────────────────────────────────────────────────────
 // Interfaces
 // ─────────────────────────────────────────────────────────────
+
+export interface PlaybookTriggerConditions {
+  triggerType: string;
+  rules?: PlaybookConditionDto[];
+}
+
+export interface ActionContext {
+  trigger: Record<string, unknown>;
+  results: Record<string, unknown>;
+}
 
 export interface PlaybookExecutionResult {
   executionId: string;
@@ -38,7 +49,7 @@ export interface ActionExecutionResult {
   status: 'success' | 'failed' | 'skipped' | 'pending_approval' | 'rolled_back';
   startedAt: Date;
   completedAt: Date | null;
-  output: any;
+  output: unknown;
   error?: string;
   retryCount: number;
 }
@@ -51,7 +62,7 @@ export interface PendingApproval {
   actionName: string;
   actionType: PlaybookActionType;
   riskLevel: PlaybookRiskLevel;
-  context: Record<string, any>;
+  context: Record<string, unknown>;
   status: ApprovalStatus;
   requestedAt: Date;
   requestedBy: string;
@@ -87,12 +98,12 @@ export class PlaybookEngine {
   // ─────────────────────────────────────────────────────────
 
   @OnEvent('alert:new')
-  async onNewAlert(alert: any) {
+  async onNewAlert(alert: Record<string, unknown>): Promise<void> {
     await this.evaluatePlaybooks('alert', alert);
   }
 
   @OnEvent('incident.created')
-  async onIncidentCreated(incident: any) {
+  async onIncidentCreated(incident: Record<string, unknown>): Promise<void> {
     await this.evaluatePlaybooks('incident', incident);
   }
 
@@ -100,7 +111,11 @@ export class PlaybookEngine {
   // Main Evaluation
   // ─────────────────────────────────────────────────────────
 
-  async evaluatePlaybooks(triggerType: string, data: any, dryRun = false) {
+  async evaluatePlaybooks(
+    triggerType: string,
+    data: Record<string, unknown>,
+    dryRun = false,
+  ): Promise<PlaybookExecutionResult[]> {
     const playbooks = await this.prisma.playbook.findMany({
       where: { isActive: true },
     });
@@ -108,7 +123,7 @@ export class PlaybookEngine {
     const results: PlaybookExecutionResult[] = [];
 
     for (const playbook of playbooks) {
-      const conditions = playbook.triggerConditions as any;
+      const conditions = playbook.triggerConditions as unknown as PlaybookTriggerConditions;
       if (conditions.triggerType !== triggerType) continue;
 
       if (this.matchConditions(conditions.rules || [], data)) {
@@ -126,13 +141,13 @@ export class PlaybookEngine {
   // ─────────────────────────────────────────────────────────
 
   async executePlaybook(
-    playbook: any,
-    triggerData: any,
+    playbook: Playbook,
+    triggerData: Record<string, unknown>,
     dryRun = false,
   ): Promise<PlaybookExecutionResult> {
     const executionId = crypto.randomUUID();
-    const actions = playbook.actions as PlaybookActionDto[];
-    const context: Record<string, any> = { trigger: triggerData, results: {} };
+    const actions = playbook.actions as unknown as PlaybookActionDto[];
+    const context: ActionContext = { trigger: triggerData, results: {} };
     const executedActions: ActionExecutionResult[] = [];
     const pendingApprovals: PendingApproval[] = [];
 
@@ -278,7 +293,7 @@ export class PlaybookEngine {
 
   private async executeActionWithRetry(
     action: PlaybookActionDto,
-    context: any,
+    context: ActionContext,
     dryRun: boolean,
   ): Promise<ActionExecutionResult> {
     const maxRetries = action.retryPolicy?.maxRetries ?? 3;
@@ -336,7 +351,7 @@ export class PlaybookEngine {
   // Real Action Implementations
   // ─────────────────────────────────────────────────────────
 
-  private async executeAction(action: PlaybookActionDto, context: any): Promise<any> {
+  private async executeAction(action: PlaybookActionDto, context: ActionContext): Promise<unknown> {
     const timeoutMs = action.timeoutMs || 30000;
 
     return Promise.race([
@@ -345,19 +360,22 @@ export class PlaybookEngine {
     ]);
   }
 
-  private async doExecuteAction(action: PlaybookActionDto, context: any): Promise<any> {
+  private async doExecuteAction(
+    action: PlaybookActionDto,
+    context: ActionContext,
+  ): Promise<unknown> {
     switch (action.type) {
       case PlaybookActionType.ENRICH_ALERT:
         return this.threatIntel.enrichAlert(context.trigger);
 
       case PlaybookActionType.LOOKUP_IOC: {
-        const value = this.resolveParam(action.params?.value || '', context);
+        const value = this.resolveParam(String(action.params?.value || ''), context);
         return this.threatIntel.lookup(value);
       }
 
       case PlaybookActionType.BLOCK_IP: {
-        const ip = this.resolveParam(action.params?.ip || '', context);
-        const agentId = this.resolveParam(action.params?.agentId || '000', context);
+        const ip = this.resolveParam(String(action.params?.ip || ''), context);
+        const agentId = this.resolveParam(String(action.params?.agentId || '000'), context);
         this.logger.warn(`[SOAR] Blocking IP: ${ip} via Wazuh agent ${agentId}`);
 
         // Real action: call Wazuh active response
@@ -379,8 +397,8 @@ export class PlaybookEngine {
       }
 
       case PlaybookActionType.ISOLATE_HOST: {
-        const hostname = this.resolveParam(action.params?.hostname || '', context);
-        const agentId = this.resolveParam(action.params?.agentId || '', context);
+        const hostname = this.resolveParam(String(action.params?.hostname || ''), context);
+        const agentId = this.resolveParam(String(action.params?.agentId || ''), context);
         this.logger.warn(`[SOAR] Isolating host: ${hostname} (agent: ${agentId})`);
 
         // Real action: Wazuh active response for network isolation
@@ -391,7 +409,7 @@ export class PlaybookEngine {
       }
 
       case PlaybookActionType.REVOKE_SESSIONS: {
-        const userId = this.resolveParam(action.params?.userId || '', context);
+        const userId = this.resolveParam(String(action.params?.userId || ''), context);
         this.logger.warn(`[SOAR] Revoking all sessions for user: ${userId}`);
 
         // Real action: invalidate all tokens in Redis
@@ -413,7 +431,7 @@ export class PlaybookEngine {
       }
 
       case PlaybookActionType.DISABLE_USER: {
-        const userId = this.resolveParam(action.params?.userId || '', context);
+        const userId = this.resolveParam(String(action.params?.userId || ''), context);
         this.logger.warn(`[SOAR] Disabling user: ${userId}`);
 
         await this.prisma.user.update({
@@ -423,7 +441,11 @@ export class PlaybookEngine {
 
         // Also revoke sessions
         await this.doExecuteAction(
-          { ...action, type: PlaybookActionType.REVOKE_SESSIONS, params: { userId } } as any,
+          {
+            ...action,
+            type: PlaybookActionType.REVOKE_SESSIONS,
+            params: { userId },
+          } as PlaybookActionDto,
           context,
         );
 
@@ -431,19 +453,22 @@ export class PlaybookEngine {
       }
 
       case PlaybookActionType.CREATE_INCIDENT: {
-        const title = this.resolveParam(action.params?.title || 'Auto-generated incident', context);
+        const title = this.resolveParam(
+          String(action.params?.title || 'Auto-generated incident'),
+          context,
+        );
         this.eventEmitter.emit('soar.create_incident', {
           title,
           severity: action.params?.severity || 'high',
           source: 'soar_playbook',
-          description: this.resolveParam(action.params?.description || '', context),
+          description: this.resolveParam(String(action.params?.description || ''), context),
           mitreTechniques: action.params?.mitreTechniques || [],
         });
         return { created: true, title };
       }
 
       case PlaybookActionType.NOTIFY: {
-        const message = this.resolveParam(action.params?.message || '', context);
+        const message = this.resolveParam(String(action.params?.message || ''), context);
         this.eventEmitter.emit('notification.send', {
           channel: action.params?.channel || 'websocket',
           message,
@@ -453,16 +478,23 @@ export class PlaybookEngine {
       }
 
       case PlaybookActionType.ESCALATE: {
-        this.logger.warn(`[SOAR] Escalating to: ${action.params?.team}`);
+        const teamStr =
+          typeof action.params?.team === 'string'
+            ? action.params.team
+            : JSON.stringify(action.params?.team ?? '');
+
+        this.logger.warn(`[SOAR] Escalating to: ${teamStr}`);
+
         this.eventEmitter.emit('soar.escalate', {
           team: action.params?.team,
-          reason: this.resolveParam(action.params?.reason || '', context),
+          reason: this.resolveParam(String(action.params?.reason || ''), context),
         });
+
         return { escalated: action.params?.team };
       }
 
       case PlaybookActionType.WEBHOOK: {
-        const url = this.resolveParam(action.params?.url || '', context);
+        const url = this.resolveParam(String(action.params?.url || ''), context);
         const payload = action.params?.payload
           ? JSON.parse(this.resolveParam(JSON.stringify(action.params.payload), context))
           : context.trigger;
@@ -479,14 +511,14 @@ export class PlaybookEngine {
       }
 
       case PlaybookActionType.TAG_ASSET: {
-        const assetId = this.resolveParam(action.params?.assetId || '', context);
+        const assetId = this.resolveParam(String(action.params?.assetId || ''), context);
         const tags = action.params?.tags || [];
         // Tag asset via assets service
         return { tagged: assetId, tags };
       }
 
       default:
-        this.logger.warn(`Unknown action type: ${action.type}`);
+        this.logger.warn(`Unknown action type: ${String(action.type)}`);
         return null;
     }
   }
@@ -497,9 +529,9 @@ export class PlaybookEngine {
 
   private async requestApproval(
     executionId: string,
-    playbook: any,
+    playbook: Playbook,
     action: PlaybookActionDto,
-    context: any,
+    context: ActionContext,
   ): Promise<PendingApproval> {
     const approvalId = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + this.APPROVAL_TTL_SECONDS * 1000);
@@ -610,7 +642,7 @@ export class PlaybookEngine {
     );
   }
 
-  private async resumeExecution(approval: PendingApproval) {
+  private async resumeExecution(approval: PendingApproval): Promise<void> {
     const execution = await this.redis.getJson<PlaybookExecutionResult>(
       `${this.EXECUTION_KEY_PREFIX}${approval.executionId}`,
     );
@@ -626,7 +658,7 @@ export class PlaybookEngine {
     const action = actions.find((a) => a.id === approval.actionId);
     if (!action) return;
 
-    const context = approval.context;
+    const context = approval.context as unknown as ActionContext;
     const result = await this.executeActionWithRetry(action, context, false);
 
     this.logger.log(`[SOAR] Resumed action "${action.name}" after approval: ${result.status}`);
@@ -655,7 +687,6 @@ export class PlaybookEngine {
       visited.add(actionId);
       recursionStack.add(actionId);
 
-      const action = actions.find((a) => a.id === actionId);
       const dependents = actions.filter((a) => a.dependsOn?.includes(actionId));
 
       for (const dependent of dependents) {
@@ -697,6 +728,8 @@ export class PlaybookEngine {
 
     while (queue.length > 0) {
       const current = queue.shift();
+      if (!current) break;
+
       sorted.push(current);
       visited.add(current);
 
@@ -722,29 +755,31 @@ export class PlaybookEngine {
   // Condition Matching (enhanced)
   // ─────────────────────────────────────────────────────────
 
-  matchConditions(conditions: PlaybookConditionDto[], data: any): boolean {
+  matchConditions(conditions: PlaybookConditionDto[], data: Record<string, unknown>): boolean {
     return conditions.every((condition) => {
       const value = this.getNestedValue(data, condition.field);
+      const condVal = condition.value;
+
       switch (condition.operator) {
         case ConditionOperator.EQ:
-          return value === condition.value;
+          return value === condVal;
         case ConditionOperator.NOT_EQ:
-          return value !== condition.value;
+          return value !== condVal;
         case ConditionOperator.GT:
-          return value > condition.value;
+          return Number(value) > Number(condVal);
         case ConditionOperator.LT:
-          return value < condition.value;
+          return Number(value) < Number(condVal);
         case ConditionOperator.GTE:
-          return value >= condition.value;
+          return Number(value) >= Number(condVal);
         case ConditionOperator.LTE:
-          return value <= condition.value;
+          return Number(value) <= Number(condVal);
         case ConditionOperator.CONTAINS:
-          return String(value).toLowerCase().includes(String(condition.value).toLowerCase());
+          return String(value).toLowerCase().includes(String(condVal).toLowerCase());
         case ConditionOperator.IN:
-          return Array.isArray(condition.value) && condition.value.includes(value);
+          return Array.isArray(condVal) && condVal.includes(value);
         case ConditionOperator.REGEX:
           try {
-            return new RegExp(condition.value).test(String(value));
+            return new RegExp(String(condVal)).test(String(value));
           } catch {
             return false;
           }
@@ -767,14 +802,21 @@ export class PlaybookEngine {
     return action.riskLevel === PlaybookRiskLevel.CRITICAL || highRiskTypes.includes(action.type);
   }
 
-  private resolveParam(param: string, context: any): string {
-    return param.replace(/\{\{(\w+(?:\.\w+)*)\}\}/g, (_, path) => {
-      return this.getNestedValue(context, path) ?? '';
+  private resolveParam(param: string, context: ActionContext): string {
+    return param.replace(/\{\{(\w+(?:\.\w+)*)\}\}/g, (_match: string, path: string) => {
+      const val = this.getNestedValue(context, path);
+      return val !== undefined && val !== null ? String(val) : '';
     });
   }
 
-  private getNestedValue(obj: any, path: string): any {
-    return path.split('.').reduce((acc, key) => acc?.[key], obj);
+  private getNestedValue(obj: unknown, path: string): unknown {
+    if (!obj || typeof obj !== 'object') return undefined;
+    return path.split('.').reduce<unknown>((acc, key) => {
+      if (acc && typeof acc === 'object' && key in acc) {
+        return (acc as Record<string, unknown>)[key];
+      }
+      return undefined;
+    }, obj);
   }
 
   private sleep(ms: number): Promise<void> {

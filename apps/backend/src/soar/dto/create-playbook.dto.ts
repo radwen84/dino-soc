@@ -59,7 +59,7 @@ export class PlaybookConditionDto {
 
   @ApiProperty({ description: 'Value to compare against' })
   @Allow()
-  value: any;
+  value: unknown;
 }
 
 export class RetryPolicyDto {
@@ -98,7 +98,7 @@ export class PlaybookActionDto {
   @IsOptional()
   @IsObject()
   @Allow()
-  params?: Record<string, any>;
+  params?: Record<string, unknown>;
 
   @ApiPropertyOptional({ enum: PlaybookRiskLevel, default: PlaybookRiskLevel.LOW })
   @IsOptional()
@@ -186,13 +186,13 @@ export class ExecutePlaybookDto {
   @IsOptional()
   @IsObject()
   @Allow()
-  testData?: Record<string, any>;
+  testData?: Record<string, unknown>;
 
   @ApiPropertyOptional({ description: 'Trigger data alias' })
   @IsOptional()
   @IsObject()
   @Allow()
-  triggerData?: Record<string, any>;
+  triggerData?: Record<string, unknown>;
 
   @ApiPropertyOptional({ default: false, description: 'Dry-run mode (no real actions executed)' })
   @IsOptional()

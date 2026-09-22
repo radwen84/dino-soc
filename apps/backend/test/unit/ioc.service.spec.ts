@@ -41,6 +41,7 @@ describe('IocService', () => {
     service = module.get<IocService>(IocService);
     prisma = module.get(PrismaService);
 
+    expect(prisma).toBeDefined();
     jest.clearAllMocks();
   });
 

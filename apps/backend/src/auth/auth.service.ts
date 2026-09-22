@@ -9,6 +9,19 @@ import { AuditService } from '../audit/audit.service';
 import { RedisService } from '../redis/redis.service';
 import { JwtPayload } from '../common/decorators/current-user.decorator';
 
+export interface AuthUser {
+  id: string;
+  email: string;
+  name: string;
+  passwordHash: string;
+  roles: string[];
+  isActive: boolean;
+  mfaEnabled: boolean;
+  mfaSecret: string | null;
+  failedLoginAttempts: number;
+  lockedUntil: Date | null;
+}
+
 interface LoginResponse {
   accessToken: string;
   refreshToken: string;
@@ -103,7 +116,7 @@ export class AuthService {
   // AUTH FLOW
   // ============================================
 
-  async validateUser(email: string, password: string, ip: string): Promise<any> {
+  async validateUser(email: string, password: string, ip: string): Promise<AuthUser> {
     const user = await this.usersService.findByEmail(email);
 
     if (!user) {
@@ -143,11 +156,11 @@ export class AuthService {
       await this.usersService.resetFailedAttempts(user.id);
     }
 
-    return user;
+    return user as AuthUser;
   }
 
   async login(
-    user: any,
+    user: AuthUser,
     ip: string,
     totpToken?: string,
   ): Promise<LoginResponse | MfaPendingResponse> {
@@ -168,7 +181,10 @@ export class AuthService {
         throw new UnauthorizedException('MFA token already used. Please wait for a new code.');
       }
 
-      const isValidTotp = this.totpService.verifyToken(user.mfaSecret, totpToken);
+      const isValidTotp = user.mfaSecret
+        ? this.totpService.verifyToken(user.mfaSecret, totpToken)
+        : false;
+
       if (!isValidTotp) {
         // Phase 2.4: MFA failures count toward account lockout
         const attempts = await this.usersService.incrementFailedAttempts(user.id);
@@ -239,7 +255,10 @@ export class AuthService {
         throw new UnauthorizedException('MFA token already used. Please wait for a new code.');
       }
 
-      const isValid = this.totpService.verifyToken(user.mfaSecret, totpToken);
+      const isValid = user.mfaSecret
+        ? this.totpService.verifyToken(user.mfaSecret, totpToken)
+        : false;
+
       if (!isValid) {
         // Phase 2.4: MFA failures count toward lockout
         const attempts = await this.usersService.incrementFailedAttempts(user.id);
@@ -258,7 +277,7 @@ export class AuthService {
         await this.usersService.resetFailedAttempts(user.id);
       }
 
-      return (await this.login({ ...user, mfaEnabled: false }, ip)) as LoginResponse;
+      return (await this.login({ ...(user as AuthUser), mfaEnabled: false }, ip)) as LoginResponse;
     } catch (error) {
       if (error instanceof UnauthorizedException) throw error;
       throw new UnauthorizedException('Invalid or expired token');

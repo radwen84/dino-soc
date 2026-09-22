@@ -1,7 +1,8 @@
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import { Playbook, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
-import { PlaybookEngine } from './playbook-engine.service';
+import { PlaybookEngine, PlaybookExecutionResult } from './playbook-engine.service';
 import { CreatePlaybookDto, ExecutePlaybookDto } from './dto/create-playbook.dto';
 
 @Injectable()
@@ -14,14 +15,14 @@ export class SoarService {
     private readonly playbookEngine: PlaybookEngine,
   ) {}
 
-  async getPlaybooks() {
+  async getPlaybooks(): Promise<Playbook[]> {
     return this.prisma.playbook.findMany({
       orderBy: { createdAt: 'desc' },
       include: { createdBy: { select: { id: true, name: true } } },
     });
   }
 
-  async getPlaybook(id: string) {
+  async getPlaybook(id: string): Promise<Playbook> {
     const playbook = await this.prisma.playbook.findUnique({
       where: { id },
       include: { createdBy: { select: { id: true, name: true } } },
@@ -30,7 +31,7 @@ export class SoarService {
     return playbook;
   }
 
-  async createPlaybook(dto: CreatePlaybookDto, userId: string) {
+  async createPlaybook(dto: CreatePlaybookDto, userId: string): Promise<Playbook> {
     // Validate DAG before saving
     if (!this.playbookEngine.validateDAG(dto.actions)) {
       throw new BadRequestException(
@@ -42,8 +43,8 @@ export class SoarService {
       data: {
         name: dto.name,
         description: dto.description,
-        triggerConditions: dto.triggerConditions as any,
-        actions: dto.actions as any,
+        triggerConditions: dto.triggerConditions as unknown as Prisma.InputJsonValue,
+        actions: dto.actions as unknown as Prisma.InputJsonValue,
         isActive: dto.isActive ?? true,
         createdById: userId,
       },
@@ -59,7 +60,7 @@ export class SoarService {
     return playbook;
   }
 
-  async togglePlaybook(id: string, userId: string) {
+  async togglePlaybook(id: string, userId: string): Promise<Playbook> {
     const playbook = await this.getPlaybook(id);
     const updated = await this.prisma.playbook.update({
       where: { id },
@@ -76,7 +77,11 @@ export class SoarService {
     return updated;
   }
 
-  async executeManually(id: string, dto: ExecutePlaybookDto, userId: string) {
+  async executeManually(
+    id: string,
+    dto: ExecutePlaybookDto,
+    userId: string,
+  ): Promise<PlaybookExecutionResult> {
     const playbook = await this.getPlaybook(id);
     this.logger.log(`Manual execution of playbook: ${playbook.name} (dryRun=${dto.dryRun})`);
 
@@ -96,7 +101,7 @@ export class SoarService {
     return result;
   }
 
-  async getDefaultPlaybooks() {
+  async getDefaultPlaybooks(): Promise<Partial<Playbook>[]> {
     return [
       {
         name: 'Auto-enrich critical alerts',

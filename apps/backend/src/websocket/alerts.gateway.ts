@@ -12,6 +12,41 @@ import { Interval } from '@nestjs/schedule';
 import { AlertsService } from '../alerts/alerts.service';
 import { IncidentsService } from '../incidents/incidents.service';
 
+// Interfaces pour typer les évènements et objets
+export interface AlertData {
+  id: string;
+  level: number;
+  ruleDescription?: string;
+  srcIp?: string;
+  agentName?: string;
+  mitreTechnique?: string;
+  timestamp?: string | Date;
+  [key: string]: unknown;
+}
+
+export interface IncidentData {
+  id: string;
+  title: string;
+  severity: string;
+  status: string;
+  [key: string]: unknown;
+}
+
+export interface IncidentStatusChangedData {
+  incident: IncidentData;
+  previousStatus: string;
+  newStatus: string;
+}
+
+interface IncidentStats {
+  overview: {
+    openIncidents: number;
+    criticalIncidents: number;
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+}
+
 @WebSocketGateway({
   namespace: '/ws',
   cors: {
@@ -56,7 +91,7 @@ export class AlertsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   // Listen for new alerts from event emitter
   @OnEvent('alert.new')
-  handleNewAlert(alert: any): void {
+  handleNewAlert(alert: AlertData): void {
     this.server.emit('alert:new', {
       id: alert.id,
       level: alert.level,
@@ -70,7 +105,7 @@ export class AlertsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   // Listen for incident changes
   @OnEvent('incident.created')
-  handleIncidentCreated(incident: any): void {
+  handleIncidentCreated(incident: IncidentData): void {
     this.server.emit('incident:created', {
       id: incident.id,
       title: incident.title,
@@ -80,7 +115,7 @@ export class AlertsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @OnEvent('incident.status_changed')
-  handleIncidentStatusChanged(data: any): void {
+  handleIncidentStatusChanged(data: IncidentStatusChangedData): void {
     this.server.emit('incident:updated', {
       id: data.incident.id,
       previousStatus: data.previousStatus,
@@ -95,7 +130,7 @@ export class AlertsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     try {
       const alertCount = await this.alertsService.countByTimeRange(1);
-      const stats = await this.incidentsService.getStatistics();
+      const stats = (await this.incidentsService.getStatistics()) as unknown as IncidentStats;
 
       this.server.emit('stats:update', {
         alertsLastHour: alertCount,
@@ -110,7 +145,7 @@ export class AlertsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   // Manual broadcast method for other services
-  broadcastAlert(alert: any): void {
+  broadcastAlert(alert: AlertData): void {
     this.server.emit('alert:new', alert);
   }
 }

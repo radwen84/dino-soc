@@ -1,4 +1,32 @@
-export default () => ({
+export interface AppConfig {
+  nodeEnv: string;
+  api: {
+    port: number;
+    prefix: string;
+  };
+  database: {
+    url?: string;
+  };
+  jwt: {
+    secret?: string;
+    expiresIn: string;
+    refreshExpiresIn: string;
+  };
+  redis: {
+    host: string;
+    port: number;
+    password?: string;
+    url?: string;
+  };
+  opensearch: {
+    node: string;
+  };
+  cors: {
+    origins: string;
+  };
+}
+
+export default (): AppConfig => ({
   nodeEnv: process.env.NODE_ENV || 'development',
 
   api: {

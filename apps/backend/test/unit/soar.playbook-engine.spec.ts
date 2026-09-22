@@ -17,11 +17,11 @@ import {
 describe('PlaybookEngine', () => {
   let engine: PlaybookEngine;
   let module: TestingModule;
-  let mockPrisma: any;
-  let mockRedis: any;
-  let mockWazuh: any;
-  let mockEventEmitter: any;
-  let mockThreatIntel: any;
+  let mockPrisma: Record<string, Record<string, jest.Mock>>;
+  let mockRedis: Record<string, jest.Mock>;
+  let mockWazuh: Record<string, jest.Mock>;
+  let mockEventEmitter: Record<string, jest.Mock>;
+  let mockThreatIntel: Record<string, jest.Mock>;
 
   beforeEach(async () => {
     // Activer les fakes timers pour intercepter les setTimeout pendant l'exécution
@@ -195,6 +195,7 @@ describe('PlaybookEngine', () => {
     const mockPlaybook = {
       id: 'pb-uuid',
       name: 'Test Playbook',
+      description: 'Test description',
       triggerConditions: { triggerType: 'alert', rules: [] },
       actions: [
         { id: 'a1', name: 'Enrich', type: PlaybookActionType.ENRICH_ALERT, params: {} },
@@ -206,6 +207,10 @@ describe('PlaybookEngine', () => {
         },
       ],
       isActive: true,
+      lastTriggered: new Date(),
+      executionCount: 0,
+      createdById: 'user-uuid',
+      createdAt: new Date(),
     };
 
     it('should execute playbook actions sequentially', async () => {
@@ -223,7 +228,8 @@ describe('PlaybookEngine', () => {
       const result = await engine.executePlaybook(mockPlaybook, { srcIp: '1.2.3.4' }, true);
 
       expect(result.status).toBe('dry_run');
-      expect(result.executedActions[0].output.dryRun).toBe(true);
+      // Replacement of 'any' with 'unknown'
+      expect((result.executedActions[0].output as Record<string, unknown>)?.dryRun).toBe(true);
       expect(mockWazuh.blockIP).not.toHaveBeenCalled();
       expect(mockPrisma.playbook.update).not.toHaveBeenCalled();
     });

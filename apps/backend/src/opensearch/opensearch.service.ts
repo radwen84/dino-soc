@@ -35,7 +35,7 @@ export class OpenSearchService implements OnModuleInit {
     }
   }
 
-  async search(index: string, body: any): Promise<any> {
+  async search(index: string, body: Record<string, unknown>): Promise<unknown> {
     try {
       const response = await this.client.search({ index, body });
       return response.body;
@@ -45,31 +45,49 @@ export class OpenSearchService implements OnModuleInit {
     }
   }
 
-  async index(indexName: string, document: any, id?: string): Promise<any> {
-    const params: any = { index: indexName, body: document };
+  async index(indexName: string, document: Record<string, unknown>, id?: string): Promise<unknown> {
+    const params: { index: string; body: Record<string, unknown>; id?: string } = {
+      index: indexName,
+      body: document,
+    };
     if (id) params.id = id;
     return this.client.index(params);
   }
 
-  async aggregate(index: string, aggs: any, query?: any): Promise<any> {
-    const body: any = { size: 0, aggs };
+  async aggregate(
+    index: string,
+    aggs: Record<string, unknown>,
+    query?: Record<string, unknown>,
+  ): Promise<unknown> {
+    const body: Record<string, unknown> = { size: 0, aggs };
     if (query) body.query = query;
 
     const response = await this.client.search({ index, body });
     return response.body.aggregations;
   }
 
-  async count(index: string, query?: any): Promise<number> {
-    const body: any = query ? { query } : {};
+  async count(index: string, query?: Record<string, unknown>): Promise<number> {
+    const body: Record<string, unknown> = query ? { query } : {};
     const response = await this.client.count({ index, body });
     return response.body.count;
   }
 
-  async getAlertsByTimeRange(startDate: Date, endDate: Date, level?: number) {
-    const query: any = {
+  async getAlertsByTimeRange(startDate: Date, endDate: Date, level?: number): Promise<unknown> {
+    const query: {
+      bool: {
+        must: Array<Record<string, unknown>>;
+      };
+    } = {
       bool: {
         must: [
-          { range: { '@timestamp': { gte: startDate.toISOString(), lte: endDate.toISOString() } } },
+          {
+            range: {
+              '@timestamp': {
+                gte: startDate.toISOString(),
+                lte: endDate.toISOString(),
+              },
+            },
+          },
         ],
       },
     };
@@ -85,7 +103,7 @@ export class OpenSearchService implements OnModuleInit {
     });
   }
 
-  async getMitreStats(days: number = 30) {
+  async getMitreStats(days = 30): Promise<unknown> {
     const since = new Date(Date.now() - days * 86400000);
     return this.aggregate(
       'wazuh-alerts-*',
@@ -103,7 +121,7 @@ export class OpenSearchService implements OnModuleInit {
     );
   }
 
-  async getTopSourceIPs(limit: number = 20, hours: number = 24) {
+  async getTopSourceIPs(limit = 20, hours = 24): Promise<unknown> {
     const since = new Date(Date.now() - hours * 3600000);
     return this.aggregate(
       'wazuh-alerts-*',

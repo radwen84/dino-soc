@@ -15,6 +15,13 @@ interface AbuseIpDbReport {
   categories: number[];
 }
 
+interface AbuseIpDbBlacklistEntry {
+  ipAddress: string;
+  abuseConfidenceScore: number;
+  countryCode?: string;
+  lastReportedAt?: string;
+}
+
 @Injectable()
 export class AbuseIpDbService {
   private readonly logger = new Logger(AbuseIpDbService.name);
@@ -52,7 +59,8 @@ export class AbuseIpDbService {
 
       return response.data.data as AbuseIpDbReport;
     } catch (error) {
-      this.logger.error(`AbuseIPDB check failed for ${ip}: ${error.message}`);
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`AbuseIPDB check failed for ${ip}: ${message}`);
       return null;
     }
   }
@@ -72,9 +80,11 @@ export class AbuseIpDbService {
         }),
       );
 
-      return response.data.data.map((entry: any) => entry.ipAddress);
+      const entries = response.data.data as AbuseIpDbBlacklistEntry[];
+      return entries.map((entry) => entry.ipAddress);
     } catch (error) {
-      this.logger.error(`AbuseIPDB blacklist fetch failed: ${error.message}`);
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`AbuseIPDB blacklist fetch failed: ${message}`);
       return [];
     }
   }

@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { AuditLog, Prisma } from '@prisma/client';
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -54,7 +54,7 @@ export class AuditService {
     }
   }
 
-  async findByUser(userId: string, limit: number = 50) {
+  async findByUser(userId: string, limit: number = 50): Promise<AuditLog[]> {
     return this.prisma.auditLog.findMany({
       where: { userId },
       orderBy: { timestamp: 'desc' },
@@ -62,7 +62,7 @@ export class AuditService {
     });
   }
 
-  async findByAction(action: string, limit: number = 50) {
+  async findByAction(action: string, limit: number = 50): Promise<AuditLog[]> {
     return this.prisma.auditLog.findMany({
       where: { action },
       orderBy: { timestamp: 'desc' },
@@ -70,7 +70,7 @@ export class AuditService {
     });
   }
 
-  async findRecent(limit: number = 100) {
+  async findRecent(limit: number = 100): Promise<AuditLog[]> {
     return this.prisma.auditLog.findMany({
       orderBy: { timestamp: 'desc' },
       take: limit,

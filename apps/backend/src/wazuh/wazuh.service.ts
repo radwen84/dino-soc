@@ -2,6 +2,33 @@ import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
+import * as https from 'https';
+
+export interface WazuhResponse<T = unknown> {
+  data: T;
+  error: number;
+  message?: string;
+}
+
+export interface WazuhAgentSummaryResponse {
+  connection: {
+    active: number;
+    disconnected: number;
+    never_connected: number;
+    pending: number;
+    total: number;
+  };
+}
+
+export interface ActiveResponseBody {
+  command: string;
+  arguments: string[];
+  alert: {
+    data: {
+      srcip?: string;
+    };
+  };
+}
 
 @Injectable()
 export class WazuhService {
@@ -30,12 +57,16 @@ export class WazuhService {
 
     try {
       const response = await firstValueFrom(
-        this.httpService.post(`${this.baseUrl}/security/user/authenticate`, null, {
-          auth: { username: user, password: password },
-          httpsAgent: new (require('https').Agent)({
-            rejectUnauthorized: nodeEnv === 'production',
-          }),
-        }),
+        this.httpService.post<WazuhResponse<{ token: string }>>(
+          `${this.baseUrl}/security/user/authenticate`,
+          null,
+          {
+            auth: { username: user, password: password ?? '' },
+            httpsAgent: new https.Agent({
+              rejectUnauthorized: nodeEnv === 'production',
+            }),
+          },
+        ),
       );
       this.token = response.data.data.token;
       this.tokenExpiry = Date.now() + 850000; // ~14 minutes
@@ -46,18 +77,22 @@ export class WazuhService {
     }
   }
 
-  private async request(method: string, path: string, data?: any): Promise<any> {
+  private async request<T = unknown>(
+    method: string,
+    path: string,
+    data?: Record<string, unknown> | ActiveResponseBody,
+  ): Promise<T> {
     const token = await this.authenticate();
     const nodeEnv = this.configService.get<string>('NODE_ENV', 'development');
 
     try {
       const response = await firstValueFrom(
-        this.httpService.request({
+        this.httpService.request<T>({
           method,
           url: `${this.baseUrl}${path}`,
           data,
           headers: { Authorization: `Bearer ${token}` },
-          httpsAgent: new (require('https').Agent)({
+          httpsAgent: new https.Agent({
             rejectUnauthorized: nodeEnv === 'production',
           }),
         }),
@@ -69,54 +104,61 @@ export class WazuhService {
     }
   }
 
-  async getAgents(): Promise<any> {
-    return this.request('GET', '/agents?pretty=true&sort=-lastKeepAlive');
+  async getAgents<T = unknown>(): Promise<T> {
+    return this.request<T>('GET', '/agents?pretty=true&sort=-lastKeepAlive');
   }
 
-  async getAgentById(agentId: string): Promise<any> {
-    return this.request('GET', `/agents?agents_list=${agentId}`);
+  async getAgentById<T = unknown>(agentId: string): Promise<T> {
+    return this.request<T>('GET', `/agents?agents_list=${agentId}`);
   }
 
   async getActiveAgentsCount(): Promise<number> {
-    const result = await this.request('GET', '/agents/summary/status');
+    const result = await this.request<WazuhResponse<WazuhAgentSummaryResponse>>(
+      'GET',
+      '/agents/summary/status',
+    );
     return result.data.connection.active;
   }
 
-  async getAlerts(limit: number = 100, offset: number = 0): Promise<any> {
-    return this.request('GET', `/alerts?limit=${limit}&offset=${offset}&sort=-timestamp`);
+  async getAlerts<T = unknown>(limit: number = 100, offset: number = 0): Promise<T> {
+    return this.request<T>('GET', `/alerts?limit=${limit}&offset=${offset}&sort=-timestamp`);
   }
 
-  async getRules(): Promise<any> {
-    return this.request('GET', '/rules?pretty=true&limit=500');
+  async getRules<T = unknown>(): Promise<T> {
+    return this.request<T>('GET', '/rules?pretty=true&limit=500');
   }
 
-  async getVulnerabilities(agentId: string): Promise<any> {
-    return this.request('GET', `/vulnerability/${agentId}`);
+  async getVulnerabilities<T = unknown>(agentId: string): Promise<T> {
+    return this.request<T>('GET', `/vulnerability/${agentId}`);
   }
 
-  async getSCAResults(agentId: string): Promise<any> {
-    return this.request('GET', `/sca/${agentId}`);
+  async getSCAResults<T = unknown>(agentId: string): Promise<T> {
+    return this.request<T>('GET', `/sca/${agentId}`);
   }
 
-  async triggerActiveResponse(agentId: string, command: string, ip?: string): Promise<any> {
-    const body: any = {
+  async triggerActiveResponse<T = unknown>(
+    agentId: string,
+    command: string,
+    ip?: string,
+  ): Promise<T> {
+    const body: ActiveResponseBody = {
       command,
       arguments: ip ? [ip] : [],
       alert: { data: { srcip: ip } },
     };
-    return this.request('PUT', `/active-response?agents_list=${agentId}`, body);
+    return this.request<T>('PUT', `/active-response?agents_list=${agentId}`, body);
   }
 
-  async blockIP(agentId: string, ip: string): Promise<any> {
+  async blockIP<T = unknown>(agentId: string, ip: string): Promise<T> {
     this.logger.warn(`Blocking IP ${ip} on agent ${agentId}`);
-    return this.triggerActiveResponse(agentId, 'firewall-drop', ip);
+    return this.triggerActiveResponse<T>(agentId, 'firewall-drop', ip);
   }
 
-  async getClusterStatus(): Promise<any> {
-    return this.request('GET', '/cluster/status');
+  async getClusterStatus<T = unknown>(): Promise<T> {
+    return this.request<T>('GET', '/cluster/status');
   }
 
-  async getManagerInfo(): Promise<any> {
-    return this.request('GET', '/manager/info');
+  async getManagerInfo<T = unknown>(): Promise<T> {
+    return this.request<T>('GET', '/manager/info');
   }
 }

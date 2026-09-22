@@ -9,8 +9,13 @@ import {
   ParseUUIDPipe,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { Playbook } from '@prisma/client';
 import { SoarService } from './soar.service';
-import { PlaybookEngine } from './playbook-engine.service';
+import {
+  PlaybookEngine,
+  PlaybookExecutionResult,
+  PendingApproval,
+} from './playbook-engine.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -31,20 +36,20 @@ export class SoarController {
   @Get('playbooks')
   @Roles('admin', 'analyst_l2', 'analyst_l3')
   @ApiOperation({ summary: 'List all playbooks' })
-  getPlaybooks() {
+  getPlaybooks(): Promise<Playbook[]> {
     return this.soarService.getPlaybooks();
   }
 
   @Get('playbooks/defaults')
   @Roles('admin')
   @ApiOperation({ summary: 'Get default playbook templates' })
-  getDefaults() {
+  getDefaults(): Promise<Partial<Playbook>[]> {
     return this.soarService.getDefaultPlaybooks();
   }
 
   @Get('playbooks/:id')
   @Roles('admin', 'analyst_l2', 'analyst_l3')
-  getPlaybook(@Param('id', ParseUUIDPipe) id: string) {
+  getPlaybook(@Param('id', ParseUUIDPipe) id: string): Promise<Playbook> {
     return this.soarService.getPlaybook(id);
   }
 
@@ -52,14 +57,17 @@ export class SoarController {
   @Roles('admin', 'analyst_l3')
   @ApiOperation({ summary: 'Create a new playbook' })
   @ApiResponse({ status: 201, description: 'Playbook created successfully' })
-  create(@Body() dto: CreatePlaybookDto, @CurrentUser('id') userId: string) {
+  create(@Body() dto: CreatePlaybookDto, @CurrentUser('id') userId: string): Promise<Playbook> {
     return this.soarService.createPlaybook(dto, userId);
   }
 
   @Patch('playbooks/:id/toggle')
   @Roles('admin', 'analyst_l3')
   @ApiOperation({ summary: 'Enable/disable a playbook' })
-  toggle(@Param('id', ParseUUIDPipe) id: string, @CurrentUser('id') userId: string) {
+  toggle(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') userId: string,
+  ): Promise<Playbook> {
     return this.soarService.togglePlaybook(id, userId);
   }
 
@@ -71,7 +79,7 @@ export class SoarController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ExecutePlaybookDto,
     @CurrentUser('id') userId: string,
-  ) {
+  ): Promise<PlaybookExecutionResult> {
     return this.soarService.executeManually(id, dto, userId);
   }
 
@@ -82,7 +90,7 @@ export class SoarController {
   @Get('approvals')
   @Roles('admin', 'analyst_l3', 'incident_responder')
   @ApiOperation({ summary: 'List pending approval requests' })
-  getPendingApprovals() {
+  getPendingApprovals(): Promise<PendingApproval[]> {
     return this.playbookEngine.getPendingApprovals();
   }
 
@@ -94,7 +102,7 @@ export class SoarController {
     @Param('id') approvalId: string,
     @Body() dto: ApprovalDecisionDto,
     @CurrentUser('id') userId: string,
-  ) {
+  ): Promise<PendingApproval | null> {
     return this.playbookEngine.processApproval(approvalId, dto.decision, userId, dto.reason);
   }
 }

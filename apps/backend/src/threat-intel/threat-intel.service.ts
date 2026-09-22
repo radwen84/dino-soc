@@ -7,6 +7,7 @@ import { MispFeedService } from './feeds/misp-feed.service';
 import { StixTaxiiService } from './feeds/stix-taxii.service';
 import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { IOC } from '@prisma/client';
 
 // ─────────────────────────────────────────────────────────────
 // Interfaces
@@ -14,7 +15,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 
 export interface ProviderResult {
   status: 'fulfilled' | 'rejected';
-  data?: any;
+  data?: unknown;
   error?: string;
 }
 
@@ -30,13 +31,41 @@ export interface ThreatLookupResult {
     otx: ProviderResult;
     stix_taxii: ProviderResult;
   };
-  localIocMatch?: any;
+  localIocMatch?: IOC | null;
 }
 
 export interface AlertEnrichmentResult {
   srcIp?: ThreatLookupResult;
   dstIp?: ThreatLookupResult;
   domain?: ThreatLookupResult;
+}
+
+export interface FeedSyncResult {
+  otx: number;
+  misp: number;
+  errors: string[];
+}
+
+export interface FeedStatusItem {
+  name: string;
+  enabled: boolean;
+  lastSync: string | null;
+}
+
+export interface FeedStatusResponse {
+  feeds: FeedStatusItem[];
+  nextSync: string;
+}
+
+interface MispSearchEventResponse {
+  Event: {
+    id: string;
+    threat_level_id: string;
+  };
+}
+
+interface OtxPulseResponse {
+  tags?: string[];
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -78,14 +107,15 @@ export class ThreatIntelService {
     ]);
 
     // Also check local IOC database
-    let localIocMatch: any = null;
+    let localIocMatch: IOC | null = null;
     try {
       const localMatches = await this.iocService.matchValue(value);
       if (localMatches.length > 0) {
         localIocMatch = localMatches[0];
       }
     } catch (error) {
-      this.logger.warn(`Local IOC DB lookup failed: ${error.message}`);
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`Local IOC DB lookup failed: ${message}`);
     }
 
     // Build structured response
@@ -185,7 +215,8 @@ export class ThreatIntelService {
       }
 
       const data = await response.json();
-      const events = data.response?.map((r: any) => r.Event) || [];
+      const events: MispSearchEventResponse['Event'][] =
+        data.response?.map((r: MispSearchEventResponse) => r.Event) || [];
 
       const threatLevel =
         events.length > 0 ? this.mapMispThreatLevel(events[0].threat_level_id) : 'None';
@@ -193,7 +224,7 @@ export class ThreatIntelService {
       return {
         events_count: events.length,
         threat_level: threatLevel,
-        event_ids: events.map((e: any) => e.id),
+        event_ids: events.map((e) => e.id),
       };
     } finally {
       clearTimeout(timeout);
@@ -258,7 +289,9 @@ export class ThreatIntelService {
 
       return {
         pulse_count: data.pulse_info?.count ?? data.count ?? 0,
-        tags: data.pulse_info?.pulses?.flatMap((p: any) => p.tags || [])?.slice(0, 10) || [],
+        tags:
+          data.pulse_info?.pulses?.flatMap((p: OtxPulseResponse) => p.tags || [])?.slice(0, 10) ||
+          [],
         first_seen: data.first_seen || undefined,
       };
     } finally {
@@ -319,7 +352,7 @@ export class ThreatIntelService {
    * Uses Promise.allSettled so one feed failure does not block others.
    */
   @Cron(CronExpression.EVERY_4_HOURS)
-  async syncFeeds() {
+  async syncFeeds(): Promise<FeedSyncResult> {
     this.logger.log('Starting threat intel feed sync...');
 
     const [otxResult, mispResult] = await Promise.allSettled([
@@ -327,10 +360,10 @@ export class ThreatIntelService {
       this.syncMispFeed(),
     ]);
 
-    const results = {
+    const results: FeedSyncResult = {
       otx: otxResult.status === 'fulfilled' ? otxResult.value : 0,
       misp: mispResult.status === 'fulfilled' ? mispResult.value : 0,
-      errors: [] as string[],
+      errors: [],
     };
 
     if (otxResult.status === 'rejected') {
@@ -370,7 +403,7 @@ export class ThreatIntelService {
   // Feed Status
   // ─────────────────────────────────────────────────────────
 
-  async getFeedStatus() {
+  async getFeedStatus(): Promise<FeedStatusResponse> {
     return {
       feeds: [
         {
@@ -404,7 +437,7 @@ export class ThreatIntelService {
   // Helpers
   // ─────────────────────────────────────────────────────────
 
-  private formatProviderResult(settled: PromiseSettledResult<any>): ProviderResult {
+  private formatProviderResult(settled: PromiseSettledResult<unknown>): ProviderResult {
     if (settled.status === 'fulfilled') {
       return { status: 'fulfilled', data: settled.value };
     }
@@ -420,7 +453,7 @@ export class ThreatIntelService {
    */
   private aggregateResults(
     sources: ThreatLookupResult['sources'],
-    localIocMatch: any,
+    localIocMatch: IOC | null,
   ): { malicious: boolean; confidence: number; riskLevel: ThreatLookupResult['riskLevel'] } {
     let totalScore = 0;
     let maxScore = 0;
@@ -436,7 +469,8 @@ export class ThreatIntelService {
     // MISP Local
     if (sources.misp_local.status === 'fulfilled' && sources.misp_local.data) {
       activeSources++;
-      const eventsCount = sources.misp_local.data.events_count || 0;
+      const data = sources.misp_local.data as { events_count?: number };
+      const eventsCount = data.events_count || 0;
       if (eventsCount > 0) {
         const mispScore = Math.min(70 + eventsCount * 10, 100);
         totalScore += mispScore;
@@ -447,7 +481,8 @@ export class ThreatIntelService {
     // AbuseIPDB
     if (sources.abuseipdb.status === 'fulfilled' && sources.abuseipdb.data) {
       activeSources++;
-      const abuseScore = sources.abuseipdb.data.score || 0;
+      const data = sources.abuseipdb.data as { score?: number };
+      const abuseScore = data.score || 0;
       if (abuseScore > 0) {
         totalScore += abuseScore;
         maxScore = Math.max(maxScore, abuseScore);
@@ -457,7 +492,8 @@ export class ThreatIntelService {
     // OTX
     if (sources.otx.status === 'fulfilled' && sources.otx.data) {
       activeSources++;
-      const pulseCount = sources.otx.data.pulse_count || 0;
+      const data = sources.otx.data as { pulse_count?: number };
+      const pulseCount = data.pulse_count || 0;
       if (pulseCount > 0) {
         const otxScore = Math.min(50 + pulseCount * 5, 95);
         totalScore += otxScore;
@@ -468,7 +504,8 @@ export class ThreatIntelService {
     // STIX/TAXII
     if (sources.stix_taxii.status === 'fulfilled' && sources.stix_taxii.data) {
       activeSources++;
-      const matches = sources.stix_taxii.data.matches || 0;
+      const data = sources.stix_taxii.data as { matches?: number };
+      const matches = data.matches || 0;
       if (matches > 0) {
         const stixScore = Math.min(60 + matches * 15, 95);
         totalScore += stixScore;

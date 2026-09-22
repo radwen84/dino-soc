@@ -6,6 +6,14 @@ import { authenticator } from 'otplib';
 import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
 
+interface IncidentResponseBody {
+  id: string;
+  title: string;
+  severity: string;
+  status: string;
+  [key: string]: unknown;
+}
+
 describe('Incidents (Integration)', () => {
   jest.setTimeout(30000);
 
@@ -125,7 +133,7 @@ describe('Incidents (Integration)', () => {
         .query({ severity: 'critical' })
         .expect(200);
 
-      res.body.data.forEach((incident: any) => {
+      res.body.data.forEach((incident: IncidentResponseBody) => {
         expect(incident.severity).toBe('critical');
       });
     });

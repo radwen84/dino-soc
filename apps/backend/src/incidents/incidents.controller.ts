@@ -33,7 +33,7 @@ export class IncidentsController {
   @Post()
   @Roles(SOCRole.ANALYST_L1, SOCRole.ANALYST_L2, SOCRole.ANALYST_L3, SOCRole.ADMIN)
   @ApiOperation({ summary: 'Create a new incident' })
-  async create(@Body() dto: CreateIncidentDto, @CurrentUser() user: JwtPayload) {
+  async create(@Body() dto: CreateIncidentDto, @CurrentUser() user: JwtPayload): Promise<unknown> {
     return this.incidentsService.create(dto, user.sub);
   }
 
@@ -48,14 +48,14 @@ export class IncidentsController {
     SOCRole.INCIDENT_RESPONDER,
   )
   @ApiOperation({ summary: 'List incidents with filters' })
-  async findAll(@Query() filters: IncidentFiltersDto) {
+  async findAll(@Query() filters: IncidentFiltersDto): Promise<unknown> {
     return this.incidentsService.findAll(filters);
   }
 
   @Get('statistics')
   @Roles(SOCRole.ANALYST_L1, SOCRole.ANALYST_L2, SOCRole.ANALYST_L3, SOCRole.ADMIN)
   @ApiOperation({ summary: 'Get incident statistics for dashboard' })
-  async getStatistics() {
+  async getStatistics(): Promise<unknown> {
     return this.incidentsService.getStatistics();
   }
 
@@ -68,7 +68,7 @@ export class IncidentsController {
     SOCRole.READONLY,
   )
   @ApiOperation({ summary: 'Get incident details' })
-  async findOne(@Param('id', ParseUUIDPipe) id: string) {
+  async findOne(@Param('id', ParseUUIDPipe) id: string): Promise<unknown> {
     return this.incidentsService.findById(id);
   }
 
@@ -79,7 +79,7 @@ export class IncidentsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateIncidentDto,
     @CurrentUser() user: JwtPayload,
-  ) {
+  ): Promise<unknown> {
     return this.incidentsService.update(id, dto, user.sub);
   }
 
@@ -90,7 +90,7 @@ export class IncidentsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body('assignToUserId', ParseUUIDPipe) assignToUserId: string,
     @CurrentUser() user: JwtPayload,
-  ) {
+  ): Promise<unknown> {
     return this.incidentsService.assign(id, assignToUserId, user.sub);
   }
 
@@ -102,7 +102,7 @@ export class IncidentsController {
     @Body('escalateToUserId', ParseUUIDPipe) escalateToUserId: string,
     @Body('reason') reason: string,
     @CurrentUser() user: JwtPayload,
-  ) {
+  ): Promise<unknown> {
     return this.incidentsService.escalate(id, escalateToUserId, reason, user.sub);
   }
 
@@ -113,7 +113,7 @@ export class IncidentsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body('lessonsLearned') lessonsLearned: string,
     @CurrentUser() user: JwtPayload,
-  ) {
+  ): Promise<unknown> {
     return this.incidentsService.close(id, lessonsLearned, user.sub);
   }
 
@@ -121,7 +121,10 @@ export class IncidentsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @Roles(SOCRole.ADMIN)
   @ApiOperation({ summary: 'Soft delete an incident (Admin only)' })
-  async delete(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: JwtPayload) {
+  async delete(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: JwtPayload,
+  ): Promise<void> {
     await this.incidentsService.softDelete(id, user.sub);
   }
 }

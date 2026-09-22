@@ -125,7 +125,7 @@ export class MetricsService implements OnModuleInit {
     });
   }
 
-  onModuleInit() {
+  onModuleInit(): void {
     collectDefaultMetrics({ register: this.registry });
   }
 

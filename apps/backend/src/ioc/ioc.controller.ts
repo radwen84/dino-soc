@@ -13,6 +13,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
+import { IOC } from '@prisma/client';
 import { IocService } from './ioc.service';
 import { CreateIocDto } from './dto/create-ioc.dto';
 import { UpdateIocDto } from './dto/update-ioc.dto';
@@ -21,6 +22,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { PaginatedResult } from '../common/dto/pagination.dto';
 
 @ApiTags('IOC')
 @ApiBearerAuth()
@@ -33,21 +35,21 @@ export class IocController {
   @Roles('admin', 'analyst_l2', 'analyst_l3')
   @ApiOperation({ summary: 'Create a new IOC' })
   @ApiResponse({ status: 201, description: 'IOC created successfully' })
-  create(@Body() dto: CreateIocDto, @CurrentUser('id') userId: string) {
+  create(@Body() dto: CreateIocDto, @CurrentUser('id') userId: string): Promise<IOC> {
     return this.iocService.create(dto, userId);
   }
 
   @Get()
   @Roles('admin', 'analyst_l1', 'analyst_l2', 'analyst_l3')
   @ApiOperation({ summary: 'List all IOCs with filters' })
-  findAll(@Query() filters: IocFiltersDto) {
+  findAll(@Query() filters: IocFiltersDto): Promise<PaginatedResult<IOC>> {
     return this.iocService.findAll(filters);
   }
 
   @Get('stats')
   @Roles('admin', 'analyst_l1', 'analyst_l2', 'analyst_l3')
   @ApiOperation({ summary: 'Get IOC statistics' })
-  getStats() {
+  getStats(): Promise<Record<string, unknown>> {
     return this.iocService.getStats();
   }
 
@@ -55,14 +57,14 @@ export class IocController {
   @Roles('admin', 'analyst_l1', 'analyst_l2', 'analyst_l3')
   @ApiOperation({ summary: 'Match a value against active IOCs' })
   @ApiParam({ name: 'value', description: 'Value to match (IP, domain, hash...)' })
-  matchValue(@Param('value') value: string) {
+  matchValue(@Param('value') value: string): Promise<IOC[]> {
     return this.iocService.matchValue(value);
   }
 
   @Get(':id')
   @Roles('admin', 'analyst_l1', 'analyst_l2', 'analyst_l3')
   @ApiOperation({ summary: 'Get IOC by ID' })
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
+  findOne(@Param('id', new ParseUUIDPipe()) id: string): Promise<IOC> {
     return this.iocService.findOne(id);
   }
 
@@ -70,10 +72,10 @@ export class IocController {
   @Roles('admin', 'analyst_l2', 'analyst_l3')
   @ApiOperation({ summary: 'Update an IOC' })
   update(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: UpdateIocDto,
     @CurrentUser('id') userId: string,
-  ) {
+  ): Promise<IOC> {
     return this.iocService.update(id, dto, userId);
   }
 
@@ -81,7 +83,10 @@ export class IocController {
   @Roles('admin', 'analyst_l3')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete an IOC' })
-  remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser('id') userId: string) {
+  remove(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @CurrentUser('id') userId: string,
+  ): Promise<void> {
     return this.iocService.remove(id, userId);
   }
 
@@ -89,7 +94,10 @@ export class IocController {
   @Roles('admin', 'analyst_l3')
   @ApiOperation({ summary: 'Bulk import IOCs from threat intel feed' })
   @ApiResponse({ status: 200, description: 'Import results' })
-  bulkImport(@Body() iocs: CreateIocDto[], @CurrentUser('id') userId: string) {
+  bulkImport(
+    @Body() iocs: CreateIocDto[],
+    @CurrentUser('id') userId: string,
+  ): Promise<Record<string, unknown>> {
     return this.iocService.bulkImport(iocs, userId);
   }
 }

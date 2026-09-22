@@ -1,16 +1,28 @@
 import { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.interface';
 
 export function getCorsConfig(): CorsOptions {
+  const defaultOrigins = [
+    'http://localhost',
+    'http://127.0.0.1',
+    'http://localhost:5173',
+    'http://soc.local',
+    'https://soc.local',
+    'https://localhost',
+  ];
+
   const allowedOrigins = (
     process.env.API_CORS_ORIGINS ||
     process.env.CORS_ORIGINS ||
-    'http://localhost:3000'
+    defaultOrigins.join(',')
   )
     .split(',')
     .map((origin) => origin.trim());
 
   return {
-    origin: (origin, callback) => {
+    origin: (
+      origin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void,
+    ): void => {
       // Allow requests with no origin (mobile apps, Postman, health checks)
       if (!origin) {
         callback(null, true);

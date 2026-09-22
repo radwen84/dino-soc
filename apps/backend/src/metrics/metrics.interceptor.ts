@@ -3,11 +3,16 @@ import { Observable, tap } from 'rxjs';
 import { Request, Response } from 'express';
 import { MetricsService } from './metrics.service';
 
+interface HttpErrorWithStatus {
+  status?: number;
+  getStatus?: () => number;
+}
+
 @Injectable()
 export class MetricsInterceptor implements NestInterceptor {
   constructor(private readonly metricsService: MetricsService) {}
 
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const req = context.switchToHttp().getRequest<Request>();
     const startTime = Date.now();
 
@@ -17,15 +22,16 @@ export class MetricsInterceptor implements NestInterceptor {
           const res = context.switchToHttp().getResponse<Response>();
           this.recordMetrics(req, res.statusCode, startTime);
         },
-        error: (error) => {
-          const status = error.status || error.getStatus?.() || 500;
+        error: (error: unknown) => {
+          const err = error as HttpErrorWithStatus;
+          const status = err?.status || err?.getStatus?.() || 500;
           this.recordMetrics(req, status, startTime);
         },
       }),
     );
   }
 
-  private recordMetrics(req: Request, status: number, startTime: number) {
+  private recordMetrics(req: Request, status: number, startTime: number): void {
     const duration = (Date.now() - startTime) / 1000;
     const route = req.route?.path || req.path || 'unknown';
     const method = req.method;

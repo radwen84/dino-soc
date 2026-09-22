@@ -9,6 +9,117 @@ interface DateRange {
   end: Date;
 }
 
+export interface ReportMetadata {
+  type: ReportType;
+  generatedAt: string;
+  period: { start: Date; end: Date };
+  generatedBy: string;
+}
+
+export interface GeneratedReport<T = unknown> {
+  metadata: ReportMetadata;
+  data: T;
+}
+
+export interface ExecutiveSummaryReport {
+  overview: {
+    totalIncidents: number;
+    totalAlerts: number;
+    resolvedIncidents: number;
+    resolutionRate: number;
+  };
+  severity: Record<string, number>;
+  status: Record<string, number>;
+  kpis: {
+    mttd: number;
+    mttr: number;
+    alertToIncidentRatio: number;
+  };
+}
+
+export interface IncidentTimelineEvent {
+  timestamp: Date;
+  event: string;
+}
+
+export interface IncidentReportDetails {
+  incident?: unknown;
+  timeline?: IncidentTimelineEvent[];
+  relatedAlerts?: number;
+  total?: number;
+  incidents?: Array<{
+    id: string;
+    title: string;
+    severity: string;
+    status: string;
+    assignedTo?: string;
+    alertCount: number;
+    detectedAt: Date;
+    resolvedAt: Date | null;
+  }>;
+}
+
+export interface ThreatLandscapeReport {
+  mitreTechniques: Array<{ technique: string; count: bigint | number }>;
+  alertSources: Array<{ source: string; count: number }>;
+  iocDistribution: Record<string, number>;
+  topAttackerIps: Array<{ ip: string | null; count: number }>;
+}
+
+export interface KpiMetricsReport {
+  totalIncidents: number;
+  falsePositiveRate: number;
+  severityMetrics: Array<{
+    severity: string;
+    count: number;
+    avgMttrHours: number;
+  }>;
+  slaCompliance: Record<string, { total: number; compliant: number; rate: number }>;
+}
+
+export interface ComplianceReport {
+  auditTrail: {
+    totalEvents: number;
+    topActions: Array<{ action: string; count: number }>;
+  };
+  accessControl: {
+    mfaAdoption: Record<string, number>;
+  };
+  dataRetention: {
+    incidentsRetained: number;
+    alertsRetained: number;
+    auditLogsRetained: number;
+  };
+}
+
+export interface AssetInventoryReport {
+  total: number;
+  byCriticality: Record<string, number>;
+  byOs: Record<string, number>;
+  status: Record<string, number>;
+  recentlyDiscovered: Array<{
+    id: string;
+    hostname: string;
+    ipAddress: string;
+    criticality: string;
+    createdAt: Date;
+  }>;
+}
+
+interface IncidentSlaInput {
+  severity: string;
+  detectedAt: Date;
+  resolvedAt: Date | null;
+}
+
+interface IncidentTimelineInput {
+  detectedAt?: Date | null;
+  acknowledgedAt?: Date | null;
+  containedAt?: Date | null;
+  resolvedAt?: Date | null;
+  closedAt?: Date | null;
+}
+
 @Injectable()
 export class ReportsService {
   private readonly logger = new Logger(ReportsService.name);
@@ -18,10 +129,10 @@ export class ReportsService {
     private readonly auditService: AuditService,
   ) {}
 
-  async generate(filters: ReportFiltersDto, userId: string) {
+  async generate(filters: ReportFiltersDto, userId: string): Promise<GeneratedReport> {
     const dateRange = this.getDateRange(filters);
 
-    let report: any;
+    let report: unknown;
 
     switch (filters.type) {
       case ReportType.EXECUTIVE_SUMMARY:
@@ -62,7 +173,8 @@ export class ReportsService {
       data: report,
     };
   }
-  async generatePdf(report: { metadata: any; data: any }): Promise<Buffer> {
+
+  async generatePdf(report: { metadata: ReportMetadata; data: unknown }): Promise<Buffer> {
     return new Promise((resolve, reject) => {
       const document = new PDFDocument({ margin: 48, size: 'A4' });
       const chunks: Buffer[] = [];
@@ -97,7 +209,7 @@ export class ReportsService {
     });
   }
 
-  private async generateExecutiveSummary(dateRange: DateRange) {
+  private async generateExecutiveSummary(dateRange: DateRange): Promise<ExecutiveSummaryReport> {
     const [
       totalIncidents,
       incidentsBySeverity,
@@ -149,7 +261,10 @@ export class ReportsService {
     const mttd =
       mttdData.length > 0
         ? mttdData.reduce((sum, inc) => {
-            return sum + (inc.acknowledgedAt.getTime() - inc.detectedAt.getTime());
+            const ackTime = inc.acknowledgedAt
+              ? inc.acknowledgedAt.getTime()
+              : inc.detectedAt.getTime();
+            return sum + (ackTime - inc.detectedAt.getTime());
           }, 0) /
           mttdData.length /
           60000 // Convert to minutes
@@ -159,7 +274,8 @@ export class ReportsService {
     const mttr =
       mttrData.length > 0
         ? mttrData.reduce((sum, inc) => {
-            return sum + (inc.resolvedAt.getTime() - inc.detectedAt.getTime());
+            const resTime = inc.resolvedAt ? inc.resolvedAt.getTime() : inc.detectedAt.getTime();
+            return sum + (resTime - inc.detectedAt.getTime());
           }, 0) /
           mttrData.length /
           3600000 // Convert to hours
@@ -173,11 +289,14 @@ export class ReportsService {
         resolutionRate:
           totalIncidents > 0 ? Math.round((resolvedIncidents / totalIncidents) * 100) : 0,
       },
-      severity: incidentsBySeverity.reduce(
+      severity: incidentsBySeverity.reduce<Record<string, number>>(
         (acc, item) => ({ ...acc, [item.severity]: item._count }),
         {},
       ),
-      status: incidentsByStatus.reduce((acc, item) => ({ ...acc, [item.status]: item._count }), {}),
+      status: incidentsByStatus.reduce<Record<string, number>>(
+        (acc, item) => ({ ...acc, [item.status]: item._count }),
+        {},
+      ),
       kpis: {
         mttd: Math.round(mttd * 100) / 100, // minutes
         mttr: Math.round(mttr * 100) / 100, // hours
@@ -187,7 +306,10 @@ export class ReportsService {
     };
   }
 
-  private async generateIncidentReport(dateRange: DateRange, incidentId?: string) {
+  private async generateIncidentReport(
+    dateRange: DateRange,
+    incidentId?: string,
+  ): Promise<IncidentReportDetails> {
     if (incidentId) {
       const incident = await this.prisma.incident.findUnique({
         where: { id: incidentId },
@@ -234,9 +356,9 @@ export class ReportsService {
     };
   }
 
-  private async generateThreatLandscape(dateRange: DateRange) {
+  private async generateThreatLandscape(dateRange: DateRange): Promise<ThreatLandscapeReport> {
     const [topMitreTechniques, topSources, iocsByType, topIps] = await Promise.all([
-      this.prisma.$queryRaw`
+      this.prisma.$queryRaw<Array<{ technique: string; count: bigint | number }>>`
         SELECT unnest(mitre_techniques) as technique, COUNT(*) as count
         FROM incidents
         WHERE detected_at >= ${dateRange.start} AND detected_at <= ${dateRange.end}
@@ -271,12 +393,15 @@ export class ReportsService {
     return {
       mitreTechniques: topMitreTechniques,
       alertSources: topSources.map((s) => ({ source: s.source, count: s._count })),
-      iocDistribution: iocsByType.reduce((acc, item) => ({ ...acc, [item.type]: item._count }), {}),
+      iocDistribution: iocsByType.reduce<Record<string, number>>(
+        (acc, item) => ({ ...acc, [item.type]: item._count }),
+        {},
+      ),
       topAttackerIps: topIps.map((ip) => ({ ip: ip.srcIp, count: ip._count })),
     };
   }
 
-  private async generateKpiMetrics(dateRange: DateRange) {
+  private async generateKpiMetrics(dateRange: DateRange): Promise<KpiMetricsReport> {
     const incidents = await this.prisma.incident.findMany({
       where: { detectedAt: { gte: dateRange.start, lte: dateRange.end } },
       select: {
@@ -294,11 +419,11 @@ export class ReportsService {
 
     // Per-severity MTTR
     const severityMetrics = ['critical', 'high', 'medium', 'low'].map((sev) => {
-      const sevIncidents = incidents.filter((i) => i.severity === sev && i.resolvedAt);
+      const sevIncidents = incidents.filter((i) => i.severity === sev && i.resolvedAt !== null);
       const avgMttr =
         sevIncidents.length > 0
           ? sevIncidents.reduce(
-              (sum, i) => sum + (i.resolvedAt.getTime() - i.detectedAt.getTime()),
+              (sum, i) => sum + ((i.resolvedAt?.getTime() ?? 0) - i.detectedAt.getTime()),
               0,
             ) /
             sevIncidents.length /
@@ -320,7 +445,7 @@ export class ReportsService {
     };
   }
 
-  private async generateComplianceReport(dateRange: DateRange) {
+  private async generateComplianceReport(dateRange: DateRange): Promise<ComplianceReport> {
     const [auditLogs, userActivity, mfaStatus] = await Promise.all([
       this.prisma.auditLog.count({
         where: { timestamp: { gte: dateRange.start, lte: dateRange.end } },
@@ -345,7 +470,7 @@ export class ReportsService {
         topActions: userActivity.map((a) => ({ action: a.action, count: a._count })),
       },
       accessControl: {
-        mfaAdoption: mfaStatus.reduce(
+        mfaAdoption: mfaStatus.reduce<Record<string, number>>(
           (acc, item) => ({ ...acc, [item.mfaEnabled ? 'enabled' : 'disabled']: item._count }),
           {},
         ),
@@ -358,7 +483,7 @@ export class ReportsService {
     };
   }
 
-  private async generateAssetInventory() {
+  private async generateAssetInventory(): Promise<AssetInventoryReport> {
     const [total, byCriticality, byOs, byStatus, recentlyDiscovered] = await Promise.all([
       this.prisma.asset.count(),
       this.prisma.asset.groupBy({ by: ['criticality'], _count: true }),
@@ -374,12 +499,15 @@ export class ReportsService {
 
     return {
       total,
-      byCriticality: byCriticality.reduce(
+      byCriticality: byCriticality.reduce<Record<string, number>>(
         (acc, item) => ({ ...acc, [item.criticality]: item._count }),
         {},
       ),
-      byOs: byOs.reduce((acc, item) => ({ ...acc, [item.os || 'unknown']: item._count }), {}),
-      status: byStatus.reduce(
+      byOs: byOs.reduce<Record<string, number>>(
+        (acc, item) => ({ ...acc, [item.os || 'unknown']: item._count }),
+        {},
+      ),
+      status: byStatus.reduce<Record<string, number>>(
         (acc, item) => ({ ...acc, [item.isActive ? 'active' : 'inactive']: item._count }),
         {},
       ),
@@ -416,8 +544,8 @@ export class ReportsService {
     return { start, end };
   }
 
-  private buildIncidentTimeline(incident: any) {
-    const events: { timestamp: Date; event: string }[] = [];
+  private buildIncidentTimeline(incident: IncidentTimelineInput): IncidentTimelineEvent[] {
+    const events: IncidentTimelineEvent[] = [];
 
     if (incident.detectedAt) events.push({ timestamp: incident.detectedAt, event: 'Detected' });
     if (incident.acknowledgedAt)
@@ -429,15 +557,20 @@ export class ReportsService {
     return events.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
   }
 
-  private calculateSlaCompliance(incidents: any[]) {
+  private calculateSlaCompliance(
+    incidents: IncidentSlaInput[],
+  ): Record<string, { total: number; compliant: number; rate: number }> {
     // SLA targets: Critical=4h, High=8h, Medium=24h, Low=72h
-    const slaTargets = { critical: 4, high: 8, medium: 24, low: 72 };
+    const slaTargets: Record<string, number> = { critical: 4, high: 8, medium: 24, low: 72 };
     const results: Record<string, { total: number; compliant: number; rate: number }> = {};
 
     for (const [severity, targetHours] of Object.entries(slaTargets)) {
-      const sevIncidents = incidents.filter((i) => i.severity === severity && i.resolvedAt);
+      const sevIncidents = incidents.filter(
+        (i) => i.severity === severity && i.resolvedAt !== null,
+      );
       const compliant = sevIncidents.filter((i) => {
-        const responseTime = (i.resolvedAt.getTime() - i.detectedAt.getTime()) / 3600000;
+        const resolvedTime = i.resolvedAt?.getTime() ?? 0;
+        const responseTime = (resolvedTime - i.detectedAt.getTime()) / 3600000;
         return responseTime <= targetHours;
       });
 

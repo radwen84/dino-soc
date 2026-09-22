@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Query, Res, UseGuards, Header } from '@nestjs/common';
+import { Controller, Get, Query, Res, UseGuards } from '@nestjs/common';
 import { Response } from 'express';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { ReportsService } from './reports.service';
@@ -23,7 +23,7 @@ export class ReportsController {
     @Query() filters: ReportFiltersDto,
     @CurrentUser('id') userId: string,
     @Res({ passthrough: true }) res: Response,
-  ) {
+  ): Promise<unknown> {
     const report = await this.reportsService.generate(filters, userId);
 
     switch (filters.format) {
@@ -52,7 +52,7 @@ export class ReportsController {
   @Get('types')
   @Roles('admin', 'analyst_l1', 'analyst_l2', 'analyst_l3')
   @ApiOperation({ summary: 'List available report types' })
-  getReportTypes() {
+  getReportTypes(): Array<{ type: string; description: string; roles: string[] }> {
     return [
       {
         type: 'executive_summary',
@@ -83,19 +83,25 @@ export class ReportsController {
     ];
   }
 
-  private convertToCsv(data: any): string {
+  private convertToCsv(data: unknown): string {
     if (Array.isArray(data)) {
       if (data.length === 0) return '';
-      const headers = Object.keys(data[0]);
-      const rows = data.map((row) => headers.map((h) => JSON.stringify(row[h] ?? '')).join(','));
+      const firstItem = data[0] as Record<string, unknown>;
+      const headers = Object.keys(firstItem);
+      const rows = data.map((row: Record<string, unknown>) =>
+        headers.map((h) => JSON.stringify(row[h] ?? '')).join(','),
+      );
       return [headers.join(','), ...rows].join('\n');
     }
 
-    // For object data, flatten to key-value pairs
-    const entries = Object.entries(data).map(([key, value]) => ({
-      metric: key,
-      value: typeof value === 'object' ? JSON.stringify(value) : String(value),
-    }));
-    return this.convertToCsv(entries);
+    if (typeof data === 'object' && data !== null) {
+      const entries = Object.entries(data as Record<string, unknown>).map(([key, value]) => ({
+        metric: key,
+        value: typeof value === 'object' ? JSON.stringify(value) : String(value),
+      }));
+      return this.convertToCsv(entries);
+    }
+
+    return String(data ?? '');
   }
 }

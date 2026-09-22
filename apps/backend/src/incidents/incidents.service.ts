@@ -1,5 +1,5 @@
-import { IncidentSeverity } from '@prisma/client';
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import { IncidentSeverity, IncidentStatus, Incident, Prisma } from '@prisma/client';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
@@ -22,8 +22,8 @@ export class IncidentsService {
     private readonly theHive: TheHiveService,
   ) {}
 
-  async create(dto: CreateIncidentDto, userId: string) {
-    // Try ML-based risk scoring first, fall back to rule-based
+  async create(dto: CreateIncidentDto, userId: string): Promise<Incident> {
+    // Essayer d'abord le score de risque basé sur le ML, puis repli sur les règles
     let riskScore = this.calculateRiskScore(dto.severity, dto.category);
 
     const mlResult = await this.mlEngine.getRiskScore({
@@ -72,8 +72,8 @@ export class IncidentsService {
     this.eventEmitter.emit('incident.created', incident);
     this.logger.log(`Incident created: ${incident.id} - ${incident.title}`);
 
-    // Push to TheHive 5 asynchronously (fire-and-forget, non-blocking)
-    this.pushToTheHive(incident, dto).catch((err) =>
+    // Envoi vers TheHive 5 de manière asynchrone (non-bloquant)
+    this.pushToTheHive(incident, dto).catch((err: Error) =>
       this.logger.warn(`TheHive push failed for incident ${incident.id}: ${err.message}`),
     );
 
@@ -81,10 +81,10 @@ export class IncidentsService {
   }
 
   /**
-   * Push incident to TheHive 5 and trigger Cortex analyzers on observables.
-   * This runs asynchronously — failure does not block incident creation.
+   * Pousse l'incident vers TheHive 5 et déclenche les analyseurs Cortex sur les observables.
+   * Exécution asynchrone — un échec ne bloque pas la création de l'incident.
    */
-  private async pushToTheHive(incident: any, dto: CreateIncidentDto): Promise<void> {
+  private async pushToTheHive(incident: Incident, dto: CreateIncidentDto): Promise<void> {
     const theHiveAlert = await this.theHive.pushIncident({
       id: incident.id,
       title: incident.title,
@@ -100,7 +100,7 @@ export class IncidentsService {
     if (theHiveAlert) {
       this.logger.log(`Incident ${incident.id} pushed to TheHive as alert ${theHiveAlert._id}`);
 
-      // Trigger Cortex analyzers on source IPs from linked alerts
+      // Déclenche les analyseurs Cortex sur les IP sources des alertes liées
       if (dto.sourceAlertIds?.length) {
         const alerts = await this.prisma.alert.findMany({
           where: { id: { in: dto.sourceAlertIds } },
@@ -120,11 +120,11 @@ export class IncidentsService {
     }
   }
 
-  async findAll(filters: IncidentFiltersDto): Promise<PaginatedResult<any>> {
-    const where: any = { deletedAt: null };
+  async findAll(filters: IncidentFiltersDto): Promise<PaginatedResult<Incident>> {
+    const where: Prisma.IncidentWhereInput = { deletedAt: null };
 
-    if (filters.status) where.status = filters.status;
-    if (filters.severity) where.severity = filters.severity;
+    if (filters.status) where.status = filters.status as IncidentStatus;
+    if (filters.severity) where.severity = filters.severity as IncidentSeverity;
     if (filters.assignedTo) where.assignedToId = filters.assignedTo;
     if (filters.category) where.category = filters.category;
     if (filters.source) where.source = filters.source;
@@ -138,10 +138,16 @@ export class IncidentsService {
       where.mitreTechniques = { has: filters.mitreTechnique };
     }
     if (filters.fromDate) {
-      where.detectedAt = { ...(where.detectedAt || {}), gte: new Date(filters.fromDate) };
+      where.detectedAt = {
+        ...((where.detectedAt as Prisma.DateTimeFilter) || {}),
+        gte: new Date(filters.fromDate),
+      };
     }
     if (filters.toDate) {
-      where.detectedAt = { ...(where.detectedAt || {}), lte: new Date(filters.toDate) };
+      where.detectedAt = {
+        ...((where.detectedAt as Prisma.DateTimeFilter) || {}),
+        lte: new Date(filters.toDate),
+      };
     }
 
     const [incidents, total] = await Promise.all([
@@ -171,7 +177,7 @@ export class IncidentsService {
     };
   }
 
-  async findById(id: string) {
+  async findById(id: string): Promise<Incident> {
     const incident = await this.prisma.incident.findUnique({
       where: { id },
       include: {
@@ -187,13 +193,19 @@ export class IncidentsService {
     return incident;
   }
 
-  async update(id: string, dto: UpdateIncidentDto, userId: string) {
+  async update(id: string, dto: UpdateIncidentDto, userId: string): Promise<Incident> {
     const incident = await this.findById(id);
     const previousStatus = incident.status;
 
-    const data: any = { ...dto, updatedAt: new Date() };
+    // Cast explicite des Enums Prisma pour éliminer les erreurs d'assignation 'string'
+    const data: Prisma.IncidentUpdateInput = {
+      ...dto,
+      severity: dto.severity ? (dto.severity as IncidentSeverity) : undefined,
+      status: dto.status ? (dto.status as IncidentStatus) : undefined,
+      updatedAt: new Date(),
+    };
 
-    // Auto-set timestamps based on status transitions
+    // Mise à jour automatique des horodatages selon la transition de statut
     if (dto.status && dto.status !== previousStatus) {
       switch (dto.status) {
         case 'triaged':
@@ -206,9 +218,9 @@ export class IncidentsService {
         case 'closed':
           data.resolvedAt = new Date();
           break;
-        case 'closed':
-          data.closedAt = new Date();
-          break;
+      }
+      if (dto.status === 'closed') {
+        data.closedAt = new Date();
       }
     }
 
@@ -221,7 +233,7 @@ export class IncidentsService {
       userId,
       resourceType: 'incident',
       resourceId: id,
-      changes: dto,
+      changes: dto as unknown as Prisma.InputJsonValue,
       previousStatus,
       newStatus: dto.status,
     });
@@ -238,7 +250,7 @@ export class IncidentsService {
     return updated;
   }
 
-  async assign(id: string, assignToUserId: string, userId: string) {
+  async assign(id: string, assignToUserId: string, userId: string): Promise<Incident> {
     const updated = await this.prisma.incident.update({
       where: { id },
       data: {
@@ -259,7 +271,12 @@ export class IncidentsService {
     return updated;
   }
 
-  async escalate(id: string, escalateToUserId: string, reason: string, userId: string) {
+  async escalate(
+    id: string,
+    escalateToUserId: string,
+    reason: string,
+    userId: string,
+  ): Promise<Incident> {
     const updated = await this.prisma.incident.update({
       where: { id },
       data: {
@@ -280,7 +297,7 @@ export class IncidentsService {
     return updated;
   }
 
-  async close(id: string, lessonsLearned: string, userId: string) {
+  async close(id: string, lessonsLearned: string, userId: string): Promise<Incident> {
     const updated = await this.prisma.incident.update({
       where: { id },
       data: {
@@ -300,7 +317,7 @@ export class IncidentsService {
     return updated;
   }
 
-  async softDelete(id: string, userId: string) {
+  async softDelete(id: string, userId: string): Promise<void> {
     await this.prisma.incident.update({
       where: { id },
       data: { deletedAt: new Date() },
@@ -313,7 +330,7 @@ export class IncidentsService {
     });
   }
 
-  async getStatistics() {
+  async getStatistics(): Promise<Record<string, unknown>> {
     const [
       totalOpen,
       totalCritical,
@@ -391,7 +408,7 @@ export class IncidentsService {
     };
     let score = severityScores[severity] || 50;
 
-    // Bonus for certain categories
+    // Bonus pour certaines catégories
     if (category === 'ransomware' || category === 'data_breach') score += 10;
     if (category === 'apt') score += 15;
 

@@ -1,6 +1,5 @@
-import { Controller, Get, Header, UseGuards } from '@nestjs/common';
+import { Controller, Get, Header } from '@nestjs/common';
 import { MetricsService } from './metrics.service';
-import { IpWhitelistMiddleware } from '../common/middleware/ip-whitelist.middleware';
 
 @Controller('metrics')
 export class MetricsController {

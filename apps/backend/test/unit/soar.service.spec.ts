@@ -9,8 +9,8 @@ import { PlaybookActionType } from '../../src/soar/dto/create-playbook.dto';
 describe('SoarService', () => {
   let service: SoarService;
   let module: TestingModule;
-  let mockPrisma: any;
-  let mockPlaybookEngine: any;
+  let mockPrisma: Record<string, Record<string, jest.Mock>>;
+  let mockPlaybookEngine: Record<string, jest.Mock>;
 
   beforeEach(async () => {
     mockPrisma = {

@@ -97,7 +97,8 @@ export class StixTaxiiService {
       );
       return response.data;
     } catch (error) {
-      this.logger.error(`TAXII discovery failed for ${serverUrl}: ${error.message}`);
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`TAXII discovery failed for ${serverUrl}: ${message}`);
       return null;
     }
   }
@@ -122,7 +123,8 @@ export class StixTaxiiService {
       );
       return response.data.collections || [];
     } catch (error) {
-      this.logger.error(`TAXII list collections failed: ${error.message}`);
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`TAXII list collections failed: ${message}`);
       return [];
     }
   }
@@ -142,7 +144,7 @@ export class StixTaxiiService {
     },
   ): Promise<StixBundle | null> {
     try {
-      const params: Record<string, any> = {};
+      const params: Record<string, unknown> = {};
       if (options?.addedAfter) params.added_after = options.addedAfter;
       if (options?.limit) params.limit = options.limit;
       if (options?.type?.length) params.type = options.type.join(',');
@@ -160,7 +162,8 @@ export class StixTaxiiService {
 
       return response.data as StixBundle;
     } catch (error) {
-      this.logger.error(`TAXII poll failed for collection ${collectionId}: ${error.message}`);
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`TAXII poll failed for collection ${collectionId}: ${message}`);
       return null;
     }
   }

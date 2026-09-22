@@ -77,5 +77,5 @@ export class CreateAssetDto {
   @ApiPropertyOptional({ example: { cpu: '8 cores', ram: '32GB' } })
   @IsOptional()
   @IsObject()
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }

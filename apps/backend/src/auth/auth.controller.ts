@@ -21,7 +21,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Throttle({ short: { limit: 5, ttl: 60000 } })
   @ApiOperation({ summary: 'Login with email and password' })
-  async login(@Body() loginDto: LoginDto, @Req() req: Request) {
+  async login(@Body() loginDto: LoginDto, @Req() req: Request): Promise<unknown> {
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
     const user = await this.authService.validateUser(loginDto.email, loginDto.password, ip);
     return this.authService.login(user, ip, loginDto.totpToken);
@@ -31,7 +31,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Throttle({ short: { limit: 10, ttl: 60000 } })
   @ApiOperation({ summary: 'Refresh access token (rotates refresh token)' })
-  async refresh(@Body() dto: RefreshTokenDto) {
+  async refresh(@Body() dto: RefreshTokenDto): Promise<unknown> {
     return this.authService.refreshToken(dto.refreshToken);
   }
 
@@ -40,7 +40,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Logout — revokes refresh token server-side' })
-  async logout(@Body() dto: RefreshTokenDto) {
+  async logout(@Body() dto: RefreshTokenDto): Promise<unknown> {
     return this.authService.logout(dto.refreshToken);
   }
 
@@ -48,7 +48,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Throttle({ short: { limit: 5, ttl: 60000 } })
   @ApiOperation({ summary: 'Verify MFA token after login' })
-  async verifyMfa(@Body() dto: VerifyMfaDto, @Req() req: Request) {
+  async verifyMfa(@Body() dto: VerifyMfaDto, @Req() req: Request): Promise<unknown> {
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
     return this.authService.verifyMfa(dto.tempToken, dto.totpToken, ip);
   }
@@ -58,7 +58,7 @@ export class AuthController {
   @ApiBearerAuth('JWT-auth')
   @Throttle({ short: { limit: 3, ttl: 60000 } })
   @ApiOperation({ summary: 'Setup MFA (generate QR code)' })
-  async setupMfa(@CurrentUser() user: JwtPayload) {
+  async setupMfa(@CurrentUser() user: JwtPayload): Promise<unknown> {
     return this.authService.setupMfa(user.sub);
   }
 
@@ -67,7 +67,7 @@ export class AuthController {
   @ApiBearerAuth('JWT-auth')
   @Throttle({ short: { limit: 5, ttl: 60000 } })
   @ApiOperation({ summary: 'Enable MFA after verifying TOTP token' })
-  async enableMfa(@CurrentUser() user: JwtPayload, @Body() dto: EnableMfaDto) {
+  async enableMfa(@CurrentUser() user: JwtPayload, @Body() dto: EnableMfaDto): Promise<unknown> {
     return this.authService.enableMfa(user.sub, dto.totpToken);
   }
 
@@ -76,7 +76,7 @@ export class AuthController {
   @ApiBearerAuth('JWT-auth')
   @Throttle({ short: { limit: 3, ttl: 60000 } })
   @ApiOperation({ summary: 'Disable MFA (requires password)' })
-  async disableMfa(@CurrentUser() user: JwtPayload, @Body() dto: DisableMfaDto) {
+  async disableMfa(@CurrentUser() user: JwtPayload, @Body() dto: DisableMfaDto): Promise<unknown> {
     return this.authService.disableMfa(user.sub, dto.password);
   }
 
@@ -84,7 +84,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Get current authenticated user' })
-  async me(@CurrentUser() user: JwtPayload) {
+  async me(@CurrentUser() user: JwtPayload): Promise<{ user: JwtPayload }> {
     return { user };
   }
 }

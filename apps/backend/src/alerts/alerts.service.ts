@@ -13,6 +13,33 @@ interface AlertTimelinePoint {
   max_level: number;
 }
 
+// Typage strict pour la structure des logs Wazuh / OpenSearch
+interface WazuhRawDoc {
+  message?: string;
+  rule?: {
+    id?: string | number;
+    description?: string;
+    level?: number | string;
+    mitre?: {
+      tactic?: string | string[];
+      id?: string | string[];
+    };
+  };
+  agent?: {
+    id?: string | number;
+    name?: string;
+  };
+  data?: {
+    srcip?: string;
+    dstip?: string;
+    srcport?: number | string;
+    dstport?: number | string;
+  };
+  timestamp?: string;
+  '@timestamp'?: string;
+  [key: string]: unknown;
+}
+
 @Injectable()
 export class AlertsService {
   private readonly logger = new Logger(AlertsService.name);
@@ -44,8 +71,7 @@ export class AlertsService {
       const since = lastAlert?.timestamp ?? new Date(Date.now() - 24 * 3600000); // default: last 24h
 
       // Query OpenSearch for alerts newer than our last sync
-      // FIX: Use '@timestamp' (Filebeat/OpenSearch field) instead of 'timestamp' (Wazuh internal)
-      const result = await this.opensearch.search('wazuh-alerts-*', {
+      const result = (await this.opensearch.search('wazuh-alerts-*', {
         query: {
           range: {
             '@timestamp': { gt: since.toISOString() },
@@ -53,7 +79,14 @@ export class AlertsService {
         },
         sort: [{ '@timestamp': { order: 'asc' } }],
         size: 500,
-      });
+      })) as {
+        hits?: {
+          hits?: Array<{
+            _id: string;
+            _source: WazuhRawDoc;
+          }>;
+        };
+      };
 
       const hits = result?.hits?.hits ?? [];
 
@@ -69,15 +102,11 @@ export class AlertsService {
           const rawDoc = hit._source;
           const wazuhAlertId = hit._id;
 
-          // FIX: Parse the Wazuh JSON from _source.message (Filebeat wraps it as a string)
-          // Supports both formats:
-          //   A) Structured Wazuh doc directly in _source (no Filebeat)
-          //   B) Filebeat document with Wazuh JSON inside _source.message
-          let doc = rawDoc;
+          let doc: WazuhRawDoc = rawDoc;
           if (typeof rawDoc.message === 'string') {
             try {
-              doc = JSON.parse(rawDoc.message);
-            } catch (parseError) {
+              doc = JSON.parse(rawDoc.message) as WazuhRawDoc;
+            } catch {
               this.logger.warn(
                 `Failed to parse Wazuh message for OpenSearch alert ${wazuhAlertId}`,
               );
@@ -106,7 +135,7 @@ export class AlertsService {
               ? doc.rule.mitre.id[0]
               : (doc.rule?.mitre?.id ?? null),
             status: 'new' as AlertStatus,
-            rawLog: doc,
+            rawLog: doc as Prisma.InputJsonValue,
             timestamp: new Date(doc.timestamp || hit._source['@timestamp'] || new Date()),
           };
 
@@ -125,12 +154,12 @@ export class AlertsService {
             this.eventEmitter.emit('alert.new', upserted);
           }
         } catch (error) {
-          // Skip duplicate constraint errors silently, log others
+          const err = error as Error;
           if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
             // Already exists — expected for idempotent sync
           } else {
             errors++;
-            this.logger.error(`Failed to sync alert ${hit._id}: ${error.message}`);
+            this.logger.error(`Failed to sync alert ${hit._id}: ${err.message}`);
           }
         }
       }
@@ -144,7 +173,7 @@ export class AlertsService {
   }
 
   // ============================================
-  // EXISTING METHODS (unchanged)
+  // EXISTING METHODS
   // ============================================
 
   async findAll(filters: AlertFiltersDto): Promise<PaginatedResult<Alert>> {
@@ -177,19 +206,20 @@ export class AlertsService {
       this.prisma.alert.count({ where }),
     ]);
 
-    // Bug C fix: enrich alerts with description from rawLog if missing
+    // Enrich alerts with description from rawLog if missing
     const enrichedAlerts = alerts.map((alert) => {
       if (!alert.ruleDescription && alert.rawLog) {
-        const raw = alert.rawLog as any;
-        // Try to extract from rawLog (could be parsed Wazuh doc or Filebeat wrapper)
-        let wazuhDoc = raw;
+        const raw = alert.rawLog as WazuhRawDoc;
+        let wazuhDoc: WazuhRawDoc = raw;
+
         if (typeof raw.message === 'string') {
           try {
-            wazuhDoc = JSON.parse(raw.message);
+            wazuhDoc = JSON.parse(raw.message) as WazuhRawDoc;
           } catch {
             /* ignore */
           }
         }
+
         const description = wazuhDoc?.rule?.description;
         if (description) {
           return { ...alert, ruleDescription: description };
@@ -221,19 +251,21 @@ export class AlertsService {
       throw new NotFoundException('Alert not found');
     }
 
-    // Bug C fix: enrich with description from rawLog if missing
+    // Enrich with description from rawLog if missing
     if (!alert.ruleDescription && alert.rawLog) {
-      const raw = alert.rawLog as any;
-      let wazuhDoc = raw;
+      const raw = alert.rawLog as WazuhRawDoc;
+      let wazuhDoc: WazuhRawDoc = raw;
+
       if (typeof raw.message === 'string') {
         try {
-          wazuhDoc = JSON.parse(raw.message);
+          wazuhDoc = JSON.parse(raw.message) as WazuhRawDoc;
         } catch {
           /* ignore */
         }
       }
+
       if (wazuhDoc?.rule?.description) {
-        (alert as any).ruleDescription = wazuhDoc.rule.description;
+        alert.ruleDescription = wazuhDoc.rule.description;
       }
     }
 
@@ -249,7 +281,7 @@ export class AlertsService {
       },
     });
 
-    // Bug A fix: Auto-create incident when alert is escalated
+    // Auto-create incident when alert is escalated
     if (status === 'escalated' && !incidentId) {
       try {
         const incident = await this.prisma.incident.create({
@@ -281,7 +313,8 @@ export class AlertsService {
         this.eventEmitter.emit('incident.created', incident);
         this.logger.log(`Auto-created incident ${incident.id} from escalated alert ${id}`);
       } catch (error) {
-        this.logger.error(`Failed to auto-create incident for alert ${id}: ${error.message}`);
+        const err = error as Error;
+        this.logger.error(`Failed to auto-create incident for alert ${id}: ${err.message}`);
       }
     }
 

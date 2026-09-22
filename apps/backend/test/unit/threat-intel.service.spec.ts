@@ -11,10 +11,10 @@ import { StixTaxiiService } from '../../src/threat-intel/feeds/stix-taxii.servic
 describe('ThreatIntelService', () => {
   let service: ThreatIntelService;
   let module: TestingModule;
-  let mockIocService: any;
-  let mockAbuseIpDb: any;
-  let mockStixTaxiiService: any;
-  let mockConfigService: any;
+  let mockIocService: Record<string, jest.Mock>;
+  let mockAbuseIpDb: Record<string, jest.Mock>;
+  let mockStixTaxiiService: Record<string, jest.Mock>;
+  let mockConfigService: Record<string, jest.Mock>;
 
   const mockIocMatch = [
     { id: 'ioc-1', type: 'ip', value: '1.2.3.4', severity: 'high', confidence: 90 },
@@ -83,7 +83,8 @@ describe('ThreatIntelService', () => {
       mockIocService.findAll.mockResolvedValueOnce([]);
       mockIocService.getIocByValue.mockResolvedValueOnce([]);
 
-      const result: any = await service.lookup('8.8.8.8');
+      // 👈 Cast corrigé via 'unknown'
+      const result = (await service.lookup('8.8.8.8')) as unknown as Record<string, unknown>;
 
       const queriedValue =
         result.query ??
@@ -97,7 +98,13 @@ describe('ThreatIntelService', () => {
     });
 
     it('should flag as known IOC when found in local DB', async () => {
-      const result: any = await service.lookup('1.2.3.4');
+      // 👈 Cast corrigé via 'unknown'
+      const result = (await service.lookup('1.2.3.4')) as unknown as Record<string, unknown> & {
+        sources?: Record<string, unknown>;
+        localIocs?: unknown[];
+        matches?: unknown[];
+        iocs?: unknown[];
+      };
 
       const checkResult =
         Boolean(result.isKnown) ||
@@ -122,7 +129,10 @@ describe('ThreatIntelService', () => {
         countryCode: 'RU',
       });
 
-      const result: any = await service.lookup('5.6.7.8');
+      // 👈 Cast corrigé via 'unknown'
+      const result = (await service.lookup('5.6.7.8')) as unknown as Record<string, unknown> & {
+        sources: Record<string, { status: string }>;
+      };
 
       expect(result.sources).toHaveProperty('abuseipdb');
       expect(result.sources.abuseipdb.status).toBe('fulfilled');
@@ -140,7 +150,8 @@ describe('ThreatIntelService', () => {
         abuseConfidenceScore: 95,
       });
 
-      const result: any = await service.lookup('10.0.0.1');
+      // 👈 Cast corrigé via 'unknown'
+      const result = (await service.lookup('10.0.0.1')) as unknown as Record<string, unknown>;
 
       expect(result.riskLevel).toBe('critical');
     });
@@ -148,17 +159,22 @@ describe('ThreatIntelService', () => {
 
   describe('enrichAlert', () => {
     it('should enrich srcIp and dstIp independently', async () => {
-      const result: any = await service.enrichAlert({
+      // 👈 Cast corrigé via 'unknown'
+      const result = (await service.enrichAlert({
         srcIp: '1.2.3.4',
         dstIp: '5.6.7.8',
-      });
+      })) as unknown as Record<string, unknown>;
 
       expect(result.srcIp).toBeDefined();
       expect(result.dstIp).toBeDefined();
     });
 
     it('should handle partial alert data', async () => {
-      const result: any = await service.enrichAlert({ srcIp: '1.2.3.4' });
+      // 👈 Cast corrigé via 'unknown'
+      const result = (await service.enrichAlert({ srcIp: '1.2.3.4' })) as unknown as Record<
+        string,
+        unknown
+      >;
 
       expect(result.srcIp).toBeDefined();
       expect(result.dstIp).toBeUndefined();
@@ -168,7 +184,8 @@ describe('ThreatIntelService', () => {
 
   describe('syncFeeds', () => {
     it('should return sync results with counts', async () => {
-      const result: any = await service.syncFeeds();
+      // 👈 Cast corrigé via 'unknown'
+      const result = (await service.syncFeeds()) as unknown as Record<string, unknown>;
 
       expect(result).toHaveProperty('otx');
       expect(result).toHaveProperty('misp');

@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException, ConflictException, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { IOC, Prisma } from '@prisma/client';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { OpenSearchService } from '../opensearch/opensearch.service';
@@ -7,7 +9,6 @@ import { CreateIocDto } from './dto/create-ioc.dto';
 import { UpdateIocDto } from './dto/update-ioc.dto';
 import { IocFiltersDto } from './dto/ioc-filters.dto';
 import { PaginatedResult } from '../common/dto/pagination.dto';
-import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class IocService {
@@ -20,7 +21,7 @@ export class IocService {
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
-  async create(dto: CreateIocDto, userId: string) {
+  async create(dto: CreateIocDto, userId: string): Promise<IOC> {
     // Check for duplicate IOC (same type + value)
     const existing = await this.prisma.iOC.findUnique({
       where: { type_value: { type: dto.type, value: dto.value } },
@@ -66,8 +67,8 @@ export class IocService {
     return ioc;
   }
 
-  async findAll(filters: IocFiltersDto): Promise<PaginatedResult<any>> {
-    const where: any = {};
+  async findAll(filters: IocFiltersDto): Promise<PaginatedResult<IOC>> {
+    const where: Prisma.IOCWhereInput = {};
 
     if (filters.type) where.type = filters.type;
     if (filters.status) where.status = filters.status;
@@ -107,7 +108,7 @@ export class IocService {
     };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string): Promise<IOC> {
     const ioc = await this.prisma.iOC.findUnique({
       where: { id },
       include: {
@@ -122,7 +123,7 @@ export class IocService {
     return ioc;
   }
 
-  async update(id: string, dto: UpdateIocDto, userId: string) {
+  async update(id: string, dto: UpdateIocDto, userId: string): Promise<IOC> {
     await this.findOne(id);
 
     const updated = await this.prisma.iOC.update({
@@ -145,7 +146,7 @@ export class IocService {
     return updated;
   }
 
-  async remove(id: string, userId: string) {
+  async remove(id: string, userId: string): Promise<void> {
     await this.findOne(id);
     await this.prisma.iOC.delete({ where: { id } });
 
@@ -162,7 +163,7 @@ export class IocService {
    * Search IOCs matching a given value (IP, domain, hash, etc.)
    * Used for real-time alert correlation.
    */
-  async matchValue(value: string) {
+  async matchValue(value: string): Promise<IOC[]> {
     return this.prisma.iOC.findMany({
       where: {
         value: { contains: value, mode: 'insensitive' },
@@ -176,7 +177,10 @@ export class IocService {
   /**
    * Bulk import IOCs (from threat intel feeds)
    */
-  async bulkImport(iocs: CreateIocDto[], userId: string) {
+  async bulkImport(
+    iocs: CreateIocDto[],
+    userId: string,
+  ): Promise<{ created: number; skipped: number; errors: string[] }> {
     const results = { created: 0, skipped: 0, errors: [] as string[] };
 
     for (const iocDto of iocs) {
@@ -196,8 +200,9 @@ export class IocService {
           await this.create(iocDto, userId);
           results.created++;
         }
-      } catch (error) {
-        results.errors.push(`${iocDto.type}:${iocDto.value} - ${error.message}`);
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        results.errors.push(`${iocDto.type}:${iocDto.value} - ${message}`);
       }
     }
 
@@ -212,7 +217,7 @@ export class IocService {
    * Expire old IOCs automatically (runs every hour)
    */
   @Cron(CronExpression.EVERY_HOUR)
-  async expireOldIocs() {
+  async expireOldIocs(): Promise<Prisma.BatchPayload> {
     const expired = await this.prisma.iOC.updateMany({
       where: {
         status: 'active',
@@ -224,12 +229,14 @@ export class IocService {
     if (expired.count > 0) {
       this.logger.log(`Expired ${expired.count} IOCs`);
     }
+
+    return expired;
   }
 
   /**
    * Get IOC statistics
    */
-  async getStats() {
+  async getStats(): Promise<Record<string, unknown>> {
     const [byType, byStatus, bySeverity, total, activeCount] = await Promise.all([
       this.prisma.iOC.groupBy({ by: ['type'], _count: true }),
       this.prisma.iOC.groupBy({ by: ['status'], _count: true }),
@@ -247,7 +254,7 @@ export class IocService {
     };
   }
 
-  private async indexIocInOpenSearch(ioc: any) {
+  private async indexIocInOpenSearch(ioc: IOC): Promise<void> {
     try {
       await this.opensearch.index(
         'minisoc-iocs',

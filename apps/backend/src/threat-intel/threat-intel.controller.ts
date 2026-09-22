@@ -1,12 +1,26 @@
 import { Controller, Get, Post, Param, Body, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
-import { ThreatIntelService } from './threat-intel.service';
-import { StixTaxiiService } from './feeds/stix-taxii.service';
+import {
+  ThreatIntelService,
+  ThreatLookupResult,
+  FeedStatusResponse,
+  FeedSyncResult,
+} from './threat-intel.service';
+import { StixTaxiiService, StixBundle, TaxiiCollection } from './feeds/stix-taxii.service';
 import { IocService } from '../ioc/ioc.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { IOC } from '@prisma/client';
+
+export interface IngestTaxiiResponse {
+  ingested: number;
+  message?: string;
+  source?: string;
+  totalParsed?: number;
+  [key: string]: unknown;
+}
 
 @ApiTags('Threat Intelligence')
 @ApiBearerAuth()
@@ -24,14 +38,14 @@ export class ThreatIntelController {
   @ApiOperation({ summary: 'Lookup threat intelligence for a value' })
   @ApiParam({ name: 'value', description: 'IP, domain, or hash to lookup' })
   @ApiResponse({ status: 200, description: 'Threat intelligence result' })
-  lookup(@Param('value') value: string) {
+  async lookup(@Param('value') value: string): Promise<ThreatLookupResult> {
     return this.threatIntelService.lookup(value);
   }
 
   @Get('feeds/status')
   @Roles('admin', 'analyst_l2', 'analyst_l3')
   @ApiOperation({ summary: 'Get threat intel feeds status' })
-  getFeedStatus() {
+  async getFeedStatus(): Promise<FeedStatusResponse> {
     return this.threatIntelService.getFeedStatus();
   }
 
@@ -39,7 +53,7 @@ export class ThreatIntelController {
   @Roles('admin')
   @ApiOperation({ summary: 'Trigger manual feed synchronization' })
   @ApiResponse({ status: 200, description: 'Feed sync results' })
-  syncFeeds() {
+  async syncFeeds(): Promise<FeedSyncResult> {
     return this.threatIntelService.syncFeeds();
   }
 
@@ -62,7 +76,7 @@ export class ThreatIntelController {
       addedAfter?: string;
     },
     @CurrentUser('id') userId: string,
-  ) {
+  ): Promise<IngestTaxiiResponse> {
     const iocs = await this.stixTaxii.ingestFromTaxiiFeed({
       serverUrl: config.serverUrl,
       apiRoot: config.apiRoot,
@@ -78,7 +92,12 @@ export class ThreatIntelController {
     }
 
     const result = await this.iocService.bulkImport(iocs, userId);
-    return { ...result, source: 'TAXII', totalParsed: iocs.length };
+    return {
+      ...result,
+      ingested: result.created, // 👈 Corrigé
+      source: 'TAXII',
+      totalParsed: iocs.length,
+    };
   }
 
   @Post('taxii/collections')
@@ -86,7 +105,7 @@ export class ThreatIntelController {
   @ApiOperation({ summary: 'List collections from a TAXII server' })
   async listTaxiiCollections(
     @Body() config: { serverUrl: string; apiRoot: string; username?: string; password?: string },
-  ) {
+  ): Promise<TaxiiCollection[]> {
     return this.stixTaxii.listCollections(
       config.serverUrl,
       config.apiRoot,
@@ -98,22 +117,22 @@ export class ThreatIntelController {
   @Roles('admin', 'analyst_l3')
   @ApiOperation({ summary: 'Export local IOCs as a STIX 2.x bundle' })
   @ApiResponse({ status: 200, description: 'STIX bundle' })
-  async exportStixBundle() {
+  async exportStixBundle(): Promise<StixBundle> {
     const iocs = await this.iocService.findAll({
       status: 'active',
       page: 1,
       limit: 500,
-      skip: 0,
-    } as any);
+      skip: 0, // 👈 Corrigé
+    });
 
     const bundle = this.stixTaxii.generateStixBundle(
-      iocs.data.map((ioc: any) => ({
+      iocs.data.map((ioc: IOC) => ({
         type: ioc.type,
         value: ioc.value,
-        description: ioc.description,
-        confidence: ioc.confidence,
-        severity: ioc.severity,
-        mitreTechniques: ioc.mitreTechniques,
+        description: ioc.description ?? undefined,
+        confidence: ioc.confidence ?? undefined,
+        severity: ioc.severity ?? undefined,
+        mitreTechniques: ioc.mitreTechniques ?? undefined,
       })),
       'Mini-SOC',
     );

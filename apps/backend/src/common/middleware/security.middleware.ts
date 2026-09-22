@@ -35,10 +35,10 @@ export class SecurityMiddleware implements NestMiddleware {
     xssFilter: true,
   });
 
-  use(req: Request, res: Response, next: NextFunction) {
+  use(req: Request, res: Response, next: NextFunction): void {
     // Additional security headers
     res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-    res.setHeader('X-Request-ID', req.headers['x-request-id'] || crypto.randomUUID());
+    res.setHeader('X-Request-ID', (req.headers['x-request-id'] as string) || crypto.randomUUID());
 
     this.helmetMiddleware(req, res, next);
   }

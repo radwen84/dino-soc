@@ -1,6 +1,7 @@
 import { Strategy } from 'passport-local';
 import { PassportStrategy } from '@nestjs/passport';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Request } from 'express';
 import { AuthService } from '../auth.service';
 
 @Injectable()
@@ -13,7 +14,7 @@ export class LocalStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(req: any, email: string, password: string): Promise<any> {
+  async validate(req: Request, email: string, password: string): Promise<unknown> {
     const ip = req.ip || req.socket?.remoteAddress || 'unknown';
     const user = await this.authService.validateUser(email, password, ip);
     if (!user) {

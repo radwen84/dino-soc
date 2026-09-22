@@ -1,9 +1,25 @@
 import { Injectable, NotFoundException, ConflictException, Logger } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import { User, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { PaginationDto, PaginatedResult } from '../common/dto/pagination.dto';
+
+export interface UserPublicProfile {
+  id: string;
+  email: string;
+  name: string;
+  roles: string[];
+  isActive: boolean;
+  mfaEnabled: boolean;
+  createdAt: Date;
+  updatedAt?: Date;
+}
+
+export interface UserSummaryProfile extends UserPublicProfile {
+  lastLogin: Date | null;
+}
 
 @Injectable()
 export class UsersService {
@@ -12,7 +28,7 @@ export class UsersService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(dto: CreateUserDto) {
+  async create(dto: CreateUserDto): Promise<UserPublicProfile> {
     const existing = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
@@ -44,7 +60,7 @@ export class UsersService {
     return user;
   }
 
-  async findAll(pagination: PaginationDto): Promise<PaginatedResult<any>> {
+  async findAll(pagination: PaginationDto): Promise<PaginatedResult<UserSummaryProfile>> {
     const { skip, limit, sortBy, sortOrder } = pagination;
 
     const [users, total] = await Promise.all([
@@ -79,28 +95,29 @@ export class UsersService {
     };
   }
 
-  async findById(id: string) {
+  async findById(id: string): Promise<User> {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException('User not found');
     return user;
   }
 
-  async findByEmail(email: string) {
+  async findByEmail(email: string): Promise<User | null> {
     return this.prisma.user.findUnique({ where: { email } });
   }
 
-  async update(id: string, dto: UpdateUserDto) {
+  async update(id: string, dto: UpdateUserDto): Promise<UserPublicProfile> {
     await this.findById(id);
 
-    const data: any = { ...dto };
-    if (dto.password) {
-      data.passwordHash = await bcrypt.hash(dto.password, this.SALT_ROUNDS);
-      delete data.password;
+    const { password, ...rest } = dto;
+    const updateData: Prisma.UserUpdateInput = { ...rest };
+
+    if (password) {
+      updateData.passwordHash = await bcrypt.hash(password, this.SALT_ROUNDS);
     }
 
     return this.prisma.user.update({
       where: { id },
-      data,
+      data: updateData,
       select: {
         id: true,
         email: true,
@@ -109,11 +126,12 @@ export class UsersService {
         isActive: true,
         mfaEnabled: true,
         updatedAt: true,
+        createdAt: true,
       },
     });
   }
 
-  async deactivate(id: string) {
+  async deactivate(id: string): Promise<User> {
     await this.findById(id);
     return this.prisma.user.update({
       where: { id },

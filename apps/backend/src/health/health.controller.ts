@@ -3,6 +3,23 @@ import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 
+export interface HealthCheckResponse {
+  status: 'healthy' | 'degraded';
+  version: string;
+  uptime: number;
+  timestamp: string;
+  checks: Record<string, string>;
+}
+
+export interface ReadinessResponse {
+  status: 'ready' | 'not_ready';
+}
+
+export interface LivenessResponse {
+  status: 'alive';
+  uptime: number;
+}
+
 @ApiTags('Health')
 @Controller('health')
 export class HealthController {
@@ -13,7 +30,7 @@ export class HealthController {
 
   @Get()
   @ApiOperation({ summary: 'Health check endpoint' })
-  async check() {
+  async check(): Promise<HealthCheckResponse> {
     const checks: Record<string, string> = {};
 
     // Database check
@@ -45,7 +62,7 @@ export class HealthController {
 
   @Get('ready')
   @ApiOperation({ summary: 'Readiness check (for Kubernetes)' })
-  async ready() {
+  async ready(): Promise<ReadinessResponse> {
     try {
       await this.prisma.$queryRaw`SELECT 1`;
       return { status: 'ready' };
@@ -56,7 +73,7 @@ export class HealthController {
 
   @Get('live')
   @ApiOperation({ summary: 'Liveness check (for Kubernetes)' })
-  live() {
+  live(): LivenessResponse {
     return { status: 'alive', uptime: process.uptime() };
   }
 }

@@ -793,6 +793,7 @@ services:
     restart: unless-stopped
     networks:
       - monitoring
+      - backend
     volumes:
       - ./infrastructure/monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
     deploy:

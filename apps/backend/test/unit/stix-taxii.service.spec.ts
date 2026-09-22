@@ -1,15 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  StixTaxiiService,
-  StixBundle,
-  TlpLevel,
-} from '../../src/threat-intel/feeds/stix-taxii.service';
+import { StixTaxiiService, StixBundle } from '../../src/threat-intel/feeds/stix-taxii.service';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 
 describe('StixTaxiiService', () => {
   let service: StixTaxiiService;
-  let mockHttpService: any;
+  let mockHttpService: Record<string, jest.Mock>;
 
   beforeEach(async () => {
     mockHttpService = {

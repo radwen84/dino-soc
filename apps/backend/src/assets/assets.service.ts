@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException, ConflictException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { Asset, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { WazuhService } from '../wazuh/wazuh.service';
@@ -7,6 +8,28 @@ import { UpdateAssetDto } from './dto/update-asset.dto';
 import { AssetFiltersDto } from './dto/asset-filters.dto';
 import { PaginatedResult } from '../common/dto/pagination.dto';
 import { Cron, CronExpression } from '@nestjs/schedule';
+
+// Interface pour typer les réponses des agents Wazuh
+export interface WazuhAgent {
+  id: string;
+  name?: string;
+  ip?: string;
+  status?: string;
+  os?: {
+    name?: string;
+    version?: string;
+  };
+}
+
+// Interface pour typer les retours de la statistique getStats()
+export interface AssetStats {
+  total: number;
+  active: number;
+  inactive: number;
+  byCriticality: Record<string, number>;
+  byOs: Record<string, number>;
+  byDepartment: Record<string, number>;
+}
 
 @Injectable()
 export class AssetsService {
@@ -18,7 +41,7 @@ export class AssetsService {
     private readonly wazuhService: WazuhService,
   ) {}
 
-  async create(dto: CreateAssetDto, userId: string) {
+  async create(dto: CreateAssetDto, userId: string): Promise<Asset> {
     const asset = await this.prisma.asset.create({
       data: {
         hostname: dto.hostname,
@@ -33,7 +56,7 @@ export class AssetsService {
         tags: dto.tags || [],
         wazuhAgentId: dto.wazuhAgentId,
         isActive: dto.isActive ?? true,
-        metadata: dto.metadata || {},
+        metadata: (dto.metadata as Prisma.InputJsonValue) || {},
         lastSeen: new Date(),
       },
     });
@@ -49,8 +72,8 @@ export class AssetsService {
     return asset;
   }
 
-  async findAll(filters: AssetFiltersDto): Promise<PaginatedResult<any>> {
-    const where: any = {};
+  async findAll(filters: AssetFiltersDto): Promise<PaginatedResult<Asset>> {
+    const where: Prisma.AssetWhereInput = {};
 
     if (filters.criticality) where.criticality = filters.criticality;
     if (filters.os) where.os = { contains: filters.os, mode: 'insensitive' };
@@ -88,7 +111,7 @@ export class AssetsService {
     };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string): Promise<Asset> {
     const asset = await this.prisma.asset.findUnique({ where: { id } });
     if (!asset) {
       throw new NotFoundException(`Asset not found: ${id}`);
@@ -96,39 +119,42 @@ export class AssetsService {
     return asset;
   }
 
-  async findByIp(ip: string) {
+  async findByIp(ip: string): Promise<Asset | null> {
     return this.prisma.asset.findFirst({
       where: { ipAddress: ip, isActive: true },
     });
   }
 
-  async findByHostname(hostname: string) {
+  async findByHostname(hostname: string): Promise<Asset | null> {
     return this.prisma.asset.findFirst({
       where: { hostname: { equals: hostname, mode: 'insensitive' }, isActive: true },
     });
   }
 
-  async update(id: string, dto: UpdateAssetDto, userId: string) {
+  async update(id: string, dto: UpdateAssetDto, userId: string): Promise<Asset> {
     await this.findOne(id);
 
     const updated = await this.prisma.asset.update({
       where: { id },
-      data: { ...dto, metadata: dto.metadata || undefined },
+      data: {
+        ...dto,
+        metadata: dto.metadata ? (dto.metadata as Prisma.InputJsonValue) : undefined,
+      },
     });
 
     await this.auditService.log('ASSET_UPDATED', {
       userId,
       resourceType: 'asset',
       resourceId: id,
-      details: { changes: dto },
+      details: { changes: dto as Prisma.InputJsonValue },
     });
 
     return updated;
   }
 
-  async remove(id: string, userId: string) {
+  async remove(id: string, userId: string): Promise<Asset> {
     await this.findOne(id);
-    await this.prisma.asset.delete({ where: { id } });
+    const deleted = await this.prisma.asset.delete({ where: { id } });
 
     await this.auditService.log('ASSET_DELETED', {
       userId,
@@ -137,17 +163,18 @@ export class AssetsService {
     });
 
     this.logger.log(`Asset deleted: ${id}`);
+    return deleted;
   }
 
   /**
    * Sync assets with Wazuh agents (runs every 6 hours)
    */
   @Cron(CronExpression.EVERY_6_HOURS)
-  async syncWithWazuh() {
+  async syncWithWazuh(): Promise<void> {
     this.logger.log('Starting Wazuh agent sync...');
 
     try {
-      const agents = await this.wazuhService.getAgents();
+      const agents: WazuhAgent[] = await this.wazuhService.getAgents();
 
       for (const agent of agents) {
         const existing = await this.prisma.asset.findFirst({
@@ -176,7 +203,10 @@ export class AssetsService {
               criticality: 'medium',
               isActive: agent.status === 'active',
               lastSeen: new Date(),
-              metadata: { autoDiscovered: true, wazuhAgent: agent },
+              metadata: {
+                autoDiscovered: true,
+                wazuhAgent: agent as unknown as Prisma.InputJsonValue,
+              },
             },
           });
         }
@@ -184,14 +214,15 @@ export class AssetsService {
 
       this.logger.log(`Wazuh sync completed: ${agents.length} agents processed`);
     } catch (error) {
-      this.logger.error(`Wazuh sync failed: ${error.message}`);
+      const err = error as Error;
+      this.logger.error(`Wazuh sync failed: ${err.message}`);
     }
   }
 
   /**
    * Get asset statistics
    */
-  async getStats() {
+  async getStats(): Promise<AssetStats> {
     const [total, active, byCriticality, byOs, byDepartment] = await Promise.all([
       this.prisma.asset.count(),
       this.prisma.asset.count({ where: { isActive: true } }),
@@ -208,13 +239,16 @@ export class AssetsService {
       total,
       active,
       inactive: total - active,
-      byCriticality: byCriticality.reduce(
+      byCriticality: byCriticality.reduce<Record<string, number>>(
         (acc, item) => ({ ...acc, [item.criticality]: item._count }),
         {},
       ),
-      byOs: byOs.reduce((acc, item) => ({ ...acc, [item.os]: item._count }), {}),
-      byDepartment: byDepartment.reduce(
-        (acc, item) => ({ ...acc, [item.department]: item._count }),
+      byOs: byOs.reduce<Record<string, number>>(
+        (acc, item) => (item.os ? { ...acc, [item.os]: item._count } : acc),
+        {},
+      ),
+      byDepartment: byDepartment.reduce<Record<string, number>>(
+        (acc, item) => (item.department ? { ...acc, [item.department]: item._count } : acc),
         {},
       ),
     };
