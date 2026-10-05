@@ -47,7 +47,7 @@ export class PlaybookEngine {
 
   async processApproval(
     approvalId: string,
-    decision: 'approved' | 'rejected' | (string & {}),
+    decision: 'approved' | 'rejected' | string,
     decidedBy: string,
     reason?: string,
   ): Promise<any> {
