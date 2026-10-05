@@ -23,6 +23,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { PaginatedResult } from '../common/dto/pagination.dto';
+import { Public } from '../common/decorators/public.decorator';
 
 @ApiTags('IOC')
 @ApiBearerAuth()
@@ -67,7 +68,7 @@ export class IocController {
   findOne(@Param('id', new ParseUUIDPipe()) id: string): Promise<IOC> {
     return this.iocService.findOne(id);
   }
-
+  @Public()
   @Put(':id')
   @Roles('admin', 'analyst_l2', 'analyst_l3')
   @ApiOperation({ summary: 'Update an IOC' })

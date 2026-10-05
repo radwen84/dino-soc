@@ -9,6 +9,7 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { IncidentsPage } from "./pages/IncidentsPage";
 import { IncidentDetailPage } from "./pages/IncidentDetailPage";
 import { AlertsPage } from "./pages/AlertsPage";
+import { SoarPage } from "./pages/SoarPage";
 import { IocPage } from "./pages/IocPage";
 import { AssetsPage } from "./pages/AssetsPage";
 import { ThreatIntelPage } from "./pages/ThreatIntelPage";
@@ -50,6 +51,8 @@ export default function App(): JSX.Element {
         <Route path="incidents/:id" element={<IncidentDetailPage />} />
 
         <Route path="alerts" element={<AlertsPage />} />
+
+        <Route path="soar" element={<SoarPage />} />
 
         <Route path="ioc" element={<IocPage />} />
 

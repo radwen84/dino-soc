@@ -9,8 +9,14 @@ log_syslog: true
 log_level: info
 
 priority: notice
+# Configuration du moteur eBPF moderne pour VirtualBox
+engine:
+  kind: modern_ebpf
+  modern_ebpf:
+    cpus_for_each_buffer: 1
+    buf_size_preset: 1
 
-rules_file:
+rules_files:
   - /etc/falco/falco_rules.yaml
   - /etc/falco/falco_rules.local.yaml
   - /etc/falco/rules.d

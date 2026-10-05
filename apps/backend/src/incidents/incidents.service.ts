@@ -1,10 +1,11 @@
-import { IncidentSeverity, IncidentStatus, Incident, Prisma } from '@prisma/client';
+import { IncidentSeverity, IncidentStatus, Incident, Prisma, IOCType } from '@prisma/client';
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { MlEngineService } from './ml-engine.service';
 import { TheHiveService } from './thehive.service';
+import { IocService } from '../ioc/ioc.service';
 import { CreateIncidentDto } from './dto/create-incident.dto';
 import { UpdateIncidentDto } from './dto/update-incident.dto';
 import { IncidentFiltersDto } from './dto/incident-filters.dto';
@@ -20,10 +21,10 @@ export class IncidentsService {
     private readonly eventEmitter: EventEmitter2,
     private readonly mlEngine: MlEngineService,
     private readonly theHive: TheHiveService,
+    private readonly iocService: IocService,
   ) {}
 
   async create(dto: CreateIncidentDto, userId: string): Promise<Incident> {
-    // Essayer d'abord le score de risque basé sur le ML, puis repli sur les règles
     let riskScore = this.calculateRiskScore(dto.severity, dto.category);
 
     const mlResult = await this.mlEngine.getRiskScore({
@@ -33,13 +34,10 @@ export class IncidentsService {
       affectedAssets: [],
       confidence: dto.severity === 'critical' ? 95 : dto.severity === 'high' ? 85 : 70,
       alertCount: dto.sourceAlertIds?.length || 1,
-    });
+    } as any);
 
     if (mlResult) {
       riskScore = mlResult.risk_score;
-      this.logger.log(
-        `ML risk score used: ${riskScore} (level: ${mlResult.risk_level}, action: ${mlResult.recommended_action})`,
-      );
     }
 
     const incident = await this.prisma.incident.create({
@@ -70,21 +68,47 @@ export class IncidentsService {
     });
 
     this.eventEmitter.emit('incident.created', incident);
-    this.logger.log(`Incident created: ${incident.id} - ${incident.title}`);
 
-    // Envoi vers TheHive 5 de manière asynchrone (non-bloquant)
     this.pushToTheHive(incident, dto).catch((err: Error) =>
-      this.logger.warn(`TheHive push failed for incident ${incident.id}: ${err.message}`),
+      this.logger.warn(`Post-processing failed for incident ${incident.id}: ${err.message}`),
     );
 
     return incident;
   }
 
-  /**
-   * Pousse l'incident vers TheHive 5 et déclenche les analyseurs Cortex sur les observables.
-   * Exécution asynchrone — un échec ne bloque pas la création de l'incident.
-   */
   private async pushToTheHive(incident: Incident, dto: CreateIncidentDto): Promise<void> {
+    let extractedIps: string[] = [];
+
+    if (dto.sourceAlertIds?.length) {
+      const alerts = await this.prisma.alert.findMany({
+        where: { id: { in: dto.sourceAlertIds } },
+        select: { srcIp: true, dstIp: true },
+      });
+
+      const ips = new Set<string>();
+      for (const alert of alerts) {
+        if (alert.srcIp) ips.add(alert.srcIp);
+        if (alert.dstIp) ips.add(alert.dstIp);
+      }
+      extractedIps = Array.from(ips);
+
+      if (extractedIps.length > 0) {
+        const iocDtos = extractedIps.map((ip) => ({
+          type: 'ip' as IOCType,
+          value: ip,
+          confidence: 80,
+          source: 'Incident Auto-Enrichment',
+          description: `Auto-extracted from incident ${incident.id}`,
+        }));
+
+        await this.iocService
+          .bulkImport(iocDtos, 'system')
+          .catch((err) => {
+            this.logger.warn(`Failed to auto-enrich IoCs for incident ${incident.id}: ${err.message}`);
+          });
+      }
+    }
+
     const theHiveAlert = await this.theHive.pushIncident({
       id: incident.id,
       title: incident.title,
@@ -98,24 +122,8 @@ export class IncidentsService {
     });
 
     if (theHiveAlert) {
-      this.logger.log(`Incident ${incident.id} pushed to TheHive as alert ${theHiveAlert._id}`);
-
-      // Déclenche les analyseurs Cortex sur les IP sources des alertes liées
-      if (dto.sourceAlertIds?.length) {
-        const alerts = await this.prisma.alert.findMany({
-          where: { id: { in: dto.sourceAlertIds } },
-          select: { srcIp: true, dstIp: true },
-        });
-
-        const ips = new Set<string>();
-        for (const alert of alerts) {
-          if (alert.srcIp) ips.add(alert.srcIp);
-          if (alert.dstIp) ips.add(alert.dstIp);
-        }
-
-        for (const ip of ips) {
-          await this.theHive.runAnalyzers('ip', ip).catch(() => {});
-        }
+      for (const ip of extractedIps) {
+        await this.theHive.runAnalyzers('ip', ip).catch(() => {});
       }
     }
   }
@@ -197,7 +205,6 @@ export class IncidentsService {
     const incident = await this.findById(id);
     const previousStatus = incident.status;
 
-    // Cast explicite des Enums Prisma pour éliminer les erreurs d'assignation 'string'
     const data: Prisma.IncidentUpdateInput = {
       ...dto,
       severity: dto.severity ? (dto.severity as IncidentSeverity) : undefined,
@@ -205,7 +212,6 @@ export class IncidentsService {
       updatedAt: new Date(),
     };
 
-    // Mise à jour automatique des horodatages selon la transition de statut
     if (dto.status && dto.status !== previousStatus) {
       switch (dto.status) {
         case 'triaged':
@@ -408,7 +414,6 @@ export class IncidentsService {
     };
     let score = severityScores[severity] || 50;
 
-    // Bonus pour certaines catégories
     if (category === 'ransomware' || category === 'data_breach') score += 10;
     if (category === 'apt') score += 15;
 

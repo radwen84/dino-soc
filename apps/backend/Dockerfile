@@ -2,7 +2,7 @@
 FROM node:24-alpine AS builder
 WORKDIR /app
 
-RUN apk add --no-cache openssl libc6-compat
+RUN apk add --no-cache openssl libc6-compat python3 make g++
 
 COPY apps/backend/package.json apps/backend/package-lock.json ./
 COPY apps/backend/prisma ./prisma/
@@ -20,7 +20,7 @@ RUN ls -la dist && test -f dist/main.js
 FROM node:24-alpine AS prod-deps
 WORKDIR /app
 
-RUN apk add --no-cache openssl libc6-compat
+RUN apk add --no-cache openssl libc6-compat python3 make g++
 
 COPY apps/backend/package.json apps/backend/package-lock.json ./
 COPY apps/backend/prisma ./prisma/

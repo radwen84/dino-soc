@@ -24,3 +24,8 @@ alert http $EXTERNAL_NET any -> $HOME_NET $HTTP_PORTS (msg:"MINISOC - XSS Attemp
 
 # --- Reverse Shell Detection ---
 alert tcp $HOME_NET any -> $EXTERNAL_NET any (msg:"MINISOC - Possible Reverse Shell"; flow:established; content:"/bin/sh"; content:"-i"; distance:0; classtype:trojan-activity; sid:1000060; rev:2; metadata:mitre_technique_id T1059.004;)
+
+# --- Web Brute Force Detection ---
+alert http $EXTERNAL_NET any -> $HOME_NET $HTTP_PORTS (msg:"MINISOC - HTTP Auth Brute Force Attempt"; flow:to_server,established; http.uri; content:"/api/auth/login"; threshold: type threshold, track by_src, count 5, seconds 60; classtype:web-application-attack; sid:1000052; rev:1; metadata:mitre_technique_id T1110, mitre_tactic_name Credential_Access;)
+# --- Web Brute Force Any Port ---
+alert http $EXTERNAL_NET any -> $HOME_NET any (msg:"MINISOC - HTTP Auth Brute Force Attempt"; flow:to_server,established; http.uri; content:"/api/auth/login"; threshold: type threshold, track by_src, count 5, seconds 60; classtype:web-application-attack; sid:1000052; rev:2; metadata:mitre_technique_id T1110, mitre_tactic_name Credential_Access;)

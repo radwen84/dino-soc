@@ -6,7 +6,7 @@ global:
 alerting:
   alertmanagers:
     - static_configs:
-        - targets: ['alertmanager:9093']
+        - targets: ['minisoc-alertmanager:9093']
 
 rule_files:
   - /etc/prometheus/alerts/*.yml
@@ -19,22 +19,9 @@ scrape_configs:
   - job_name: 'minisoc-backend'
     metrics_path: /api/metrics
     static_configs:
-      - targets: ['backend:4000']
+      - targets: ['nestjs-api:4000']
     scrape_interval: 10s
 
-  - job_name: 'node-exporter'
+  - job_name: 'alertmanager'
     static_configs:
-      - targets: ['node-exporter:9100']
-
-  - job_name: 'postgres'
-    static_configs:
-      - targets: ['postgres-exporter:9187']
-
-  - job_name: 'redis'
-    static_configs:
-      - targets: ['redis-exporter:9121']
-
-  - job_name: 'opensearch'
-    metrics_path: /_prometheus/metrics
-    static_configs:
-      - targets: ['opensearch:9200']
+      - targets: ['minisoc-alertmanager:9093']

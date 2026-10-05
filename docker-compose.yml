@@ -7,13 +7,13 @@ networks:
     driver: bridge
   backend:
     driver: bridge
-    internal: true
+    internal: false
   monitoring:
     driver: bridge
-    internal: true
+    internal: false
   siem:
     driver: bridge
-    internal: true
+    internal: false
 
 secrets:
   db_password:
@@ -51,7 +51,6 @@ services:
         limits:
           memory: 256M
           cpus: "0.5"
-    
     tmpfs:
       - /var/cache/nginx
       - /var/run
@@ -84,45 +83,46 @@ services:
       - "4000:4000"
     dns:
       - 8.8.8.8
-      - 1.1.1.1 
-
+      - 1.1.1.1
     networks:
       - backend
     secrets:
-      - db_password
-      - jwt_secret
-      - wazuh_api_password
-      - jwt_refresh_secret
-      - redis_password
+      - source: db_password
+        mode: 0444
+      - source: jwt_secret
+        mode: 0444
+      - source: jwt_refresh_secret
+        mode: 0444
+      - source: wazuh_api_password
+        mode: 0444
+      - source: redis_password
+        mode: 0444
     environment:
       - NODE_ENV=production
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_NAME=minisoc
       - DB_USER=minisoc_app
-      # =========================================================
-      # FIX CI / NestJS Config Validation (Variables obligatoires)
-      # =========================================================
       - DATABASE_URL=${DATABASE_URL:-postgresql://minisoc_app:ci-test-db-password-123@postgres:5432/minisoc?schema=public}
       - JWT_SECRET=${JWT_SECRET:-ci-super-secret-jwt-key-minimum-32-chars}
       - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-ci-super-secret-refresh-key-minimum-32-chars}
-      # =========================================================
       - OPENSEARCH_HOST=opensearch
       - OPENSEARCH_PORT=9200
       - OPENSEARCH_PROTOCOL=http
       - OPENSEARCH_URL=http://opensearch:9200
       - API_CORS_ORIGINS=${API_CORS_ORIGINS:-*}
-      - WAZUH_HOST=${WAZUH_HOST:-wazuh-manager}
+      - WAZUH_HOST=${WAZUH_HOST:-minisoc-wazuh}
       - WAZUH_API_PORT=${WAZUH_API_PORT:-55000}
       - WAZUH_API_USER=${WAZUH_API_USER:-wazuh-wui}
+      - WAZUH_API_PASSWORD=Wazuh-WUI-Pass2026!
       - WAZUH_API_PASSWORD_FILE=/run/secrets/wazuh_api_password
       - REDIS_HOST=redis
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
       - REDIS_PORT=6379
       - DB_PASSWORD_FILE=/run/secrets/db_password
       - JWT_SECRET_FILE=/run/secrets/jwt_secret
       - JWT_REFRESH_SECRET_FILE=/run/secrets/jwt_refresh_secret
       - REDIS_PASSWORD_FILE=/run/secrets/redis_password
-      # Threat Intelligence
       - MISP_URL=http://misp:80
       - MISP_API_KEY=${MISP_API_KEY:-}
       - ABUSEIPDB_API_KEY=${ABUSEIPDB_API_KEY:-}
@@ -132,20 +132,17 @@ services:
       - TAXII_COLLECTION_ID=${TAXII_COLLECTION_ID:-}
       - TAXII_USERNAME=${TAXII_USERNAME:-}
       - TAXII_PASSWORD=${TAXII_PASSWORD:-}
-      # ML Engine
       - ML_ENGINE_URL=http://ml-engine:8000
-      # Plugin Engine (Express) — internal only
       - PLUGIN_ENGINE_URL=http://plugin-engine:8001
       - PLUGIN_ENGINE_TIMEOUT_MS=${PLUGIN_ENGINE_TIMEOUT_MS:-8000}
-      # Shared interservice secret protecting ml-engine /train,/drift/check
-      # and plugin-engine /plugins/:name/execute
       - INTERNAL_API_KEY=${INTERNAL_API_KEY:-}
-      # TheHive & Cortex
       - THEHIVE_URL=http://thehive:9000
-      - THEHIVE_API_KEY=${THEHIVE_API_KEY:-}
+      - THEHIVE_API_KEY=rbcXFKtoPHiJJAASOeEneevXlCzG/APo
       - THEHIVE_ORGANIZATION=${THEHIVE_ORGANIZATION:-Mini-SOC}
       - CORTEX_URL=http://cortex:9001
       - CORTEX_API_KEY=${CORTEX_API_KEY:-}
+      - NODE_TLS_REJECT_UNAUTHORIZED=0
+      - N8N_SOAR_WEBHOOK_URL=http://minisoc-n8n:5678/webhook/incident-response
     deploy:
       resources:
         limits:
@@ -192,7 +189,6 @@ services:
       - ./infrastructure/docker/postgres/init:/docker-entrypoint-initdb.d:ro
       - ./infrastructure/docker/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
       - ./infrastructure/docker/postgres/init/init-n8n-db.sql:/docker-entrypoint-initdb.d/init-n8n-db.sql:ro
-
     command: postgres -c config_file=/etc/postgresql/postgresql.conf
     deploy:
       resources:
@@ -259,17 +255,14 @@ services:
       - "1515:1515/tcp"
       - "55000:55000/tcp"
     volumes:
-     # Volumes de données persistantes
       - wazuh_data:/var/ossec/data
       - wazuh_logs:/var/ossec/logs
       - wazuh_api_config:/var/ossec/api/configuration
-      
-      # Fichiers et règles de sécurité
       - ./security/wazuh/ossec.conf:/var/ossec/etc/ossec.conf:ro
       - ./security/wazuh/rules:/var/ossec/etc/rules:ro
       - ./security/wazuh/decoders:/var/ossec/etc/decoders:ro
-      
-      # Intégration des logs des autres services
+      - ./security/wazuh/shared/ar.conf:/var/ossec/etc/shared/ar.conf
+      - ./security/wazuh/sync-api-password.sh:/docker-entrypoint-init.d/sync-api-password.sh:ro
       - suricata_logs:/var/log/suricata:ro
       - zeek_logs:/var/log/zeek:ro
       - falco_logs:/var/log/falco:ro
@@ -283,7 +276,7 @@ services:
         soft: 65536
         hard: 65536
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf -k https://localhost:55000/ || curl -sf http://localhost:55000/ || exit 1"]
+      test: ["CMD-SHELL", "pgrep wazuh-analysisd || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -300,8 +293,10 @@ services:
       - "9200:9200"
       - "9600:9600"
     networks:
-      - siem
-      - backend
+      siem:
+        aliases:
+          - wazuh.indexer
+      backend:
     environment:
       cluster.name: minisoc-cluster
       node.name: opensearch-node1
@@ -309,7 +304,7 @@ services:
       OPENSEARCH_JAVA_OPTS: -Xms1g -Xmx1g
       bootstrap.memory_lock: "true"
       plugins.security.disabled: "true"
-      OPENSEARCH_INITIAL_ADMIN_PASSWORD: "${OPENSEARCH_ADMIN_PASSWORD:-ChangeMe2026SecureP4ss}"
+      OPENSEARCH_INITIAL_ADMIN_PASSWORD: "${OPENSEARCH_ADMIN_PASSWORD:-SecUr3!MiniSOC#2026}"
     volumes:
       - opensearch_data:/usr/share/opensearch/data
     deploy:
@@ -385,9 +380,10 @@ services:
     cap_add:
       - NET_RAW
       - NET_ADMIN
+    entrypoint: ["/usr/local/zeek/bin/zeek"]
+    command: ["-i", "enp0s3", "local"]
     volumes:
       - zeek_logs:/var/log/zeek
-     
 
   # ============================================
   # FALCO - Runtime Security
@@ -399,22 +395,29 @@ services:
     container_name: minisoc-falco
     restart: unless-stopped
     privileged: true
+    pid: host
+    network_mode: host
+    security_opt:
+      - seccomp:unconfined
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
     cap_add:
       - SYS_ADMIN
       - SYS_RESOURCE
       - SYS_PTRACE
-      - BPF        # Recommandé pour les sondes modern-ebpf
-      - PERFMON    # Recommandé pour la collecte d'événements
-    environment:
-      - FALCO_DRIVER_CHOICE=modern_ebpf
+      - BPF
+      - PERFMON
+    entrypoint: ["/usr/bin/falco", "-o", "engine.kind=modern_ebpf", "-c", "/etc/falco/falco.yaml"]
     volumes:
       - /var/run/docker.sock:/host/var/run/docker.sock:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /dev:/host/dev:ro
-      - /proc:/host/proc:ro
-      - /boot:/host/boot:ro
-      - /lib/modules:/host/lib/modules:ro
-      - /sys:/host/sys:ro
+      - /dev:/dev
+      - /proc:/proc:ro
+      - /boot:/boot:ro
+      - /sys/kernel/debug:/sys/kernel/debug:rw
+      - /sys/kernel/btf:/sys/kernel/btf:ro
+      - /sys/fs/bpf:/sys/fs/bpf:rw
       - /etc:/host/etc:ro
       - falco_logs:/var/log/falco
 
@@ -427,6 +430,9 @@ services:
       dockerfile: Dockerfile
     container_name: minisoc-ml-engine
     restart: unless-stopped
+    ports:                 
+      - "8000:8000"
+      - "8888:8888"
     networks:
       - backend
     environment:
@@ -434,7 +440,6 @@ services:
       - OPENSEARCH_USER=admin
       - OPENSEARCH_ADMIN_PASSWORD=${OPENSEARCH_ADMIN_PASSWORD:-admin}
       - MODEL_PATH=./models
-      # Shared interservice secret protecting /train and /drift/check
       - INTERNAL_API_KEY=${INTERNAL_API_KEY:-}
     deploy:
       resources:
@@ -442,19 +447,17 @@ services:
           memory: 1G
           cpus: "1.0"
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
-      interval: 30s
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\" || exit 1"]
+      interval: 15s
       timeout: 5s
       retries: 3
-      start_period: 30s
+      start_period: 15s
     depends_on:
       opensearch:
         condition: service_healthy
 
   # ============================================
   # PLUGIN ENGINE - Extensible integrations (Express)
-  # Internal only: reachable exclusively via the NestJS API on the
-  # `backend` network. Not exposed publicly (no `ports:` mapping).
   # ============================================
   plugin-engine:
     build:
@@ -464,13 +467,13 @@ services:
     restart: unless-stopped
     networks:
       - backend
+    ports:                 
+      - "8001:8001"  
     environment:
       - NODE_ENV=production
       - PORT=8001
       - LOG_LEVEL=${PLUGIN_ENGINE_LOG_LEVEL:-info}
-      # Shared interservice secret protecting /plugins/:name/execute
       - INTERNAL_API_KEY=${INTERNAL_API_KEY:-}
-      # Plugin credentials (e.g. VirusTotal)
       - VIRUSTOTAL_API_KEY=${VIRUSTOTAL_API_KEY:-}
     deploy:
       resources:
@@ -478,11 +481,11 @@ services:
           memory: 256M
           cpus: "0.5"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
-      interval: 30s
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8001/health || exit 1"]
+      interval: 15s
       timeout: 5s
       retries: 3
-      start_period: 20s
+      start_period: 10s
 
   # ============================================
   # MISP LOCAL - Threat Intelligence Platform
@@ -491,10 +494,13 @@ services:
     image: ghcr.io/misp/misp-docker/misp-core:latest
     container_name: minisoc-misp
     restart: unless-stopped
+    ports:
+      - "8080:80"
+      - "8443:443"
     networks:
       - backend
     environment:
-      - MISP_BASEURL=http://misp:80
+      - MISP_BASEURL=http://localhost:8080
       - MISP_ADMIN_EMAIL=admin@minisoc.local
       - MISP_ADMIN_PASSPHRASE=${MISP_ADMIN_PASSPHRASE:-ChangeMe2026!}
       - MYSQL_HOST=misp-db
@@ -517,7 +523,7 @@ services:
           memory: 2G
           cpus: "1.5"
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost/users/login || exit 1"]
+      test: ["CMD-SHELL", "pgrep php-fpm || exit 1"]
       interval: 30s
       timeout: 15s
       retries: 10
@@ -608,23 +614,28 @@ services:
   # CORTEX - Observable Analysis & Response
   # ============================================
   cortex:
-    image: thehiveproject/cortex:3.1.8
+    image: thehiveproject/cortex:latest
     container_name: minisoc-cortex
     restart: unless-stopped
     privileged: true
     dns:
       - 8.8.8.8
       - 1.1.1.1
+    extra_hosts:
+      - "raw.githubusercontent.com:185.199.108.133" 
     networks:
       - backend
     environment:
-      - JVM_OPTS=-Xms256m -Xmx512m -Dsearch.host.0=opensearch:9200
+      - JVM_OPTS=-Xms256m -Xmx512m -Dsearch.host.0=opensearch:9200 -Danalyzer.urls=["/tmp/analyzers.json"]
       - job_directory=/opt/cortex/jobs
-      
+      - "JAVA_OPTS=-Dcortex.analyzer.urls=[\"/tmp/analyzers.json\"]"
     volumes:
+      - ./analyzers.json:/tmp/analyzers.json:ro
       - cortex_data:/opt/cortex/data
       - ./security/cortex/application.conf:/etc/cortex/application.conf:ro
-      - /var/run/docker.sock:/var/run/docker.sock:rw
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /tmp/cortex-jobs:/tmp/cortex-jobs
+      - ./local-analyzers/analyzers:/opt/cortex/analyzers:ro
     ports:
       - "9001:9001"
     deploy:
@@ -657,15 +668,14 @@ services:
       - VAULT_ADDR=https://127.0.0.1:8200
       - VAULT_SKIP_VERIFY=true
     ports:
-      - "8200:8200"
-      - "8201:8201"
+      - "127.0.0.1:8200:8200"
+      - "127.0.0.1:8201:8201"
     volumes:
       - vault_data:/vault/data
       - ./infrastructure/vault/config/vault.hcl:/vault/config/vault.hcl:ro
       - ./infrastructure/vault/tls:/vault/tls:ro
       - ./infrastructure/vault/policies:/vault/policies:ro
     entrypoint: ["vault", "server", "-config=/vault/config/vault.hcl"]
-    command: server -config=/vault/config/vault.hcl
     deploy:
       resources:
         limits:
@@ -686,6 +696,9 @@ services:
     restart: unless-stopped
     networks:
       - backend
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     environment:
       - N8N_BASIC_AUTH_ACTIVE=true
       - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER:-admin}
@@ -695,7 +708,9 @@ services:
       - N8N_TEMPLATES_ENABLED=false
       - N8N_HOST=0.0.0.0
       - N8N_PORT=5678
-      - WEBHOOK_URL=https://soc.local/n8n/
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+      - WEBHOOK_URL=http://minisoc-n8n:5678/
+      - N8N_ENDPOINT_WEBHOOK=webhook
       - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-changeme}
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_HOST=postgres
@@ -706,6 +721,8 @@ services:
     volumes:
       - n8n_data:/home/node/.n8n
       - ./infrastructure/n8n/workflows:/home/node/workflows:ro
+    ports:
+      - "5678:5678"
     deploy:
       resources:
         limits:
@@ -729,7 +746,7 @@ services:
     container_name: minisoc-prometheus
     restart: unless-stopped
     ports:
-      - 9090:9090
+      - "9090:9090"
     networks:
       - monitoring
       - backend
@@ -760,14 +777,14 @@ services:
     container_name: minisoc-grafana
     restart: unless-stopped
     ports: 
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     networks:
       - monitoring
       - frontend
     environment:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-changeme}
-      - GF_SERVER_ROOT_URL=https://soc.local/grafana
+      - GF_SERVER_ROOT_URL=https://soc.local/grafana/
       - GF_SERVER_SERVE_FROM_SUB_PATH=true
     volumes:
       - grafana_data:/var/lib/grafana

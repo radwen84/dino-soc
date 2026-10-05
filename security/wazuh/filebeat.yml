@@ -1,0 +1,9 @@
+filebeat.inputs:
+  - type: log
+    enabled: false
+    paths:
+      - /dev/null
+
+output.file:
+  path: "/tmp"
+  filename: "filebeat-disabled.log"

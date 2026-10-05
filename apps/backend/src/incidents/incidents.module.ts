@@ -5,11 +5,20 @@ import { IncidentsController } from './incidents.controller';
 import { MlEngineService } from './ml-engine.service';
 import { TheHiveService } from './thehive.service';
 import { AuditModule } from '../audit/audit.module';
+import { IocModule } from '../ioc/ioc.module';
 
 @Module({
-  imports: [AuditModule, HttpModule],
+  imports: [
+    AuditModule, 
+    HttpModule, 
+    IocModule,
+  ],
   controllers: [IncidentsController],
-  providers: [IncidentsService, MlEngineService, TheHiveService],
+  providers: [
+    IncidentsService, 
+    MlEngineService, 
+    TheHiveService,
+  ],
   exports: [IncidentsService, TheHiveService],
 })
 export class IncidentsModule {}

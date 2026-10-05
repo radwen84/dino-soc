@@ -20,6 +20,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { Public } from '../common/decorators/public.decorator';
 import { CreatePlaybookDto, ExecutePlaybookDto } from './dto/create-playbook.dto';
 import { ApprovalDecisionDto } from './dto/approval.dto';
 
@@ -48,6 +49,7 @@ export class SoarController {
   }
 
   @Get('playbooks/:id')
+  @Public()
   @Roles('admin', 'analyst_l2', 'analyst_l3')
   getPlaybook(@Param('id', ParseUUIDPipe) id: string): Promise<Playbook> {
     return this.soarService.getPlaybook(id);
@@ -88,10 +90,25 @@ export class SoarController {
   // ─────────────────────────────────────────────────────────
 
   @Get('approvals')
+  @Public()
   @Roles('admin', 'analyst_l3', 'incident_responder')
   @ApiOperation({ summary: 'List pending approval requests' })
   getPendingApprovals(): Promise<PendingApproval[]> {
     return this.playbookEngine.getPendingApprovals();
+  }
+
+  @Public()
+  @Post('approvals')
+  @ApiOperation({ summary: 'Create a new pending approval request from n8n or external orchestration' })
+  @ApiResponse({ status: 201, description: 'Approval request created successfully' })
+  createApproval(@Body() body: any) {
+    return this.playbookEngine.createApproval({
+      action: body.action,
+      actionName: body.actionName,
+      target: body.target,
+      playbookName: body.playbookName,
+      reason: body.reason,
+    });
   }
 
   @Post('approvals/:id/decide')

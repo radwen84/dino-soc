@@ -22,14 +22,10 @@ route:
 receivers:
   - name: 'soc-critical'
     webhook_configs:
-      - url: 'http://nestjs-api:4000/api/webhooks/alertmanager'
+      - url: 'http://nestjs-api:4000/api/webhooks/prometheus'
         send_resolved: true
-    # email_configs:
-    #   - to: 'soc-team@minisoc.local'
-    #     from: 'alertmanager@minisoc.local'
 
   - name: 'soc-team'
     webhook_configs:
-      - url: 'http://nestjs-api:4000/api/webhooks/alertmanager'
+      - url: 'http://nestjs-api:4000/api/webhooks/prometheus'
         send_resolved: true
-

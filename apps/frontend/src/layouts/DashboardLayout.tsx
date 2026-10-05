@@ -10,6 +10,7 @@ import {
   HomeIcon,
   ExclamationTriangleIcon,
   BellAlertIcon,
+  BoltIcon, // <--- Import de l'icône BoltIcon pour le SOAR
   FingerPrintIcon,
   ServerStackIcon,
   GlobeAltIcon,
@@ -27,6 +28,7 @@ const navigation = [
   { name: "Dashboard", href: "/", icon: HomeIcon },
   { name: "Incidents", href: "/incidents", icon: ExclamationTriangleIcon },
   { name: "Alertes", href: "/alerts", icon: BellAlertIcon },
+  { name: "SOAR", href: "/soar", icon: BoltIcon }, // <--- Entrée SOAR ajoutée
   { name: "IOC", href: "/ioc", icon: FingerPrintIcon },
   { name: "Assets", href: "/assets", icon: ServerStackIcon },
   { name: "Threat Intel", href: "/threat-intel", icon: GlobeAltIcon },

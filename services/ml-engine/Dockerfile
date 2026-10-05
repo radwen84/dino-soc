@@ -30,6 +30,11 @@ RUN chown -R mluser:mluser /app
 USER mluser
 
 EXPOSE 8000
+EXPOSE 8888
+
+RUN chmod +x /app/entrypoint.sh
+
+ENTRYPOINT ["/app/entrypoint.sh"]
 
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
   CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"

@@ -55,6 +55,35 @@ export function ThreatIntelPage() {
     }
   };
 
+  // Helper pour extraire les noms de sources qu'il s'agisse d'un Tableau ou d'un Objet
+  const renderSources = (sources: any) => {
+    if (Array.isArray(sources)) {
+      return sources.length > 0 ? sources.join(", ") : "Aucune";
+    }
+    if (sources && typeof sources === "object") {
+      const keys = Object.keys(sources);
+      return keys.length > 0 ? keys.join(", ") : "Aucune";
+    }
+    return "Aucune";
+  };
+
+  // Détection du type d'IOC (Adresse IPv4)
+  const queryValue =
+    lookupMutation.data?.value || lookupMutation.data?.ioc || "";
+  const isIpAddress = /^(\d{1,3}\.){3}\d{1,3}$/.test(queryValue);
+
+  // Extraction des données AbuseIPDB pour les IP
+  const abuseipdbObj = lookupMutation.data?.sources?.abuseipdb;
+  const abuseData = abuseipdbObj?.data || abuseipdbObj;
+
+  const abuseScore =
+    abuseData?.abuseConfidenceScore ?? abuseData?.score ?? 0;
+  const abuseReports =
+    abuseData?.totalReports ?? abuseData?.reports ?? 0;
+
+  // Score global (OTX, MISP, etc.)
+  const globalConfidence = lookupMutation.data?.confidence ?? 0;
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
@@ -104,7 +133,7 @@ export function ThreatIntelPage() {
           <div className="mt-4 p-4 bg-soc-surface rounded-lg border border-soc-border">
             <div className="flex items-center justify-between mb-3">
               <span className="font-mono text-sm text-white">
-                {lookupMutation.data.value}
+                {lookupMutation.data.value || lookupMutation.data.ioc}
               </span>
               <span
                 className={clsx(
@@ -120,7 +149,7 @@ export function ThreatIntelPage() {
                           : "badge-info",
                 )}
               >
-                Risque: {lookupMutation.data.riskLevel}
+                Risque: {lookupMutation.data.riskLevel || "Inconnu"}
               </span>
             </div>
 
@@ -128,30 +157,45 @@ export function ThreatIntelPage() {
               <div>
                 <p className="text-soc-muted">IOC connu</p>
                 <p className="text-white">
-                  {lookupMutation.data.knownIoc ? "Oui ✓" : "Non"}
+                  {lookupMutation.data.knownIoc ||
+                  lookupMutation.data.localIocMatch
+                    ? "Oui ✓"
+                    : "Non"}
                 </p>
               </div>
               <div>
                 <p className="text-soc-muted">Sources</p>
                 <p className="text-white">
-                  {lookupMutation.data.sources?.join(", ") || "Aucune"}
+                  {renderSources(lookupMutation.data.sources)}
                 </p>
               </div>
-              {lookupMutation.data.abuseIpDb && (
+
+              {/* Affichage specifique pour les adresses IP */}
+              {isIpAddress && (
                 <>
                   <div>
                     <p className="text-soc-muted">AbuseIPDB Score</p>
-                    <p className="text-white">
-                      {lookupMutation.data.abuseIpDb.abuseConfidenceScore}%
+                    <p className="font-semibold text-white">
+                      {abuseScore}%
                     </p>
                   </div>
                   <div>
                     <p className="text-soc-muted">Signalements</p>
-                    <p className="text-white">
-                      {lookupMutation.data.abuseIpDb.totalReports}
+                    <p className="font-semibold text-white">
+                      {abuseReports}
                     </p>
                   </div>
                 </>
+              )}
+
+              {/* Affichage pour les Hashs et Domaines */}
+              {!isIpAddress && (
+                <div>
+                  <p className="text-soc-muted">Score de confiance global</p>
+                  <p className="font-semibold text-white">
+                    {globalConfidence}%
+                  </p>
+                </div>
               )}
             </div>
           </div>

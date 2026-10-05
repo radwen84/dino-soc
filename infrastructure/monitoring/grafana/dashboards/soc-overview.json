@@ -1,43 +1,94 @@
 {
-
   "title": "SOC Overview",
-
   "uid": "soc-overview",
-
   "editable": true,
-
   "timezone": "browser",
-
   "schemaVersion": 36,
-
-  "version": 1,
-
+  "version": 22,
   "panels": [
-
-    { "id": 1, "title": "Total Alerts", "type": "stat" },
-
-    { "id": 2, "title": "Active Incidents", "type": "stat" },
-
-    { "id": 3, "title": "Critical Alerts Rate", "type": "timeseries" },
-
-    { "id": 4, "title": "API Health", "type": "stat" },
-
-    { "id": 5, "title": "Wazuh Events Rate", "type": "timeseries" },
-
-    { "id": 6, "title": "Suricata Detections", "type": "timeseries" },
-
-    { "id": 7, "title": "Zeek Network Traffic", "type": "timeseries" },
-
-    { "id": 8, "title": "Falco Runtime Violations", "type": "timeseries" },
-
-    { "id": 9, "title": "SOAR Playbook Executions", "type": "stat" },
-
-    { "id": 10, "title": "ML Engine Predictions", "type": "timeseries" },
-
-    { "id": 11, "title": "Incident Resolution Time", "type": "timeseries" },
-
-    { "id": 12, "title": "Backend API Latency", "type": "timeseries" }
-
+    {
+      "id": 1,
+      "title": "Total HTTP Requests",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [{ "expr": "sum(http_requests_total{job=\"minisoc-backend\"}) or vector(0)", "refId": "A" }]
+    },
+    {
+      "id": 2,
+      "title": "Active Incidents",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [{ "expr": "active_incidents or vector(0)", "refId": "A" }]
+    },
+    {
+      "id": 3,
+      "title": "Incidents Created Total",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [{ "expr": "incidents_created_total or vector(0)", "refId": "A" }]
+    },
+    {
+      "id": 4,
+      "title": "API Health State",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [{ "expr": "up{job=\"minisoc-backend\"} or vector(0)", "refId": "A" }]
+    },
+    {
+      "id": 5,
+      "title": "Alerts Processed Total",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [{ "expr": "alerts_processed_total or vector(0)", "refId": "A" }]
+    },
+    {
+      "id": 6,
+      "title": "IOC Matches Total",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [{ "expr": "ioc_matches_total or vector(0)", "refId": "A" }]
+    },
+    {
+      "id": 7,
+      "title": "Connected WebSocket Users",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [{ "expr": "connected_users or vector(0)", "refId": "A" }]
+    },
+    {
+      "id": 8,
+      "title": "Auth Login Failures",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [{ "expr": "auth_login_failures_total or vector(0)", "refId": "A" }]
+    },
+    {
+      "id": 9,
+      "title": "SOAR Playbook Executions",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [{ "expr": "minisoc_soar_executions_total or vector(0)", "refId": "A" }]
+    },
+    {
+      "id": 10,
+      "title": "ML Engine Predictions",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [{ "expr": "minisoc_ml_predictions_total or vector(0)", "refId": "A" }]
+    },
+    {
+      "id": 11,
+      "title": "Auth Login Success Total",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [{ "expr": "auth_login_success_total or vector(0)", "refId": "A" }]
+    },
+    {
+      "id": 12,
+      "title": "Backend API Traffic Trends",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [{ "expr": "sum by (route) (http_requests_total{job=\"minisoc-backend\"})", "refId": "A" }]
+    }
   ]
-
 }

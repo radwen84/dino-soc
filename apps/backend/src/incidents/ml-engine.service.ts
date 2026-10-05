@@ -59,22 +59,20 @@ export class MlEngineService {
     srcIps?: string[];
     affectedAssets?: string[];
     alertCount?: number;
-    confidence?: number;
-    threatIntelScore?: number;
   }): Promise<RiskScoreResult | null> {
     try {
       const response = await fetch(`${this.baseUrl}/risk-score`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          severity: context.severity,
-          confidence: context.confidence ?? 80,
-          ioc_matches: context.srcIps?.length || 0,
+          severity: context.severity.toLowerCase(),
+          confidence: 80,
+          ioc_matches: 0,
           affected_assets: context.affectedAssets?.length || 1,
           asset_criticality: 'medium',
           mitre_techniques: context.mitreTechniques?.length || 0,
-          ueba_score: 0,
-          threat_intel_score: context.threatIntelScore ?? 0,
+          ueba_score: 0.0,
+          threat_intel_score: 0.0,
         }),
         signal: AbortSignal.timeout(5000), // 5s timeout
       });

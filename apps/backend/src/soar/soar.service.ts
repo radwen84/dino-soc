@@ -85,7 +85,37 @@ export class SoarService {
     const playbook = await this.getPlaybook(id);
     this.logger.log(`Manual execution of playbook: ${playbook.name} (dryRun=${dto.dryRun})`);
 
-    const result = await this.playbookEngine.executePlaybook(playbook, dto.testData, dto.dryRun);
+    // Payload de fallback si non fourni pour valider les filtres
+    const testData = {
+      level: 20,
+      severity: 'critical',
+      srcIp: '192.168.1.50',
+      ip: '192.168.1.50',
+      ...dto.testData,
+    };
+
+    // 1. Exécution par le moteur SOAR
+    const result = await this.playbookEngine.executePlaybook(playbook, testData, dto.dryRun);
+
+    // 2. Création de l'entrée dans la table d'approbation (modèle Approval)
+    const targetIp = testData.srcIp || testData.ip || '192.168.1.50';
+    
+    try {
+      await this.prisma.approval.create({
+        data: {
+          action: 'ISOLATE_HOST',
+          actionName: `Isolation Endpoint (${playbook.name})`,
+          target: targetIp,
+          status: 'pending',
+          playbookName: playbook.name,
+          reason: 'Déclenchement manuel SOAR',
+          createdById: userId,
+        },
+      });
+      this.logger.log(`Approval request created for playbook: ${playbook.name}`);
+    } catch (err) {
+      this.logger.warn(`Could not create approval record: ${err.message}`);
+    }
 
     await this.auditService.log('PLAYBOOK_MANUAL_EXEC', {
       userId,

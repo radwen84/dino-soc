@@ -1,36 +1,25 @@
 <!-- Mini-SOC Custom Rules -->
-<group name="minisoc">
+<group name="minisoc,">
 
   <!-- ==========================================
-       BRUTE FORCE DETECTION (MITRE T1110)
+       BRUTE FORCE DETECTION ON NESTJS API (MITRE T1110)
        ========================================== -->
-  <rule id="100100" level="12">
-    <if_matched_sid>5710</if_matched_sid>
-    <same_source_ip />
-    <check_if_ignored>yes</check_if_ignored>
-    <info>Multiple authentication failures from same source</info>
-    <description>Brute force attack detected: $(srcip)</description>
-    <mitre>
-      
-      <id>T1110.001</id>
-    </mitre>
-    <group>authentication_failures,brute_force</group>
-    <options>alert_by_email</options>
+  <!-- 1. Interception unitaire d'un echec 401 sur l'API -->
+  <rule id="100099" level="3">
+    <match>POST /api/auth/login - 401</match>
+    <description>NestJS API: Single failed login attempt</description>
   </rule>
 
-  <!-- ==========================================
-       PRIVILEGE ESCALATION (MITRE T1548)
-       ========================================== -->
-  <rule id="100110" level="13">
-    <if_sid>5401,5402</if_sid>
-    <match>sudo|su </match>
-    <user>^root$</user>
-    <description>Privilege escalation attempt: $(user) using $(data)</description>
+  <!-- 2. Alerte CRITIQUE (Niveau 12) déclenchée après 5 échecs en 60s -->
+  <rule id="100100" level="12" frequency="5" timeframe="60">
+    <if_matched_sid>100099</if_matched_sid>
+    <same_source_ip />
+    <info>Multiple API authentication failures from same IP</info>
+    <description>Brute force attack detected on NestJS Auth API</description>
     <mitre>
-      <id>T1548</id>
-      <id>T1548.003</id>
+      <id>T1110.001</id>
     </mitre>
-    <group>privilege_escalation,</group>
+    <group>authentication_failures,brute_force,</group>
   </rule>
 
   <!-- ==========================================
@@ -141,17 +130,29 @@
     </mitre>
     <group>crypto_mining,resource_hijacking,</group>
   </rule>
-<!-- ==========================================
-       SURICATA IDS ALERT DETECTION (MITRE T1071.001)
+
+  <!-- ==========================================
+       SURICATA IDS ALERT DETECTION (GENERIC)
        ========================================== -->
   <rule id="100200" level="10">
-    <decoded_as>json</decoded_as>
     <field name="event_type">^alert$</field>
-    <description>Suricata IDS Alert: $(event_type) - $(data.alert.signature)</description>
+    <description>MiniSOC - Suricata Alert: $(alert.signature)</description>
     <mitre>
       <id>T1071.001</id>
     </mitre>
     <group>suricata,ids_alert,</group>
+  </rule>
+
+  <!-- SURICATA SPECIFIC ALERTS (BRUTE FORCE & SQLi) -->
+  <rule id="100201" level="13">
+    <if_sid>86601</if_sid>
+    <field name="alert.signature_id">^1000050$|^1000051$|^1000052$</field>
+    <description>MiniSOC - High Critical Attack Detected: $(alert.signature)</description>
+    <mitre>
+      <id>T1190</id>
+      <id>T1110</id>
+    </mitre>
+    <group>web_attack,suricata_alert,</group>
   </rule>
 
 </group>

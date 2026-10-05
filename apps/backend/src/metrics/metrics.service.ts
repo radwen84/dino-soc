@@ -1,5 +1,6 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { collectDefaultMetrics, Registry, Counter, Histogram, Gauge } from 'prom-client';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class MetricsService implements OnModuleInit {
@@ -29,7 +30,7 @@ export class MetricsService implements OnModuleInit {
   public readonly activeAlerts: Gauge;
   public readonly connectedUsers: Gauge;
 
-  constructor() {
+  constructor(private readonly prisma: PrismaService) {
     this.httpRequestDuration = new Histogram({
       name: 'http_request_duration_seconds',
       help: 'HTTP request duration in seconds',
@@ -129,7 +130,103 @@ export class MetricsService implements OnModuleInit {
     collectDefaultMetrics({ register: this.registry });
   }
 
+  /**
+   * Synchronise les données PostgreSQL et initialise toutes les métriques
+   * avant chaque appel du scraper Prometheus
+   */
+  private async syncDatabaseMetrics(): Promise<void> {
+    try {
+      const severities = ['critical', 'high', 'medium', 'low', 'informational'];
+
+      // 1. Active Incidents (Gauge)
+      severities.forEach((sev) => this.activeIncidents.labels(sev).set(0));
+
+      const activeBySeverity = await this.prisma.incident.groupBy({
+        by: ['severity'],
+        _count: { id: true },
+        where: {
+          status: { notIn: ['closed', 'false_positive'] },
+          deletedAt: null,
+        },
+      });
+
+      let totalActive = 0;
+      for (const group of activeBySeverity) {
+        const count = group._count.id;
+        totalActive += count;
+        this.activeIncidents.labels(group.severity.toLowerCase()).set(count);
+      }
+      this.activeIncidents.labels('all').set(totalActive);
+
+      // 2. Incidents Created (Counter)
+      const totalBySeverity = await this.prisma.incident.groupBy({
+        by: ['severity'],
+        _count: { id: true },
+        where: { deletedAt: null },
+      });
+
+      this.incidentsCreated.reset();
+      let totalCreated = 0;
+      for (const group of totalBySeverity) {
+        const count = group._count.id;
+        totalCreated += count;
+        if (count > 0) {
+          this.incidentsCreated.labels(group.severity.toLowerCase()).inc(count);
+        }
+      }
+      if (totalCreated > 0) {
+        this.incidentsCreated.labels('all').inc(totalCreated);
+      } else {
+        this.incidentsCreated.labels('all').inc(0);
+      }
+
+      // 3. IOC Matches Total
+      const iocsCount = await this.prisma.iOC.count().catch(() => 0);
+      this.iocMatches.reset();
+      this.iocMatches.labels('ip').inc(iocsCount);
+      this.iocMatches.labels('domain').inc(0);
+      this.iocMatches.labels('hash').inc(0);
+
+      // 4. Active Alerts (filtre sur statut non résolu)
+      const alertsCount = await this.prisma.alert.count({
+        where: { status: { notIn: ['resolved'] } },
+      }).catch(() => 0);
+      this.activeAlerts.set(alertsCount);
+
+      // 5. Alerts Processed Total (Nombre total d'alertes en base)
+      const totalAlerts = await this.prisma.alert.count().catch(() => 0);
+      this.alertsProcessed.reset();
+      if (totalAlerts > 0) {
+        this.alertsProcessed.labels('suricata', 'processed').inc(totalAlerts);
+      } else {
+        this.alertsProcessed.labels('suricata', 'processed').inc(0);
+      }
+
+      // 6. Initialisation des métriques sans labels (Counters & Gauges)
+      if ((await this.authLoginFailures.get()).values.length === 0) {
+        this.authLoginFailures.inc(0);
+      }
+      if ((await this.authLoginSuccess.get()).values.length === 0) {
+        this.authLoginSuccess.inc(0);
+      }
+      if ((await this.mlAnomaliesTotal.get()).values.length === 0) {
+        this.mlAnomaliesTotal.inc(0);
+      }
+      if ((await this.connectedUsers.get()).values.length === 0) {
+        this.connectedUsers.set(0);
+      }
+
+      // 7. Initialisation des métriques avec labels
+      this.soarExecutionsTotal.labels('default', 'success').inc(0);
+      this.soarFailuresTotal.labels('default').inc(0);
+      this.mlPredictionsTotal.labels('risk_score').inc(0);
+    } catch {
+      // Ignorer l'erreur si la BDD est temporairement indisponible pour ne pas bloquer l'endpoint
+    }
+  }
+
   async getMetrics(): Promise<string> {
+    await this.syncDatabaseMetrics();
     return this.registry.metrics();
   }
 }

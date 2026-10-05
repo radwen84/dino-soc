@@ -149,12 +149,13 @@ export class ThreatIntelService {
     domain?: string;
   }): Promise<AlertEnrichmentResult> {
     const enrichments: AlertEnrichmentResult = {};
+    const data = alertData || {};
 
     // Run enrichments in parallel for all available IOCs
     const tasks: Array<{ key: keyof AlertEnrichmentResult; value: string }> = [];
-    if (alertData.srcIp) tasks.push({ key: 'srcIp', value: alertData.srcIp });
-    if (alertData.dstIp) tasks.push({ key: 'dstIp', value: alertData.dstIp });
-    if (alertData.domain) tasks.push({ key: 'domain', value: alertData.domain });
+    if (data.srcIp) tasks.push({ key: 'srcIp', value: data.srcIp });
+    if (data.dstIp) tasks.push({ key: 'dstIp', value: data.dstIp });
+    if (data.domain) tasks.push({ key: 'domain', value: data.domain });
 
     const results = await Promise.allSettled(tasks.map((t) => this.lookup(t.value)));
 

@@ -63,7 +63,7 @@ export class WazuhService {
           {
             auth: { username: user, password: password ?? '' },
             httpsAgent: new https.Agent({
-              rejectUnauthorized: nodeEnv === 'production',
+              rejectUnauthorized: false,
             }),
           },
         ),
@@ -93,7 +93,7 @@ export class WazuhService {
           data,
           headers: { Authorization: `Bearer ${token}` },
           httpsAgent: new https.Agent({
-            rejectUnauthorized: nodeEnv === 'production',
+            rejectUnauthorized: false,
           }),
         }),
       );

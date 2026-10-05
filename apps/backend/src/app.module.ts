@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
-import { PrometheusModule } from '@willsoto/nestjs-prometheus';
 import { ConfigModule } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { APP_INTERCEPTOR } from '@nestjs/core'; // <--- Ajouter ceci
 
 // Core modules
 import { PrismaModule } from './prisma/prisma.module';
@@ -21,6 +21,7 @@ import { ThreatIntelModule } from './threat-intel/threat-intel.module';
 import { ReportsModule } from './reports/reports.module';
 import { SoarModule } from './soar/soar.module';
 import { MetricsModule } from './metrics/metrics.module';
+import { MetricsInterceptor } from './metrics/metrics.interceptor'; // <--- Ajouter ceci
 
 // Infrastructure modules
 import { OpenSearchModule } from './opensearch/opensearch.module';
@@ -39,13 +40,6 @@ import { validate } from './config/env.validation';
       validate,
       expandVariables: true,
       envFilePath: [`.env.${process.env.NODE_ENV || 'development'}`, '.env'],
-    }),
-    // Exposition des métriques Prometheus
-    PrometheusModule.register({
-      path: '/metrics', // Sera automatiquement préfixé par /api si vous utilisez app.setGlobalPrefix('api') dans main.ts
-      defaultMetrics: {
-        enabled: true,
-      },
     }),
 
     // Event system
@@ -82,10 +76,18 @@ import { validate } from './config/env.validation';
     ReportsModule,
     SoarModule,
     MetricsModule,
+
     // Infrastructure
     OpenSearchModule,
     WazuhModule,
     WebsocketModule,
+  ],
+  providers: [
+    // Enregistre l'intercepteur HTTP globalement pour capter toutes les requêtes
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: MetricsInterceptor,
+    },
   ],
 })
 export class AppModule {}
